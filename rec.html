@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindowCast — Screen Recorder</title>
+<style>
+:root{color-scheme:dark;--bg:#090d18;--panel:#111a2b;--panel2:#172238;--line:#263651;--text:#edf3ff;--muted:#91a1bd;--accent:#7c5cff;--cyan:#42d9d0;--red:#ff5574}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% 0%,#1b2450 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,Segoe UI,Arial}
+.wrap{width:min(1100px,calc(100% - 32px));margin:42px auto}.top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}.brand{display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#28c9d1);display:grid;place-items:center;font-size:22px;box-shadow:0 8px 30px #6650ff55}.brand h1{font-size:21px;margin:0;letter-spacing:-.5px}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.status{border:1px solid var(--line);border-radius:99px;padding:7px 12px;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px}.dot{width:8px;height:8px;border-radius:50%;background:#7e8da8}.dot.live{background:var(--red);box-shadow:0 0 12px var(--red)}
+.grid{display:grid;grid-template-columns:1.35fr .8fr;gap:18px}.panel{background:linear-gradient(160deg,#141e32,#0f1727);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 18px 50px #0003}.preview-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.preview-head h2,.panel h2{font-size:15px;margin:0}.tag{font-size:11px;color:var(--cyan);background:#42d9d012;border:1px solid #42d9d033;padding:4px 8px;border-radius:7px}.screen{background:#050812;border:1px solid #28344b;border-radius:14px;aspect-ratio:16/9;display:grid;place-items:center;overflow:hidden;position:relative}.screen video{width:100%;height:100%;object-fit:contain;display:none}.placeholder{text-align:center;color:var(--muted);padding:20px}.placeholder .big{font-size:38px;margin-bottom:8px}.placeholder strong{display:block;color:#dce6fa;font-size:14px}.placeholder span{font-size:12px}.controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:17px}.btn{border:1px solid var(--line);border-radius:11px;padding:11px 15px;color:var(--text);background:var(--panel2);font-weight:650;cursor:pointer;transition:.15s}.btn:hover:not(:disabled){transform:translateY(-1px);border-color:#687da5}.btn:disabled{opacity:.4;cursor:not-allowed}.primary{background:linear-gradient(120deg,#765bff,#5145d8);border:0}.stop{background:#401d2a;border-color:#713044;color:#ffb3c1}.download{background:#123b39;border-color:#23645f;color:#9af5e9}.side{display:flex;flex-direction:column;gap:18px}.setting{margin-top:18px}.setting label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}.select,.field{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1322;color:var(--text);outline:none}.hint{font-size:11px;color:var(--muted);margin:7px 0 0}.meter{height:7px;background:#202c42;border-radius:20px;overflow:hidden;margin-top:10px}.meter div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--cyan));transition:width .2s}.record-info{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:10px}.timer{font-variant-numeric:tabular-nums;color:#fff;font-size:22px;font-weight:700;margin-top:5px}.filebox{border:1px dashed #354663;border-radius:12px;padding:14px;margin-top:15px;color:var(--muted);font-size:12px}.filebox strong{color:var(--text);display:block;margin-bottom:3px}.notice{margin-top:18px;padding:12px 14px;border-radius:12px;background:#18243a;color:#b7c6df;font-size:12px;border:1px solid #2b3b59}.notice b{color:#e6edff}.footer{text-align:center;color:#667792;font-size:11px;margin:22px 0}@media(max-width:780px){.grid{grid-template-columns:1fr}.wrap{margin:24px auto}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><div class="logo">◉</div><div><h1>WindowCast</h1><p>Capture a tab, window, or your screen.</p></div></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">Ready to record</span></div>
+  </header>
+  <main class="grid">
+    <section class="panel">
+      <div class="preview-head"><h2>Live preview</h2><span class="tag" id="formatTag">OUTPUT · MP4 if supported</span></div>
+      <div class="screen">
+        <video id="preview" autoplay muted playsinline></video>
+        <div class="placeholder" id="placeholder"><div class="big">▣</div><strong>Your recording preview will appear here</strong><span>Choose what to share, then start recording.</span></div>
+      </div>
+      <div class="controls">
+        <button class="btn primary" id="chooseBtn">Choose window / tab</button>
+        <button class="btn primary" id="startBtn" disabled>● Start recording</button>
+        <button class="btn stop" id="stopBtn" disabled>■ Stop</button>
+        <button class="btn download" id="downloadBtn" disabled>↓ Download video</button>
+      </div>
+      <div class="record-info"><span id="recordState">No recording in progress</span><span id="duration">00:00</span></div>
+      <div class="meter"><div id="meterFill"></div></div>
+      <div class="notice"><b>Browser permission:</b> When the browser's sharing dialog appears, select a browser tab, application window, or entire screen. The browser controls that chooser for security reasons.</div>
+    </section>
+    <aside class="side">
+      <section class="panel">
+        <h2>Recording settings</h2>
+        <div class="setting"><label for="quality">Video quality</label><select class="select" id="quality"><option value="2500000">Standard · 2.5 Mbps</option><option value="5000000" selected>High · 5 Mbps</option><option value="8000000">Very high · 8 Mbps</option></select></div>
+        <div class="setting"><label for="audio">Audio capture</label><select class="select" id="audio"><option value="system" selected>Include shared tab / system audio (if available)</option><option value="silent">Video only</option></select><p class="hint">Audio availability depends on the browser and what you choose to share.</p></div>
+        <div class="setting"><label>Export format</label><div class="filebox"><strong id="formatName">Checking browser support…</strong><span id="formatHelp">The browser decides which recording formats it can encode.</span></div></div>
+      </section>
+      <section class="panel">
+        <h2>Latest recording</h2>
+        <div class="timer" id="timer">00:00</div>
+        <p class="hint" id="fileDetails">Your finished video details will show here.</p>
+        <div class="filebox"><strong>Privacy note</strong><span>Recording happens locally in your browser. Nothing is uploaded to a server by this page.</span></div>
+      </section>
+    </aside>
+  </main>
+  <div class="footer">WindowCast · A local browser-based recorder</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const preview=$('preview'), placeholder=$('placeholder');
+let stream=null, recorder=null, chunks=[], recordingUrl=null, startedAt=0, timerInterval=null, elapsed=0, chosenMime='';
+const candidates=['video/mp4;codecs="avc1.42E01E,mp4a.40.2"','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+function supportedMime(){if(!window.MediaRecorder)return '';return candidates.find(t=>MediaRecorder.isTypeSupported(t))||''}
+function setStatus(text,live=false){$('status').textContent=text;$('dot').classList.toggle('live',live)}
+function clock(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function updateFormat(){chosenMime=supportedMime();const mp4=chosenMime.includes('mp4');$('formatName').textContent=chosenMime?(mp4?'MP4 video':'WebM video'):'Recording unavailable';$('formatHelp').textContent=mp4?'This browser can record directly to MP4.':'This browser does not expose MP4 recording. It will save WebM instead; rename the file to .mp4 will NOT convert it.';$('formatTag').textContent=chosenMime?(mp4?'OUTPUT · MP4':'OUTPUT · WEBM'):'NO RECORDER SUPPORT'}
+updateFormat();
+$('chooseBtn').addEventListener('click',async()=>{
+ if(!navigator.mediaDevices?.getDisplayMedia){alert('Screen capture is not available in this browser. Try a recent Chrome, Edge, or Firefox browser over HTTPS or localhost.');return}
+ try{
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:$('audio').value==='system'});
+  preview.srcObject=stream;preview.style.display='block';placeholder.style.display='none';
+  $('startBtn').disabled=!window.MediaRecorder||!supportedMime();$('recordState').textContent='Source selected and ready';
+  setStatus('Source selected');
+  stream.getVideoTracks()[0].addEventListener('ended',()=>{if(recorder&&recorder.state==='recording')stopRecording();else{ $('startBtn').disabled=true;setStatus('Sharing stopped');}});
+ }catch(e){if(e.name!=='NotAllowedError')alert('Could not select a source: '+e.message);setStatus('Ready to record')}
+});
+$('startBtn').addEventListener('click',()=>{
+ if(!stream||!chosenMime)return;
+ chunks=[];if(recordingUrl){URL.revokeObjectURL(recordingUrl);recordingUrl=null}
+ try{
+  recorder=new MediaRecorder(stream,{mimeType:chosenMime,videoBitsPerSecond:Number($('quality').value)});
+  recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  recorder.onstop=finishRecording;recorder.start(1000);startedAt=Date.now();elapsed=0;
+  $('startBtn').disabled=true;$('chooseBtn').disabled=true;$('stopBtn').disabled=false;$('downloadBtn').disabled=true;
+  $('recordState').textContent='Recording in progress';setStatus('Recording',true);
+  timerInterval=setInterval(()=>{elapsed=Date.now()-startedAt;$('duration').textContent=clock(elapsed);$('timer').textContent=clock(elapsed);$('meterFill').style.width=(Math.min(100,(elapsed/60000)*100))+'%'},250);
+ }catch(e){alert('Could not start recording: '+e.message)}
+});
+function stopRecording(){if(recorder&&recorder.state!=='inactive')recorder.stop();$('stopBtn').disabled=true;clearInterval(timerInterval);elapsed=Date.now()-startedAt;$('duration').textContent=clock(elapsed);$('timer').textContent=clock(elapsed);$('recordState').textContent='Finishing video…';setStatus('Finishing')}
+$('stopBtn').addEventListener('click',stopRecording);
+function finishRecording(){
+ const type=recorder.mimeType||chosenMime||'video/webm';const blob=new Blob(chunks,{type});
+ recordingUrl=URL.createObjectURL(blob);const ext=type.includes('mp4')?'mp4':'webm';
+ $('downloadBtn').disabled=false;$('startBtn').disabled=!stream||!stream.active;$('chooseBtn').disabled=false;
+ $('recordState').textContent='Recording ready to download';$('fileDetails').textContent=`${ext.toUpperCase()} · ${(blob.size/1024/1024).toFixed(2)} MB · ${clock(elapsed)}`;
+ $('downloadBtn').dataset.ext=ext;setStatus('Recording saved locally');
+}
+$('downloadBtn').addEventListener('click',()=>{
+ if(!recordingUrl)return;const a=document.createElement('a');a.href=recordingUrl;a.download='windowcast-recording-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+$('downloadBtn').dataset.ext;document.body.appendChild(a);a.click();a.remove();
+});
+window.addEventListener('beforeunload',()=>{if(stream)stream.getTracks().forEach(t=>t.stop());if(recordingUrl)URL.revokeObjectURL(recordingUrl)});
+</script>
+</body>
+</html>
