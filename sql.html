@@ -1,0 +1,2614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Live-Coding Tutorial Simulator — SQL</title>
+<!-- Prism.js for syntax highlighting (loaded from CDN) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<style>
+/* ============================================================
+   VS CODE DARK+ SQL TUTORIAL SIMULATOR
+   Single-file application — Prism.js syntax highlighting
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #1e1e1e; color: #d4d4d4; font-size: 13px;
+  user-select: none; -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --vs-editor: #1e1e1e;
+  --vs-sidebar: #252526;
+  --vs-activity: #333333;
+  --vs-statusbar: #007acc;
+  --vs-tab-active: #1e1e1e;
+  --vs-tab-inactive: #2d2d2d;
+  --vs-border: #3c3c3c;
+  --vs-titlebar: #3c3c3c;
+  --vs-text: #d4d4d4;
+  --vs-muted: #858585;
+  --vs-line-active: rgba(255,255,255,0.06);
+  --vs-line-num: #858585;
+  --vs-line-num-active: #c6c6c6;
+  --vs-cursor: #aeafad;
+  --vs-terminal: #1e1e1e;
+  --sql-accent: #f29111;
+  --sql-blue: #336791;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--vs-editor); }
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  height: 30px; background: var(--vs-titlebar); display: flex; align-items: center;
+  font-size: 12px; color: #cccccc; flex-shrink: 0;
+}
+.titlebar-left, .titlebar-right { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.titlebar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.tb-menu-item { padding: 4px 8px; border-radius: 3px; cursor: default; }
+.tb-menu-item:hover { background: rgba(255,255,255,0.08); }
+.tb-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.tb-dot.red { background: #ff5f57; }
+.tb-dot.yellow { background: #febc2e; }
+.tb-dot.green { background: #28c840; }
+.tb-title { color: #cccccc; font-size: 12px; }
+
+/* ---------- Main body ---------- */
+.main-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ---------- Activity bar ---------- */
+.activity-bar {
+  width: 48px; background: var(--vs-activity); display: flex; flex-direction: column;
+  align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0;
+}
+.activity-icon {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  color: #858585; cursor: pointer; position: relative; transition: color .15s;
+}
+.activity-icon:hover { color: #fff; }
+.activity-icon.active { color: #fff; }
+.activity-icon.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.activity-icon svg { width: 24px; height: 24px; }
+.activity-spacer { flex: 1; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; background: var(--vs-sidebar); display: flex; flex-direction: column;
+  flex-shrink: 0; transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 0; }
+.sidebar-header {
+  height: 35px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font-size: 11px; letter-spacing: 0.5px; color: #bbbbbb;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.sidebar-header-actions { display: flex; gap: 6px; color: #858585; }
+.sidebar-header-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.sidebar-header-actions svg:hover { color: #fff; }
+.explorer { flex: 1; overflow-y: auto; font-size: 13px; padding-bottom: 12px; }
+.explorer-project { padding: 4px 14px; color: #cccccc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.tree-node {
+  display: flex; align-items: center; height: 22px; padding: 0 8px; cursor: pointer;
+  color: #cccccc; white-space: nowrap; position: relative;
+}
+.tree-node:hover { background: rgba(255,255,255,0.05); }
+.tree-node.active { background: #37373d; }
+.tree-chevron { width: 12px; display: inline-flex; align-items: center; justify-content: center; color: #858585; }
+.tree-chevron svg { width: 10px; height: 10px; transition: transform .15s; }
+.tree-chevron.collapsed svg { transform: rotate(-90deg); }
+.tree-icon { width: 16px; height: 16px; margin-right: 6px; flex-shrink: 0; }
+.tree-label { font-size: 13px; }
+
+/* ---------- Editor + Terminal split ---------- */
+.editor-area {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--vs-editor);
+}
+.tab-bar {
+  height: 35px; background: var(--vs-sidebar); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--vs-border); flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--vs-tab-inactive); color: #969696; border-right: 1px solid #252526;
+  font-size: 13px; cursor: pointer; white-space: nowrap; position: relative; min-width: 120px;
+}
+.tab.active { background: var(--vs-tab-active); color: #fff; }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #fff; }
+.tab-icon { width: 16px; height: 16px; }
+.tab-modified { width: 8px; height: 8px; border-radius: 50%; background: #c5c5c5; margin-left: auto; }
+.tab-modified.hidden { display: none; }
+.tab-close { color: #858585; opacity: 0; transition: opacity .1s; margin-left: 4px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+
+.editor-breadcrumbs {
+  height: 22px; background: var(--vs-editor); display: flex; align-items: center;
+  padding: 0 14px; font-size: 12px; color: #858585; border-bottom: 1px solid #252526; flex-shrink: 0; gap: 4px;
+}
+.editor-breadcrumbs svg { width: 12px; height: 12px; }
+.crumb-sep { color: #5a5a5a; }
+
+/* Editor takes top portion, terminal takes bottom */
+.editor-terminal-split {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.editor-scroll {
+  flex: 1; overflow: auto; position: relative; background: var(--vs-editor);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 14px; line-height: 19px; min-height: 0;
+}
+.editor-content { position: relative; min-width: 100%; min-height: 100%; padding: 8px 0 200px 0; }
+.line {
+  display: flex; align-items: flex-start; height: 19px; white-space: pre; position: relative;
+}
+.line.active-line { background: var(--vs-line-active); }
+.line-num {
+  width: 60px; text-align: right; padding-right: 16px; color: var(--vs-line-num);
+  user-select: none; flex-shrink: 0; font-size: 13px;
+}
+.line.active-line .line-num { color: var(--vs-line-num-active); }
+.line-code { position: relative; white-space: pre; flex: 1; padding-right: 14px; }
+.cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--vs-cursor);
+  vertical-align: text-bottom; margin-left: -1px; animation: blink 1s steps(1) infinite;
+  position: relative; top: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Prism override: token spans inherit our font */
+.line-code code, .line-code pre { background: transparent !important; font-family: inherit !important; font-size: inherit !important; padding: 0 !important; margin: 0 !important; }
+.line-code .token { background: transparent !important; }
+
+/* Autocomplete */
+.autocomplete {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  min-width: 260px; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 50; display: none; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+}
+.autocomplete.visible { display: block; }
+.ac-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; color: #cccccc;
+}
+.ac-item.selected { background: #04395e; }
+.ac-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ac-label { flex: 1; }
+.ac-detail { color: #858585; font-size: 11px; }
+.suggestion-doc {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  padding: 8px 12px; font-size: 12px; color: #cccccc; max-width: 320px; z-index: 60;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.suggestion-doc.visible { display: block; }
+
+/* ---------- Terminal panel ---------- */
+.terminal-panel {
+  height: 220px; min-height: 80px; background: var(--vs-terminal); border-top: 1px solid var(--vs-border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.terminal-header {
+  height: 30px; background: #252526; display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #cccccc;
+  border-bottom: 1px solid #1a1a1a; gap: 14px; flex-shrink: 0;
+}
+.terminal-tab { padding: 3px 8px; border-radius: 3px; cursor: pointer; color: #858585; }
+.terminal-tab.active { color: #fff; background: rgba(255,255,255,0.08); }
+.terminal-tab.active::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #f29111; margin-right: 6px; vertical-align: middle; }
+.terminal-actions { margin-left: auto; display: flex; gap: 8px; color: #858585; }
+.terminal-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.terminal-actions svg:hover { color: #fff; }
+.terminal-body {
+  flex: 1; overflow-y: auto; padding: 6px 12px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px; line-height: 18px; color: #cccccc;
+}
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-prompt { color: #f29111; }
+.term-prompt-path { color: #9cdcfe; }
+.term-cmd { color: #d4d4d4; }
+.term-output { color: #cccccc; }
+.term-error { color: #f48771; }
+.term-success { color: #6a9955; }
+.term-info { color: #569cd6; }
+.term-cursor {
+  display: inline-block; width: 7px; height: 15px; background: #aeafad; vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite; margin-left: 2px;
+}
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  height: 22px; background: var(--vs-statusbar); display: flex; align-items: center;
+  color: #fff; font-size: 12px; padding: 0 8px; gap: 14px; flex-shrink: 0;
+}
+.statusbar-item { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.statusbar-item svg { width: 14px; height: 14px; }
+.statusbar-spacer { flex: 1; }
+.statusbar-remote { background: #007acc; }
+
+/* ============================================================
+   PREVIEW / RESULTS PANEL (right side, ~40%)
+   Shows SQL query results as HTML tables or messages
+   ============================================================ */
+.preview-area {
+  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  border-left: 1px solid var(--vs-border); flex-shrink: 0;
+}
+.preview-header {
+  height: 35px; background: #ececec; display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  border-bottom: 1px solid #d0d0d0; flex-shrink: 0;
+}
+.preview-title {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #555;
+}
+.preview-title svg { width: 16px; height: 16px; color: var(--sql-blue); }
+.preview-tabs { display: flex; gap: 4px; margin-left: auto; }
+.preview-tab {
+  padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; color: #555; background: transparent; border: 1px solid transparent;
+}
+.preview-tab.active { background: #fff; border-color: #d0d0d0; color: #007acc; font-weight: 600; }
+.preview-viewport {
+  flex: 1; position: relative; background: #fff; overflow: hidden;
+}
+.preview-iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+.preview-loading-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: none;
+  align-items: center; justify-content: center; z-index: 5;
+}
+.preview-loading-overlay.visible { display: flex; }
+.preview-loading-overlay .spinner {
+  width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: var(--sql-blue); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-indicator {
+  font-size: 11px; color: #555; opacity: 0; transition: opacity .3s; padding: 0 6px; display: flex; align-items: center; gap: 4px;
+}
+.run-indicator.visible { opacity: 1; }
+.run-indicator svg { width: 12px; height: 12px; }
+.run-indicator.running svg { animation: spin 0.8s linear infinite; }
+
+/* ============================================================
+   SIMULATED MOUSE CURSOR
+   ============================================================ */
+.fake-cursor {
+  position: fixed; width: 22px; height: 22px; z-index: 9999; pointer-events: none;
+  transform: translate(-2px, -2px); transition: left .25s cubic-bezier(.4,0,.2,1), top .25s cubic-bezier(.4,0,.2,1), opacity .2s; opacity: 0;
+}
+.fake-cursor.visible { opacity: 1; }
+.fake-cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.fake-cursor.clicking { animation: clickPulse .25s ease; }
+@keyframes clickPulse { 0% { transform: translate(-2px,-2px) scale(1); } 50% { transform: translate(-2px,-2px) scale(0.75); } 100% { transform: translate(-2px,-2px) scale(1); } }
+.fake-cursor-ring { position: fixed; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; z-index: 9998; pointer-events: none; opacity: 0; transition: opacity .2s; }
+
+/* ============================================================
+   VISUAL OVERLAYS
+   ============================================================ */
+.overlay-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+.overlay-arrow { position: absolute; pointer-events: none; transition: opacity .3s; }
+.overlay-arrow.fade-out { opacity: 0; }
+.overlay-circle {
+  position: absolute; border: 2px solid #ffcc00; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.4); animation: pulseCircle 1.4s ease-in-out infinite;
+}
+@keyframes pulseCircle { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
+.overlay-highlight {
+  position: absolute; background: rgba(255, 204, 0, 0.18); border: 1px solid rgba(255,204,0,0.7);
+  border-radius: 3px; pointer-events: none; box-shadow: 0 0 14px rgba(255,204,0,0.35); animation: highlightPulse 1.4s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100% { box-shadow: 0 0 14px rgba(255,204,0,0.35); } 50% { box-shadow: 0 0 22px rgba(255,204,0,0.6); } }
+.overlay-label {
+  position: absolute; background: rgba(40,40,40,0.95); color: #ffcc00; padding: 5px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,204,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 260px;
+}
+.pointer-trail { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,204,0,0.6); pointer-events: none; z-index: 8999; }
+
+/* ============================================================
+   FLOATING CARDS
+   ============================================================ */
+.card-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9500; display: none;
+  align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s;
+}
+.card-overlay.visible { display: flex; opacity: 1; }
+.info-card {
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 18px; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); color: #d4d4d4; font-size: 13px; transform: scale(0.92);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.card-overlay.visible .info-card { transform: scale(1); }
+.info-card img, .info-card svg { width: 100%; max-height: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+.info-card h3 { color: #fff; font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+.info-card p { color: #cccccc; line-height: 1.5; }
+.code-card { font-family: "SF Mono", Menlo, monospace; }
+.code-card pre {
+  background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 10px; color: #d4d4d4;
+  font-size: 12px; overflow-x: auto; margin: 6px 0; white-space: pre;
+}
+.code-card .code-caption { color: #9cdcfe; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.code-card .code-output { color: #6a9955; font-size: 11px; font-style: italic; margin-top: 4px; }
+
+/* ============================================================
+   CHAPTER TRANSITION
+   ============================================================ */
+.chapter-transition {
+  position: fixed; inset: 0; background: #fff; z-index: 9700; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .35s;
+}
+.chapter-transition.visible { display: flex; opacity: 1; }
+.chapter-transition .ch-content { text-align: center; color: #000; padding: 40px; }
+.chapter-transition .ch-number { font-size: 18px; letter-spacing: 8px; color: #888; font-weight: 600; margin-bottom: 18px; text-transform: uppercase; }
+.chapter-transition .ch-title { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; text-transform: uppercase; }
+.chapter-transition .ch-bar { width: 60px; height: 4px; background: #000; margin: 24px auto 0; }
+.chapter-transition .ch-sql-logo { margin-bottom: 18px; }
+.chapter-transition .ch-sql-logo svg { width: 80px; height: 80px; }
+
+/* ============================================================
+   CAPTIONS
+   ============================================================ */
+.captions-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.78);
+  color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 16px; max-width: 70%; text-align: center;
+  z-index: 8500; display: none; pointer-events: none; line-height: 1.4;
+}
+.captions-bar.visible { display: block; }
+.captions-bar.hidden { display: none !important; }
+
+/* ============================================================
+   LIKE & SUBSCRIBE
+   ============================================================ */
+.subscribe-overlay {
+  position: fixed; top: 80px; right: 60px; z-index: 9600; display: none; flex-direction: column; gap: 10px;
+  align-items: flex-end; opacity: 0; transition: opacity .3s, transform .3s; transform: translateY(-10px);
+}
+.subscribe-overlay.visible { display: flex; opacity: 1; transform: translateY(0); }
+.sub-btn-row { display: flex; gap: 10px; align-items: center; }
+.yt-like { display: flex; align-items: center; gap: 6px; background: #fff; color: #0f0f0f; border: none; border-radius: 18px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.yt-like svg { width: 20px; height: 20px; }
+.yt-like.clicked { background: #065fd4; color: #fff; animation: btnClick .4s; }
+.yt-subscribe { display: flex; align-items: center; gap: 6px; background: #ff0000; color: #fff; border: none; border-radius: 18px; padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.yt-subscribe.clicked { background: #1c1c1c; animation: btnClick .4s; }
+.yt-subscribe.clicked::after { content: ' \2714'; }
+.yt-bell { background: #fff; color: #0f0f0f; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.yt-bell svg { width: 22px; height: 22px; }
+.yt-bell.clicked { animation: bellRing .6s ease; }
+@keyframes btnClick { 0% { transform: scale(1); } 50% { transform: scale(0.88); } 100% { transform: scale(1); } }
+@keyframes bellRing { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+.control-panel {
+  position: fixed; top: 50px; right: 16px; width: 320px; background: rgba(30,30,30,0.96);
+  border: 1px solid #3c3c3c; border-radius: 8px; z-index: 9800; box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  font-size: 12px; color: #d4d4d4; max-height: calc(100vh - 80px); overflow-y: auto;
+  transition: transform .25s, opacity .25s;
+}
+.control-panel.hidden { transform: translateX(340px); opacity: 0; pointer-events: none; }
+.cp-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  background: #252526; border-bottom: 1px solid #3c3c3c; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 1;
+}
+.cp-title { font-weight: 600; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.cp-title svg { width: 16px; height: 16px; color: var(--sql-blue); }
+.cp-collapse { background: transparent; border: none; color: #858585; cursor: pointer; padding: 2px; border-radius: 3px; }
+.cp-collapse:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cp-collapse svg { width: 14px; height: 14px; }
+.cp-section { padding: 12px 14px; border-bottom: 1px solid #2a2a2a; }
+.cp-section:last-child { border-bottom: none; }
+.cp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #858585; margin-bottom: 8px; font-weight: 600; }
+.cp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cp-row:last-child { margin-bottom: 0; }
+.cp-row label { flex: 1; color: #cccccc; font-size: 12px; }
+.cp-row input[type="range"] { width: 100px; accent-color: #007acc; }
+.cp-row input[type="text"], .cp-row select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; }
+.cp-row input[type="checkbox"] { accent-color: #007acc; width: 14px; height: 14px; }
+.cp-row .val-badge { background: #3c3c3c; color: #d4d4d4; border-radius: 3px; padding: 1px 6px; font-size: 11px; min-width: 32px; text-align: center; }
+.cp-btn { background: #0e639c; color: #fff; border: none; padding: 6px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.cp-btn:hover { background: #1177bb; }
+.cp-btn.secondary { background: #3a3d41; }
+.cp-btn.secondary:hover { background: #45494e; }
+.cp-btn.danger { background: #5a1d1d; }
+.cp-btn.danger:hover { background: #6e2424; }
+.cp-btn svg { width: 12px; height: 12px; }
+.cp-btn-row { display: flex; gap: 6px; }
+.cp-btn-row .cp-btn { flex: 1; }
+.cp-progress-section { padding: 10px 14px; background: #252526; }
+.cp-progress-bar { height: 6px; background: #3c3c3c; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.cp-progress-fill { height: 100%; background: linear-gradient(90deg, #336791, #f29111); width: 0%; transition: width .3s; }
+.cp-time-display { display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-top: 4px; }
+.cp-chapter-display { font-size: 11px; color: #9cdcfe; margin-top: 4px; }
+.cp-rec-indicator { display: inline-flex; align-items: center; gap: 4px; color: #ff5252; font-size: 11px; font-weight: 600; }
+.cp-rec-indicator .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5252; animation: recBlink 1.2s infinite; }
+@keyframes recBlink { 50% { opacity: 0.3; } }
+
+.show-controls-btn {
+  position: fixed; top: 50px; right: 16px; width: 36px; height: 36px; background: rgba(30,30,30,0.95);
+  border: 1px solid #3c3c3c; border-radius: 50%; color: #fff; z-index: 9800; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.show-controls-btn.visible { display: flex; }
+.show-controls-btn:hover { background: #3a3d41; }
+.show-controls-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-screen {
+  position: fixed; inset: 0; background: #1e1e1e; z-index: 9990; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 30px; transition: opacity .4s;
+}
+.start-screen.hidden { opacity: 0; pointer-events: none; }
+.start-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 40px;
+  max-width: 640px; width: 100%; box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+}
+.start-card h1 {
+  color: #fff; font-size: 26px; margin-bottom: 6px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.start-card h1 .sql-badge { background: #336791; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.start-card .subtitle { color: #858585; margin-bottom: 24px; font-size: 13px; }
+.start-card .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 24px; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 11px; color: #858585; text-transform: uppercase; letter-spacing: .5px; }
+.config-field input, .config-field select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 3px; font-size: 13px; outline: none; }
+.config-field input:focus, .config-field select:focus { border-color: #336791; }
+.config-field.full { grid-column: 1 / -1; }
+.start-btn {
+  width: 100%; background: #336791; color: #fff; border: none; padding: 14px; border-radius: 6px;
+  font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 10px; transition: background .15s;
+}
+.start-btn:hover { background: #3d77a3; }
+.start-btn svg { width: 20px; height: 20px; }
+.start-hint { color: #858585; font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+.start-hint kbd { background: #3c3c3c; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 11px; color: #d4d4d4; font-family: inherit; }
+
+/* ============================================================
+   FINISH SCREEN
+   ============================================================ */
+.finish-screen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9850; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .4s;
+}
+.finish-screen.visible { display: flex; opacity: 1; }
+.finish-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 44px;
+  max-width: 460px; text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.finish-card .check-circle { width: 64px; height: 64px; background: #107c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.finish-card .check-circle svg { width: 36px; height: 36px; color: #fff; }
+.finish-card h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+.finish-card p { color: #cccccc; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.finish-card .stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.finish-card .stat { text-align: center; }
+.finish-card .stat-val { color: #336791; font-size: 22px; font-weight: 700; }
+.finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="tb-dot red"></span><span class="tb-dot yellow"></span><span class="tb-dot green"></span>
+    </div>
+    <div class="titlebar-center">
+      <span class="tb-menu-item">File</span><span class="tb-menu-item">Edit</span><span class="tb-menu-item">Selection</span>
+      <span class="tb-menu-item">View</span><span class="tb-menu-item">Go</span><span class="tb-menu-item">Run</span>
+      <span class="tb-menu-item">Terminal</span><span class="tb-menu-item">Help</span>
+    </div>
+    <div class="titlebar-right"><span class="tb-title">sql-tutorial — Visual Studio Code</span></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="main-body">
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></div>
+      <div class="activity-icon" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="activity-icon" title="Source Control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0.5"/></svg></div>
+      <div class="activity-icon" title="Extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 3l3 3-3 3M11 21l-3-3 3-3M3 11h7M21 13h-7M7 7l3 3M17 17l-3-3"/></svg></div>
+      <div class="activity-spacer"></div>
+      <div class="activity-icon" title="Database"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+      <div class="activity-icon" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <div class="sidebar-header-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="explorer-project">SQL-Tutorial</div>
+        <div class="file-tree" id="file-tree">
+          <div class="tree-node" data-folder="migrations">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">migrations</span>
+          </div>
+          <div class="tree-node" data-folder="data">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">data</span>
+          </div>
+          <div class="tree-node active" data-file="queries.sql">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="1.4"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+            <span class="tree-label">queries.sql</span>
+          </div>
+          <div class="tree-node" data-file="schema.sql">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="1.4"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+            <span class="tree-label">schema.sql</span>
+          </div>
+          <div class="tree-node" data-file="seed.sql">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="1.4"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+            <span class="tree-label">seed.sql</span>
+          </div>
+          <div class="tree-node" data-file="README.md">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">README.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor + Terminal -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="queries.sql">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="1.4"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+          <span>queries.sql</span>
+          <span class="tab-modified hidden" id="tab-modified"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+        <div class="tab" data-tab="schema.sql">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="1.4"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+          <span>schema.sql</span>
+          <span class="tab-modified hidden"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+      </div>
+      <div class="editor-breadcrumbs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg>
+        <span>SQL-Tutorial</span><span class="crumb-sep">›</span><span>queries.sql</span>
+      </div>
+      <div class="editor-terminal-split">
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="editor-content" id="editor-content"></div>
+          <div class="autocomplete" id="autocomplete"></div>
+          <div class="suggestion-doc" id="suggestion-doc"></div>
+        </div>
+        <!-- Terminal -->
+        <div class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <span class="terminal-tab active">TERMINAL</span>
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <div class="terminal-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Results panel -->
+    <div class="preview-area">
+      <div class="preview-header">
+        <div class="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+          <span>SQL Results</span>
+        </div>
+        <div class="preview-tabs">
+          <div class="preview-tab active" data-ptab="results">Results</div>
+          <div class="preview-tab" data-ptab="schema">Schema</div>
+        </div>
+        <div class="run-indicator" id="run-indicator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+          Running
+        </div>
+      </div>
+      <div class="preview-viewport">
+        <iframe class="preview-iframe" id="preview-iframe" sandbox="allow-same-origin" title="SQL results"></iframe>
+        <div class="preview-loading-overlay" id="preview-loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div class="statusbar-item statusbar-remote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3L4 7l4 4M16 3l4 4-4 4M14 4l-4 16"/></svg><span>Live Share</span></div>
+    <div class="statusbar-item" id="sb-cursor-pos">Ln 1, Col 1</div>
+    <div class="statusbar-item">Spaces: 4</div>
+    <div class="statusbar-item">UTF-8</div>
+    <div class="statusbar-item">SQL</div>
+    <div class="statusbar-item">LF</div>
+    <div class="statusbar-spacer"></div>
+    <div class="statusbar-item" id="sb-line-count">0 lines</div>
+    <div class="statusbar-item">SQLite 3.43.0</div>
+    <div class="statusbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+</div>
+
+<!-- Simulated cursor -->
+<div class="fake-cursor" id="fake-cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M5 3l14 8-6 1 4 7-3 1-4-7-5 4z"/></svg></div>
+<div class="fake-cursor-ring" id="fake-cursor-ring"></div>
+
+<!-- Overlays -->
+<div class="overlay-layer" id="overlay-layer"></div>
+<div class="card-overlay" id="card-overlay"><div class="info-card" id="info-card"></div></div>
+<div class="chapter-transition" id="chapter-transition"><div class="ch-content"><div class="ch-sql-logo" id="ch-sql-logo"></div><div class="ch-number" id="ch-number">CHAPTER 01</div><div class="ch-title" id="ch-title">INTRODUCTION</div><div class="ch-bar"></div></div></div>
+<div class="captions-bar hidden" id="captions-bar"></div>
+<div class="subscribe-overlay" id="subscribe-overlay">
+  <div class="sub-btn-row">
+    <button class="yt-like" id="yt-like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11v9H4V11h3zm14-1l-1 8a2 2 0 0 1-2 2H9V11l4-7c.6 0 1 .4 1 1v4h6a1 1 0 0 1 1 1z"/></svg>Like</button>
+    <button class="yt-subscribe" id="yt-subscribe">Subscribe</button>
+    <button class="yt-bell" id="yt-bell" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0"/></svg></button>
+  </div>
+</div>
+
+<!-- Control panel -->
+<div class="control-panel" id="control-panel">
+  <div class="cp-header">
+    <div class="cp-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Recording Controls</span></div>
+    <button class="cp-collapse" id="cp-collapse" title="Hide (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="cp-progress-section">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="cp-rec-indicator" id="cp-rec"><span class="rec-dot"></span> STANDBY</span>
+      <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
+    </div>
+    <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Playback</div>
+    <div class="cp-btn-row" style="margin-bottom:6px;">
+      <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
+      <button class="cp-btn secondary" id="btn-pause" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>Pause</button>
+    </div>
+    <div class="cp-btn-row">
+      <button class="cp-btn secondary" id="btn-resume" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+      <button class="cp-btn danger" id="btn-restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 4v4h4"/></svg>Restart</button>
+    </div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Voice &amp; Narration</div>
+    <div class="cp-row"><label>Voice</label></div>
+    <div class="cp-row"><select id="cp-voice" style="flex:1;"></select></div>
+    <div class="cp-row"><label>Speed</label><input type="range" id="cp-rate" min="0.7" max="1.4" step="0.05" value="1.0"><span class="val-badge" id="cp-rate-val">1.0x</span></div>
+    <div class="cp-row"><label>Mute narration</label><input type="checkbox" id="cp-mute"></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-test-voice" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>Test Voice</button></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Typing</div>
+    <div class="cp-row"><label>Typing speed</label><input type="range" id="cp-typing" min="0.4" max="2.5" step="0.1" value="1.0"><span class="val-badge" id="cp-typing-val">1.0x</span></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Background Music (YouTube)</div>
+    <div class="cp-row"><input type="text" id="cp-music-url" placeholder="https://youtube.com/watch?v=..."></div>
+    <div class="cp-row"><label>Volume</label><input type="range" id="cp-music-vol" min="0" max="100" step="5" value="35"><span class="val-badge" id="cp-music-vol-val">35%</span></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-music-test" style="flex:1;">Test Music</button><button class="cp-btn secondary" id="btn-music-mute" style="flex:1;">Mute</button></div>
+    <div style="font-size:10px; color:#858585; margin-top:4px; line-height:1.4;" id="music-status">No music configured. Tutorial will run without background music.</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Display</div>
+    <div class="cp-row"><label>Captions</label><input type="checkbox" id="cp-captions" checked></div>
+    <div class="cp-row"><label>Visual effects</label><input type="checkbox" id="cp-effects" checked></div>
+    <div class="cp-row"><label>Simulated cursor</label><input type="checkbox" id="cp-cursor" checked></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Navigation</div>
+    <div class="cp-row"><label>Jump to chapter</label></div>
+    <div class="cp-row"><select id="cp-jump" style="flex:1;">
+      <option value="0">Ch 1 — Intro &amp; SQL Basics</option>
+      <option value="1">Ch 2 — Tables &amp; CRUD</option>
+      <option value="2">Ch 3 — Filtering &amp; Sorting</option>
+      <option value="3">Ch 4 — Joins &amp; Aggregates</option>
+      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
+      <option value="5">Ch 6 — Final Project &amp; Walkthrough</option>
+    </select></div>
+    <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
+  </div>
+</div>
+
+<button class="show-controls-btn" id="show-controls-btn" title="Show controls (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+
+<!-- Finish screen -->
+<div class="finish-screen" id="finish-screen">
+  <div class="finish-card">
+    <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Tutorial Complete!</h2>
+    <p>Your SQL database is designed, populated, and queried. You learned tables, CRUD, filtering, joins, aggregates, and fixed three real SQL errors.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
+      <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+    </div>
+    <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
+  </div>
+</div>
+
+<!-- Start screen -->
+<div class="start-screen" id="start-screen">
+  <div class="start-card">
+    <h1>
+      <svg viewBox="0 0 24 24" width="32" height="32"><ellipse cx="12" cy="5" rx="9" ry="3.5" fill="none" stroke="#336791" stroke-width="1.5"/><path d="M3 5v14c0 1.9 4 3.5 9 3.5s9-1.6 9-3.5V5" fill="none" stroke="#336791" stroke-width="1.5"/><path d="M3 12c0 1.9 4 3.5 9 3.5s9-1.6 9-3.5" fill="none" stroke="#f29111" stroke-width="1.5"/></svg>
+      VS Code SQL Simulator
+      <span class="sql-badge">SQLite</span>
+    </h1>
+    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live SQL coding session. Covers tables, CRUD, filtering, joins, aggregates, and three debugging demos.</p>
+    <div class="config-grid">
+      <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
+      <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
+      <div class="config-field"><label>Typing speed</label><select id="ss-typing"><option value="0.6">Calm</option><option value="1.0" selected>Normal</option><option value="1.6">Quick</option><option value="2.2">Rapid</option></select></div>
+      <div class="config-field"><label>Captions</label><select id="ss-captions"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+      <div class="config-field full"><label>Background music (optional YouTube URL)</label><input type="text" id="ss-music" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div class="config-field"><label>Music volume</label><input type="range" id="ss-music-vol" min="0" max="100" value="35" style="width:100%;"></div>
+      <div class="config-field"><label>Visual effects</label><select id="ss-effects"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+    </div>
+    <button class="start-btn" id="btn-start-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="#ff5252" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>START RECORDING</button>
+    <div class="start-hint">Tip: press <kbd>H</kbd> during the tutorial to hide or restore the control panel.<br>Voices load from your browser's Web Speech API. Pick a Google / Microsoft neural voice for best results.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SQL TUTORIAL SIMULATOR — JavaScript
+   Modules: EditorSimulator, PrismHighlighter, TypingEngine,
+   AutoCompleteEngine, SpeechController, AudioController,
+   TerminalController, PreviewController, VisualEffectsController,
+   TimelineEngine, RecordingControls
+   ============================================================ */
+'use strict';
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+function el(tag, props={}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') node.className = props[k];
+    else if (k === 'style') node.setAttribute('style', props[k]);
+    else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
+    else node[k] = props[k];
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+const STATE = {
+  started: false, paused: false, finished: false,
+  currentChapter: 0, eventIndex: 0, charIndex: 0, elapsedMs: 0,
+  typingSpeedMul: 1.0, speechRate: 1.0, captionsOn: true, effectsOn: true,
+  cursorOn: true, muteNarration: false, musicMuted: false, musicVolume: 0.35,
+};
+
+/* ============================================================
+   1. EDITOR SIMULATOR
+   ============================================================ */
+class EditorSimulator {
+  constructor() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.contentEl = $('#editor-content');
+    this.scrollEl = $('#editor-scroll');
+    this.autocompleteEl = $('#autocomplete');
+    this.suggestionDocEl = $('#suggestion-doc');
+    this.tabModified = $('#tab-modified');
+    this.sbCursor = $('#sb-cursor-pos');
+    this.sbLineCount = $('#sb-line-count');
+    this.modified = false;
+    this.highlighter = new PrismHighlighter();
+    this.render();
+  }
+
+  reset() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.modified = false;
+    this.setModified(false);
+    this.render();
+  }
+
+  setModified(m) {
+    this.modified = m;
+    if (m) this.tabModified.classList.remove('hidden');
+    else this.tabModified.classList.add('hidden');
+  }
+
+  getText() { return this.lines.join('\n'); }
+
+  insertText(text) {
+    for (const ch of text) {
+      const line = this.lines[this.cursorLine] || '';
+      if (ch === '\n') {
+        const before = line.slice(0, this.cursorCol);
+        const after = line.slice(this.cursorCol);
+        this.lines[this.cursorLine] = before;
+        this.lines.splice(this.cursorLine + 1, 0, after);
+        this.cursorLine++;
+        this.cursorCol = 0;
+      } else {
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol) + ch + line.slice(this.cursorCol);
+        this.cursorCol++;
+      }
+    }
+    this.setModified(true);
+  }
+
+  backspace(count=1) {
+    for (let i = 0; i < count; i++) {
+      if (this.cursorCol > 0) {
+        const line = this.lines[this.cursorLine];
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol - 1) + line.slice(this.cursorCol);
+        this.cursorCol--;
+      } else if (this.cursorLine > 0) {
+        const prev = this.lines[this.cursorLine - 1];
+        this.cursorCol = prev.length;
+        this.lines[this.cursorLine - 1] = prev + this.lines[this.cursorLine];
+        this.lines.splice(this.cursorLine, 1);
+        this.cursorLine--;
+      }
+    }
+    this.setModified(true);
+  }
+
+  setCursor(line, col) {
+    this.cursorLine = Math.max(0, Math.min(line, this.lines.length - 1));
+    const ll = this.lines[this.cursorLine] || '';
+    this.cursorCol = Math.max(0, Math.min(col, ll.length));
+  }
+
+  setContent(text) {
+    this.lines = text.split('\n');
+    if (this.lines.length === 0) this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.setModified(false);
+  }
+
+  render() {
+    const frag = document.createDocumentFragment();
+    const total = this.lines.length;
+    for (let i = 0; i < total; i++) {
+      const lineDiv = el('div', { class: 'line' + (i === this.cursorLine ? ' active-line' : '') });
+      const num = el('span', { class: 'line-num' }, String(i + 1));
+      const code = el('span', { class: 'line-code' });
+      if (i === this.cursorLine) {
+        code.innerHTML = this._insertCursorHtml(this.lines[i] || '');
+      } else {
+        code.innerHTML = this.highlighter.highlight(this.lines[i] || '');
+      }
+      lineDiv.appendChild(num);
+      lineDiv.appendChild(code);
+      frag.appendChild(lineDiv);
+    }
+    this.contentEl.innerHTML = '';
+    this.contentEl.appendChild(frag);
+    this.sbCursor.textContent = `Ln ${this.cursorLine + 1}, Col ${this.cursorCol + 1}`;
+    this.sbLineCount.textContent = `${total} lines`;
+    this._scrollToCursor();
+  }
+
+  _insertCursorHtml(line) {
+    const before = line.slice(0, this.cursorCol);
+    const after = line.slice(this.cursorCol);
+    const beforeHtml = this.highlighter.highlight(before);
+    const afterHtml = this.highlighter.highlight(after);
+    return beforeHtml + '<span class="cursor"></span>' + afterHtml;
+  }
+
+  _scrollToCursor() {
+    const lineHeight = 19;
+    const targetTop = this.cursorLine * lineHeight;
+    const viewH = this.scrollEl.clientHeight;
+    if (targetTop < this.scrollEl.scrollTop + 40) {
+      this.scrollEl.scrollTop = Math.max(0, targetTop - 40);
+    } else if (targetTop > this.scrollEl.scrollTop + viewH - 80) {
+      this.scrollEl.scrollTop = targetTop - viewH + 80;
+    }
+  }
+
+  getLineRect(line) {
+    const lineDivs = this.contentEl.querySelectorAll('.line');
+    const lineDiv = lineDivs[line];
+    if (!lineDiv) return null;
+    return lineDiv.getBoundingClientRect();
+  }
+
+  getTokenRect(line, startCol, endCol) {
+    const lineRect = this.getLineRect(line);
+    if (!lineRect) return null;
+    const charWidth = 7.8;
+    return {
+      left: lineRect.left + 60 + startCol * charWidth,
+      top: lineRect.top,
+      right: lineRect.left + 60 + endCol * charWidth,
+      bottom: lineRect.bottom,
+      width: (endCol - startCol) * charWidth,
+      height: lineRect.height,
+    };
+  }
+}
+
+/* ============================================================
+   2. PRISM HIGHLIGHTER (SQL)
+   ============================================================ */
+class PrismHighlighter {
+  constructor() {
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages.sql) || null;
+    this.ready = !!(window.Prism && this.grammar);
+  }
+  highlight(line) {
+    if (!line) return '';
+    if (!this.ready) return this._escape(line);
+    try { return window.Prism.highlight(line, this.grammar, 'sql'); }
+    catch (e) { return this._escape(line); }
+  }
+  _escape(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+}
+
+/* ============================================================
+   3. TYPING ENGINE
+   ============================================================ */
+class TypingEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.paused = false;
+    this.cancelled = false;
+    this._pauseResolve = null;
+  }
+  reset() { this.cancelled = true; this._breakPause(); }
+  pause() { this.paused = true; }
+  resume() { this.paused = false; this._breakPause(); }
+  _breakPause() { if (this._pauseResolve) { const r = this._pauseResolve; this._pauseResolve = null; r(); } }
+
+  async _wait(ms) {
+    const slice = 30;
+    let remaining = ms;
+    while (remaining > 0 && !this.cancelled) {
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const step = Math.min(slice, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+  _charDelay(ch, prevCh) {
+    const mul = 1 / STATE.typingSpeedMul;
+    let base = rand(40, 90);
+    if (prevCh === ',' || prevCh === ';' || prevCh === '(' || prevCh === ')' || prevCh === '=') base += rand(30, 70);
+    if (ch === '\n') base = rand(120, 220);
+    return Math.max(20, base * mul);
+  }
+  async type(text) {
+    this.cancelled = false;
+    for (let i = 0; i < text.length; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const ch = text[i];
+      const prevCh = i > 0 ? text[i-1] : '';
+      this.editor.insertText(ch);
+      this.editor.render();
+      await this._wait(this._charDelay(ch, prevCh));
+    }
+  }
+  async typeLine(text, indent='') { await this.type('\n' + indent + text); }
+  async backspace(count=1) {
+    this.cancelled = false;
+    for (let i = 0; i < count; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      this.editor.backspace(1);
+      this.editor.render();
+      await this._wait(rand(45, 90));
+    }
+  }
+  async moveTo(line, col) {
+    this.editor.setCursor(line, col);
+    this.editor.render();
+    await this._wait(rand(120, 220));
+  }
+  async hesitate(ms) { await this._wait(ms || rand(300, 700)); }
+}
+
+/* ============================================================
+   4. AUTOCOMPLETE ENGINE (SQL keywords & functions)
+   ============================================================ */
+class AutoCompleteEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.popup = $('#autocomplete');
+    this.docEl = $('#suggestion-doc');
+    this.visible = false;
+    this.selectedIdx = 0;
+    this.items = [];
+    this.suggestions = {
+      keywords: [
+        { label: 'SELECT', detail: 'keyword', icon: 'kw' },
+        { label: 'FROM', detail: 'keyword', icon: 'kw' },
+        { label: 'WHERE', detail: 'keyword', icon: 'kw' },
+        { label: 'INSERT', detail: 'keyword', icon: 'kw' },
+        { label: 'UPDATE', detail: 'keyword', icon: 'kw' },
+        { label: 'DELETE', detail: 'keyword', icon: 'kw' },
+        { label: 'CREATE', detail: 'keyword', icon: 'kw' },
+        { label: 'TABLE', detail: 'keyword', icon: 'kw' },
+        { label: 'JOIN', detail: 'keyword', icon: 'kw' },
+        { label: 'INNER', detail: 'keyword', icon: 'kw' },
+        { label: 'LEFT', detail: 'keyword', icon: 'kw' },
+        { label: 'GROUP', detail: 'keyword', icon: 'kw' },
+        { label: 'ORDER', detail: 'keyword', icon: 'kw' },
+        { label: 'BY', detail: 'keyword', icon: 'kw' },
+        { label: 'HAVING', detail: 'keyword', icon: 'kw' },
+        { label: 'INTO', detail: 'keyword', icon: 'kw' },
+        { label: 'VALUES', detail: 'keyword', icon: 'kw' },
+        { label: 'SET', detail: 'keyword', icon: 'kw' },
+        { label: 'AND', detail: 'keyword', icon: 'kw' },
+        { label: 'OR', detail: 'keyword', icon: 'kw' },
+        { label: 'NOT', detail: 'keyword', icon: 'kw' },
+        { label: 'NULL', detail: 'keyword', icon: 'kw' },
+        { label: 'PRIMARY', detail: 'keyword', icon: 'kw' },
+        { label: 'FOREIGN', detail: 'keyword', icon: 'kw' },
+        { label: 'KEY', detail: 'keyword', icon: 'kw' },
+      ],
+      functions: [
+        { label: 'COUNT', detail: 'aggregate', icon: 'fn' },
+        { label: 'SUM', detail: 'aggregate', icon: 'fn' },
+        { label: 'AVG', detail: 'aggregate', icon: 'fn' },
+        { label: 'MIN', detail: 'aggregate', icon: 'fn' },
+        { label: 'MAX', detail: 'aggregate', icon: 'fn' },
+        { label: 'ROUND', detail: 'function', icon: 'fn' },
+        { label: 'UPPER', detail: 'function', icon: 'fn' },
+        { label: 'LOWER', detail: 'function', icon: 'fn' },
+        { label: 'LENGTH', detail: 'function', icon: 'fn' },
+        { label: 'COALESCE', detail: 'function', icon: 'fn' },
+        { label: 'NOW', detail: 'function', icon: 'fn' },
+        { label: 'DATE', detail: 'function', icon: 'fn' },
+      ],
+      types: [
+        { label: 'INTEGER', detail: 'type', icon: 'type' },
+        { label: 'TEXT', detail: 'type', icon: 'type' },
+        { label: 'REAL', detail: 'type', icon: 'type' },
+        { label: 'VARCHAR', detail: 'type', icon: 'type' },
+        { label: 'BOOLEAN', detail: 'type', icon: 'type' },
+        { label: 'DATE', detail: 'type', icon: 'type' },
+        { label: 'DATETIME', detail: 'type', icon: 'type' },
+        { label: 'SERIAL', detail: 'type', icon: 'type' },
+      ],
+    };
+  }
+  _iconSvg(type) {
+    const colors = { fn: '#dcdcaa', kw: '#569cd6', type: '#4ec9b0' };
+    const c = colors[type] || '#d4d4d4';
+    if (type === 'fn') return `<svg viewBox="0 0 16 16" fill="${c}"><path d="M2 8h12M8 2v12"/></svg>`;
+    if (type === 'kw') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>`;
+    if (type === 'type') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10"/></svg>`;
+  }
+  async show(listType='keywords', filter='', selectLabel=null) {
+    let list = this.suggestions[listType] || this.suggestions.keywords;
+    if (filter) list = list.filter(it => it.label.startsWith(filter.toUpperCase()));
+    if (list.length === 0) return;
+    this.items = list.slice(0, 8);
+    this.selectedIdx = 0;
+    if (selectLabel) {
+      const idx = this.items.findIndex(it => it.label === selectLabel);
+      if (idx !== -1) this.selectedIdx = idx;
+    }
+    this._render();
+    this._position();
+    this.popup.classList.add('visible');
+    this.visible = true;
+    await sleep(rand(350, 650));
+  }
+  _render() {
+    this.popup.innerHTML = '';
+    this.items.forEach((it, idx) => {
+      const item = el('div', { class: 'ac-item' + (idx === this.selectedIdx ? ' selected' : '') });
+      item.innerHTML = `<span class="ac-icon">${this._iconSvg(it.icon)}</span><span class="ac-label">${it.label}</span><span class="ac-detail">${it.detail}</span>`;
+      this.popup.appendChild(item);
+    });
+  }
+  _position() {
+    const rect = this.editor.getTokenRect(this.editor.cursorLine, this.editor.cursorCol, this.editor.cursorCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    let top = rect.bottom - editorRect.top + 4;
+    let left = rect.left - editorRect.left + 20;
+    const ph = this.popup.offsetHeight || 160;
+    const pw = this.popup.offsetWidth || 260;
+    if (top + ph > editorRect.height) top = rect.top - editorRect.top - ph - 4;
+    if (left + pw > editorRect.width) left = editorRect.width - pw - 10;
+    this.popup.style.top = top + 'px';
+    this.popup.style.left = left + 'px';
+  }
+  async showDoc(text) {
+    if (!text) return;
+    this.docEl.textContent = text;
+    this.docEl.classList.add('visible');
+    const acRect = this.popup.getBoundingClientRect();
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.docEl.style.top = (acRect.top - editorRect.top) + 'px';
+    this.docEl.style.left = (acRect.right - editorRect.left + 6) + 'px';
+    await sleep(rand(500, 900));
+  }
+  async moveDown() {
+    this.selectedIdx = (this.selectedIdx + 1) % this.items.length;
+    this._render();
+    await sleep(rand(80, 150));
+  }
+  async accept(typingEngine) {
+    if (!this.visible || this.items.length === 0) return;
+    const item = this.items[this.selectedIdx];
+    this.hide();
+    await typingEngine.type(item.label);
+    await sleep(rand(120, 220));
+  }
+  hide() {
+    this.popup.classList.remove('visible');
+    this.docEl.classList.remove('visible');
+    this.visible = false;
+  }
+}
+
+/* ============================================================
+   5. SPEECH CONTROLLER
+   ============================================================ */
+class SpeechController {
+  constructor() {
+    this.synth = window.speechSynthesis;
+    this.voices = [];
+    this.selectedVoice = null;
+    this.muted = false;
+    this.rate = 1.0;
+    this.supported = !!this.synth;
+    this._loadVoices();
+    if (this.supported) this.synth.onvoiceschanged = () => this._loadVoices();
+  }
+  _loadVoices() {
+    if (!this.supported) return;
+    this.voices = this.synth.getVoices() || [];
+    if (!this.selectedVoice && this.voices.length) {
+      const prefs = [
+        v => /Google.*US.*English/i.test(v.name) && v.localService,
+        v => /Google.*English/i.test(v.name),
+        v => /Microsoft.*Aria|Microsoft.*Jenny|Microsoft.*Guy/i.test(v.name),
+        v => /Microsoft.*English/i.test(v.name),
+        v => /Samantha|Alex|Daniel|Karen/i.test(v.name),
+        v => v.lang && v.lang.startsWith('en') && v.localService,
+        v => v.lang && v.lang.startsWith('en'),
+      ];
+      for (const pred of prefs) {
+        const v = this.voices.find(pred);
+        if (v) { this.selectedVoice = v; break; }
+      }
+      if (!this.selectedVoice) this.selectedVoice = this.voices[0];
+    }
+  }
+  setVoice(uri) { const v = this.voices.find(v => v.voiceURI === uri); if (v) this.selectedVoice = v; }
+  setRate(r) { this.rate = r; }
+  setMuted(m) { this.muted = m; if (m) this.cancel(); }
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!text || !text.trim()) { resolve(); return; }
+      if (this.muted || !this.supported) {
+        const words = text.split(/\s+/).length;
+        const ms = Math.min(12000, Math.max(1500, words * 380 / this.rate));
+        sleep(ms).then(resolve);
+        return;
+      }
+      try {
+        this.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        if (this.selectedVoice) u.voice = this.selectedVoice;
+        u.rate = this.rate; u.pitch = 1.0; u.volume = 1.0;
+        const words = text.split(/\s+/).length;
+        const safetyMs = Math.min(20000, Math.max(4000, words * 600 / this.rate));
+        let done = false;
+        const safety = setTimeout(() => { if (!done) { done = true; this.cancel(); resolve(); } }, safetyMs);
+        u.onend = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        u.onerror = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        this.synth.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+  cancel() { if (this.supported) { try { this.synth.cancel(); } catch (e) {} } }
+  test() { this.speak("Hey there! This is your friendly SQL instructor. Let's write some queries together."); }
+}
+
+/* ============================================================
+   6. AUDIO CONTROLLER — YouTube background music
+   ============================================================ */
+class AudioController {
+  constructor() {
+    this.videoId = null; this.player = null; this.playerReady = false;
+    this.targetVolume = 35; this.ducked = false; this.apiLoading = false; this.apiLoaded = false;
+    this.containerEl = null; this.statusEl = $('#music-status');
+  }
+  _extractVideoId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  setUrl(url) {
+    const id = this._extractVideoId(url);
+    if (!id) { this.videoId = null; this._setStatus('Invalid or missing URL. Tutorial will run without music.'); return false; }
+    this.videoId = id;
+    this._setStatus('Music URL loaded. Click "Test Music" or start the tutorial to embed the player.');
+    return true;
+  }
+  setVolume(v) {
+    this.targetVolume = v;
+    if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.ducked ? Math.floor(v * 0.25) : v);
+  }
+  _setStatus(msg) { if (this.statusEl) this.statusEl.textContent = msg; }
+  _loadApi() {
+    if (this.apiLoaded || this.apiLoading) return Promise.resolve();
+    this.apiLoading = true;
+    return new Promise((resolve) => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.onerror = () => { this.apiLoading = false; resolve(); };
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => { this.apiLoaded = true; this.apiLoading = false; resolve(); };
+      setTimeout(() => { this.apiLoading = false; resolve(); }, 4000);
+    });
+  }
+  async initPlayer() {
+    if (!this.videoId) return false;
+    await this._loadApi();
+    if (!this.apiLoaded || !window.YT || !window.YT.Player) { this._setStatus('YouTube API could not be loaded. Running without background music.'); return false; }
+    if (!this.containerEl) {
+      this.containerEl = el('div', { id: 'yt-player-container', style: 'position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; opacity:0; pointer-events:none;' });
+      document.body.appendChild(this.containerEl);
+      const inner = el('div', { id: 'yt-player-inner' });
+      this.containerEl.appendChild(inner);
+    }
+    return new Promise((resolve) => {
+      try {
+        this.player = new window.YT.Player('yt-player-inner', {
+          width: '200', height: '120', videoId: this.videoId,
+          playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => { this.playerReady = true; this.setVolume(this.targetVolume); this._setStatus('Background music player ready.'); resolve(true); },
+            onError: () => { this._setStatus('This video cannot be embedded as background music. Running without music.'); resolve(false); },
+          },
+        });
+        setTimeout(() => resolve(this.playerReady), 5000);
+      } catch (e) { this._setStatus('Player init failed. Running without music.'); resolve(false); }
+    });
+  }
+  async play() { if (!this.playerReady || !this.player) { const ok = await this.initPlayer(); if (!ok) return; } try { this.player.setVolume(this.ducked ? Math.floor(this.targetVolume * 0.25) : this.targetVolume); if (this.player.playVideo) this.player.playVideo(); } catch (e) {} }
+  pause() { if (this.playerReady && this.player && this.player.pauseVideo) { try { this.player.pauseVideo(); } catch (e) {} } }
+  duck() { this.ducked = true; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(Math.floor(this.targetVolume * 0.25)); }
+  unduck() { this.ducked = false; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.targetVolume); }
+  stop() { this.pause(); }
+  async test() { if (!this.videoId) { this._setStatus('Enter a YouTube URL first.'); return; } await this.play(); }
+}
+
+/* ============================================================
+   7. TERMINAL CONTROLLER (sqlite3 CLI)
+   ============================================================ */
+class TerminalController {
+  constructor() {
+    this.body = $('#terminal-body');
+    this.indicator = $('#run-indicator');
+  }
+  reset() { this.body.innerHTML = ''; this._printPrompt(); }
+  _printPrompt(path='sql-tutorial') {
+    const line = el('div', { class: 'term-line' });
+    line.innerHTML = `<span class="term-prompt">sqlite></span> `;
+    this.body.appendChild(line);
+    this._scroll();
+    return line;
+  }
+  _scroll() { this.body.scrollTop = this.body.scrollHeight; }
+  async typeCommand(cmd) {
+    const line = this._printPrompt();
+    const cmdSpan = el('span', { class: 'term-cmd' });
+    line.appendChild(cmdSpan);
+    for (const ch of cmd) {
+      cmdSpan.textContent += ch;
+      this._scroll();
+      await sleep(rand(30, 70));
+    }
+    await sleep(rand(200, 400));
+  }
+  async printOutput(text, cls='term-output') {
+    const lines = text.split('\n');
+    for (const ln of lines) {
+      const line = el('div', { class: 'term-line ' + cls }, ln);
+      this.body.appendChild(line);
+      this._scroll();
+      await sleep(rand(20, 50));
+    }
+  }
+  async printError(text) { await this.printOutput(text, 'term-error'); }
+  async printSuccess(text) { await this.printOutput(text, 'term-success'); }
+  async printInfo(text) { await this.printOutput(text, 'term-info'); }
+  async showRunIndicator(ms) {
+    this.indicator.classList.add('visible', 'running');
+    await sleep(ms || rand(600, 1200));
+    this.indicator.classList.remove('running');
+    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+  }
+  async newPrompt() { await sleep(rand(150, 300)); this._printPrompt(); }
+  clear() { this.body.innerHTML = ''; this._printPrompt(); }
+}
+
+/* ============================================================
+   8. VISUAL EFFECTS CONTROLLER
+   ============================================================ */
+class VisualEffectsController {
+  constructor(editor) {
+    this.editor = editor;
+    this.overlay = $('#overlay-layer');
+    this.cardOverlay = $('#card-overlay');
+    this.infoCard = $('#info-card');
+    this.chapterTrans = $('#chapter-transition');
+    this.chNumber = $('#ch-number');
+    this.chTitle = $('#ch-title');
+    this.chLogo = $('#ch-sql-logo');
+    this.captions = $('#captions-bar');
+    this.fakeCursor = $('#fake-cursor');
+    this.cursorRing = $('#fake-cursor-ring');
+    this.subscribeOverlay = $('#subscribe-overlay');
+    this.ytLike = $('#yt-like');
+    this.ytSubscribe = $('#yt-subscribe');
+    this.ytBell = $('#yt-bell');
+    this.activeOverlays = [];
+    this.trailTimer = null;
+    this._injectKeyframes();
+    this._setSqlLogo();
+  }
+  _setSqlLogo() {
+    this.chLogo.innerHTML = `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="sqlg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#336791"/><stop offset="1" stop-color="#1d4a6e"/></linearGradient><linearGradient id="sqlg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f29111"/><stop offset="1" stop-color="#cc7a0e"/></linearGradient></defs>
+      <ellipse cx="128" cy="50" rx="100" ry="38" fill="url(#sqlg1)"/>
+      <path d="M28 50v70c0 21 45 38 100 38s100-17 100-38V50" fill="url(#sqlg1)"/>
+      <path d="M28 120v70c0 21 45 38 100 38s100-17 100-38v-70" fill="url(#sqlg2)"/>
+      <ellipse cx="128" cy="50" rx="100" ry="38" fill="none" stroke="#fff" stroke-width="2"/>
+      <text x="128" y="180" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="52" font-weight="900" fill="#fff">SQL</text>
+    </svg>`;
+  }
+  _injectKeyframes() {
+    if (document.getElementById('sqlSimKF')) return;
+    const st = el('style', { id: 'sqlSimKF' });
+    st.textContent = '@keyframes dashMove { to { stroke-dashoffset: -20; } }';
+    document.head.appendChild(st);
+  }
+  reset() {
+    this.clearOverlays(); this.hideCard(); this.hideChapter();
+    this.hideCaptions(); this.hideCursor(); this.hideSubscribe();
+  }
+  showCursor() { if (STATE.cursorOn) this.fakeCursor.classList.add('visible'); }
+  hideCursor() { this.fakeCursor.classList.remove('visible'); }
+  setCursorOn(on) { STATE.cursorOn = on; if (on) this.fakeCursor.classList.add('visible'); else this.fakeCursor.classList.remove('visible'); }
+  async moveCursorTo(x, y, smooth=true) {
+    if (!STATE.cursorOn) return;
+    if (!smooth) { this.fakeCursor.style.transition = 'none'; this.cursorRing.style.transition = 'none'; }
+    else { this.fakeCursor.style.transition = ''; }
+    this.fakeCursor.style.left = x + 'px';
+    this.fakeCursor.style.top = y + 'px';
+    this.fakeCursor.classList.add('visible');
+    this.cursorRing.style.left = (x - 4) + 'px';
+    this.cursorRing.style.top = (y - 4) + 'px';
+    this.cursorRing.style.opacity = '0.6';
+    await sleep(smooth ? rand(280, 420) : 50);
+    this.cursorRing.style.opacity = '0';
+  }
+  async moveCursorToElement(sel, smooth=true) {
+    const target = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    await this.moveCursorTo(r.left + r.width/2, r.top + r.height/2, smooth);
+  }
+  async clickCursor() {
+    this.fakeCursor.classList.add('clicking');
+    await sleep(180);
+    this.fakeCursor.classList.remove('clicking');
+  }
+  highlightRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const box = el('div', { class: 'overlay-highlight' });
+    box.style.left = (rect.left - 4) + 'px'; box.style.top = (rect.top - 4) + 'px';
+    box.style.width = (rect.width + 8) + 'px'; box.style.height = (rect.height + 8) + 'px';
+    this.overlay.appendChild(box);
+    this.activeOverlays.push(box);
+    return box;
+  }
+  highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+  circleRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const c = el('div', { class: 'overlay-circle' });
+    const pad = 8;
+    c.style.left = (rect.left - pad) + 'px'; c.style.top = (rect.top - pad) + 'px';
+    c.style.width = (rect.width + pad*2) + 'px'; c.style.height = (rect.height + pad*2) + 'px';
+    this.overlay.appendChild(c);
+    this.activeOverlays.push(c);
+    return c;
+  }
+  drawArrow(from, to, opts={}) {
+    if (!STATE.effectsOn) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'overlay-arrow');
+    svg.style.position = 'fixed'; svg.style.left = '0'; svg.style.top = '0';
+    svg.style.width = '100%'; svg.style.height = '100%'; svg.style.pointerEvents = 'none'; svg.style.zIndex = '9001';
+    const path = document.createElementNS(svgNS, 'path');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - 40;
+    path.setAttribute('d', `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`);
+    path.setAttribute('stroke', opts.color || '#ffcc00'); path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke-dasharray', '6 4');
+    path.style.animation = 'dashMove 0.8s linear infinite';
+    svg.appendChild(path);
+    const head = document.createElementNS(svgNS, 'polygon');
+    const ang = Math.atan2(to.y - my, to.x - mx), sz = 10;
+    head.setAttribute('points', `${to.x},${to.y} ${to.x - sz*Math.cos(ang-0.4)},${to.y - sz*Math.sin(ang-0.4)} ${to.x - sz*Math.cos(ang+0.4)},${to.y - sz*Math.sin(ang+0.4)}`);
+    head.setAttribute('fill', opts.color || '#ffcc00');
+    svg.appendChild(head);
+    document.body.appendChild(svg);
+    this.activeOverlays.push(svg);
+  }
+  arrowToToken(lineIdx, startCol, endCol, opts={}) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.drawArrow({ x: editorRect.left + 10, y: rect.top + rect.height/2 }, { x: rect.left, y: rect.top + rect.height/2 }, opts);
+    if (opts.label) this.addLabel(rect.left - 200, rect.top - 24, opts.label);
+  }
+  addLabel(x, y, text) {
+    if (!STATE.effectsOn) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = x + 'px'; lbl.style.top = y + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+  labelToken(lineIdx, startCol, endCol, text) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = (rect.left + rect.width/2 - 80) + 'px';
+    lbl.style.top = (rect.top - 28) + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+  clearOverlays() {
+    this.activeOverlays.forEach(o => { o.classList.add('fade-out'); setTimeout(() => o.remove(), 300); });
+    this.activeOverlays = [];
+  }
+  async showCard(opts) {
+    this.infoCard.innerHTML = '';
+    this.infoCard.className = 'info-card' + (opts.type === 'code' ? ' code-card' : '');
+    if (opts.title) this.infoCard.appendChild(el('h3', {}, opts.title));
+    if (opts.svg) { const wrap = el('div', { style: 'text-align:center;' }); wrap.innerHTML = opts.svg; this.infoCard.appendChild(wrap); }
+    if (opts.text) this.infoCard.appendChild(el('p', {}, opts.text));
+    if (opts.code) {
+      opts.code.forEach(c => {
+        this.infoCard.appendChild(el('div', { class: 'code-caption' }, c.caption));
+        const pre = el('pre'); pre.textContent = c.code;
+        this.infoCard.appendChild(pre);
+        if (c.output) this.infoCard.appendChild(el('div', { class: 'code-output' }, c.output));
+      });
+    }
+    this.cardOverlay.classList.add('visible');
+    await sleep(opts.duration || 2400);
+    this.hideCard();
+  }
+  hideCard() { this.cardOverlay.classList.remove('visible'); }
+  async showChapter(num, title) {
+    this.chNumber.textContent = 'CHAPTER ' + String(num).padStart(2, '0');
+    this.chTitle.textContent = title;
+    this.chapterTrans.classList.add('visible');
+    await sleep(2000);
+    this.chapterTrans.classList.remove('visible');
+    await sleep(350);
+  }
+  hideChapter() { this.chapterTrans.classList.remove('visible'); }
+  showCaption(text) {
+    if (!STATE.captionsOn || !text) { this.hideCaptions(); return; }
+    this.captions.textContent = text;
+    this.captions.classList.add('visible');
+    this.captions.classList.remove('hidden');
+  }
+  hideCaptions() { this.captions.classList.remove('visible'); }
+  setCaptionsOn(on) { STATE.captionsOn = on; if (!on) this.hideCaptions(); }
+  setEffectsOn(on) { STATE.effectsOn = on; if (!on) this.clearOverlays(); }
+  async showSubscribe() {
+    this.subscribeOverlay.classList.add('visible');
+    await sleep(400);
+    if (STATE.cursorOn) {
+      await this.moveCursorToElement(this.ytLike); await this.clickCursor();
+      this.ytLike.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytSubscribe); await this.clickCursor();
+      this.ytSubscribe.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytBell); await this.clickCursor();
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    } else {
+      this.ytLike.classList.add('clicked'); await sleep(400);
+      this.ytSubscribe.classList.add('clicked'); await sleep(400);
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    }
+    await sleep(1200);
+    this.subscribeOverlay.classList.remove('visible');
+    await sleep(300);
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+  hideSubscribe() {
+    this.subscribeOverlay.classList.remove('visible');
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+}
+
+/* ============================================================
+   9. PREVIEW CONTROLLER — renders SQL results as HTML tables
+   ============================================================ */
+class PreviewController {
+  constructor(editor, terminal) {
+    this.editor = editor;
+    this.terminal = terminal;
+    this.iframe = $('#preview-iframe');
+    this.loading = $('#preview-loading');
+  }
+
+  // Render a results TABLE from { columns: [...], rows: [[...]], title, message }
+  async renderTable(result, title='Query Results') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 600));
+    let bodyHtml;
+    if (result.message) {
+      bodyHtml = `<div class="msg-box ${result.messageType || 'info'}">${this._esc(result.message)}</div>`;
+    } else if (result.rows && result.rows.length === 0) {
+      bodyHtml = `<div class="msg-box info">Empty result set (0 rows returned)</div>`;
+    } else {
+      const ths = (result.columns || []).map(c => `<th>${this._esc(c)}</th>`).join('');
+      const trs = result.rows.map((r, i) => {
+        const tds = r.map(v => `<td>${v === null || v === undefined ? '<span class="null">NULL</span>' : this._esc(String(v))}</td>`).join('');
+        return `<tr class="${i % 2 ? 'alt' : ''}">${trs}</tr>`;
+      }).join('');
+      bodyHtml = `<table class="result-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+    }
+    const rowCount = result.rows ? result.rows.length : 0;
+    const colCount = result.columns ? result.columns.length : 0;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#fff; color:#222; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:13px; padding:12px; }
+        .results-header { background:#336791; color:#fff; padding:8px 12px; border-radius:4px 4px 0 0; font-size:12px; font-weight:600; display:flex; justify-content:space-between; }
+        .results-meta { font-size:11px; opacity:0.9; font-weight:400; }
+        .table-wrap { overflow-x:auto; border:1px solid #ddd; border-top:none; border-radius:0 0 4px 4px; }
+        table.result-table { border-collapse:collapse; width:100%; font-family:"SF Mono",Menlo,monospace; font-size:12px; }
+        table.result-table th { background:#f0f4f8; color:#336791; padding:7px 12px; text-align:left; border-bottom:2px solid #336791; font-weight:700; white-space:nowrap; }
+        table.result-table td { padding:6px 12px; border-bottom:1px solid #eee; white-space:nowrap; }
+        table.result-table tr.alt td { background:#fafbfc; }
+        table.result-table tr:hover td { background:#fff8e1; }
+        .null { color:#999; font-style:italic; }
+        .msg-box { padding:16px; border-radius:4px; margin-top:8px; font-family:"SF Mono",monospace; font-size:13px; }
+        .msg-box.success { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; }
+        .msg-box.info { background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; }
+        .msg-box.error { background:#ffebee; color:#c62828; border:1px solid #ef9a9a; }
+        .schema-card { background:#f8f9fa; border:1px solid #ddd; border-radius:6px; padding:12px; margin-bottom:10px; }
+        .schema-card h3 { color:#336791; margin-bottom:6px; font-size:13px; }
+        .schema-card .col { display:flex; gap:8px; padding:3px 0; font-family:"SF Mono",monospace; font-size:12px; }
+        .schema-card .col-name { font-weight:600; color:#222; min-width:120px; }
+        .schema-card .col-type { color:#f29111; min-width:80px; }
+        .schema-card .col-flags { color:#888; }
+      </style></head><body>
+      <div class="results-header"><span>${this._esc(title)}</span><span class="results-meta">${rowCount} row${rowCount !== 1 ? 's' : ''} ${colCount ? '· ' + colCount + ' col' : ''}</span></div>
+      <div class="table-wrap">${bodyHtml}</div>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  // Render a schema view: list of tables with their columns
+  async renderSchema(tables, title='Database Schema') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 500));
+    const cards = tables.map(t => {
+      const cols = t.columns.map(c => `<div class="col"><span class="col-name">${this._esc(c.name)}</span><span class="col-type">${this._esc(c.type)}</span><span class="col-flags">${this._esc(c.flags || '')}</span></div>`).join('');
+      return `<div class="schema-card"><h3>📄 ${this._esc(t.name)} <span style="color:#888;font-weight:400;font-size:11px;">(${t.columns.length} columns)</span></h3>${cols}</div>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#fff; color:#222; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:13px; padding:12px; }
+        .results-header { background:#336791; color:#fff; padding:8px 12px; border-radius:4px 4px 0 0; font-size:12px; font-weight:600; }
+        .schema-card { background:#f8f9fa; border:1px solid #ddd; border-radius:6px; padding:12px; margin-top:10px; }
+        .schema-card h3 { color:#336791; margin-bottom:6px; font-size:13px; }
+        .schema-card .col { display:flex; gap:8px; padding:3px 0; font-family:"SF Mono",monospace; font-size:12px; }
+        .schema-card .col-name { font-weight:600; color:#222; min-width:140px; }
+        .schema-card .col-type { color:#f29111; min-width:80px; }
+        .schema-card .col-flags { color:#888; }
+      </style></head><body>
+      <div class="results-header">${this._esc(title)}</div>
+      ${cards}
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) {}
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+}
+
+/* ============================================================
+   10. TIMELINE ENGINE
+   ============================================================ */
+class TimelineEngine {
+  constructor(editor, typing, autocomplete, speech, audio, preview, terminal, fx) {
+    this.editor = editor; this.typing = typing; this.autocomplete = autocomplete;
+    this.speech = speech; this.audio = audio; this.preview = preview;
+    this.terminal = terminal; this.fx = fx;
+    this.events = []; this.chapterBoundaries = []; this.chapterSnapshots = [];
+    this.eventIdx = 0; this.running = false; this.paused = false; this.finished = false;
+    this.elapsedAccum = 0; this.lastResumeTime = 0; this.tickHandle = null;
+    this.onProgress = null; this.onChapterChange = null; this.onFinish = null; this.onStateChange = null;
+    this._cancelled = false;
+  }
+  setEvents(events, chapterBoundaries, snapshots) {
+    this.events = events; this.chapterBoundaries = chapterBoundaries;
+    this.chapterSnapshots = snapshots; this.eventIdx = 0;
+  }
+  get currentChapter() {
+    let ch = 0;
+    for (let i = 0; i < this.chapterBoundaries.length; i++) if (this.eventIdx >= this.chapterBoundaries[i]) ch = i;
+    return ch;
+  }
+  _emitState() {
+    if (this.onStateChange) this.onStateChange({
+      running: this.running, paused: this.paused, finished: this.finished,
+      eventIdx: this.eventIdx, total: this.events.length, chapter: this.currentChapter,
+      elapsed: this._elapsedMs(),
+    });
+  }
+  _elapsedMs() {
+    if (!this.running || this.paused) return this.elapsedAccum;
+    return this.elapsedAccum + (Date.now() - this.lastResumeTime);
+  }
+  _startTick() {
+    if (this.tickHandle) return;
+    this.tickHandle = setInterval(() => {
+      if (this.onProgress) this.onProgress({
+        eventIdx: this.eventIdx, total: this.events.length,
+        elapsed: this._elapsedMs(), chapter: this.currentChapter,
+      });
+    }, 250);
+  }
+  _stopTick() { if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; } }
+
+  async start(preserveIndex = false) {
+    if (this.running) return;
+    this.running = true; this.paused = false; this.finished = false; this._cancelled = false;
+    this.lastResumeTime = Date.now();
+    if (!preserveIndex) { this.elapsedAccum = 0; this.eventIdx = 0; }
+    this._startTick(); this._emitState();
+    await this._runLoop();
+  }
+  async _runLoop() {
+    while (this.eventIdx < this.events.length && !this._cancelled) {
+      while (this.paused && !this._cancelled) await sleep(80);
+      if (this._cancelled) break;
+      const ev = this.events[this.eventIdx];
+      if (this.onChapterChange && ev._chapterStart) this.onChapterChange(this.currentChapter);
+      await this._executeEvent(ev);
+      if (this._cancelled) break;
+      this.eventIdx++;
+    }
+    this._stopTick();
+    this.running = false;
+    if (!this._cancelled && this.eventIdx >= this.events.length) {
+      this.finished = true;
+      if (this.onFinish) this.onFinish();
+    }
+    this._emitState();
+  }
+  async _executeEvent(ev) {
+    if (this.paused) { while (this.paused && !this._cancelled) await sleep(80); if (this._cancelled) return; }
+    switch (ev.type) {
+      case 'SPEAK':
+        if (ev.caption != null) this.fx.showCaption(ev.caption);
+        else if (ev.text) this.fx.showCaption(ev.text);
+        if (this.audio) this.audio.duck();
+        await this.speech.speak(ev.text);
+        if (this.audio) this.audio.unduck();
+        break;
+      case 'TYPE': await this.typing.type(ev.text); break;
+      case 'TYPE_LINE': await this.typing.typeLine(ev.text, ev.indent || ''); break;
+      case 'BACKSPACE': await this.typing.backspace(ev.count || 1); break;
+      case 'MOVE_CURSOR':
+        if (ev.target) await this.fx.moveCursorToElement(ev.target);
+        else if (ev.x != null && ev.y != null) await this.fx.moveCursorTo(ev.x, ev.y);
+        break;
+      case 'EDITOR_CURSOR': await this.typing.moveTo(ev.line, ev.col); break;
+      case 'CLICK': await this.fx.clickCursor(); break;
+      case 'HESITATE': await this.typing.hesitate(ev.ms); break;
+      case 'SLEEP': await sleep(ev.ms || 300); break;
+
+      case 'GOTO_AFTER_SUBSTRING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.substring);if(idx!==-1){foundLine=i;foundCol=idx+ev.substring.length;break;}}
+        if (foundLine!==-1) await this.typing.moveTo(foundLine, foundCol);
+        break;
+      }
+      case 'GOTO_END_OF_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) await this.typing.moveTo(found, this.editor.lines[found].length);
+        break;
+      }
+      case 'GOTO_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'FIX_TOKEN': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.from);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1) {
+          this.fx.highlightLine(foundLine);
+          await sleep(ev.highlightMs || 1500); this.fx.clearOverlays();
+          await this.typing.moveTo(foundLine, foundCol + ev.from.length);
+          await this.typing.backspace(ev.from.length);
+          await this.typing.type(ev.to);
+        }
+        break;
+      }
+
+      case 'HIGHLIGHT_LINE': this.fx.highlightLine(ev.line); await sleep(ev.duration || 1500); this.fx.clearOverlays(); break;
+      case 'HIGHLIGHT_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1){this.fx.highlightLine(found); await sleep(ev.duration||1500); this.fx.clearOverlays();}
+        break;
+      }
+      case 'CIRCLE_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.circleRect(this.editor.getTokenRect(foundLine,foundCol,foundCol+ev.token.length));if(ev.label)this.fx.labelToken(foundLine,foundCol,foundCol+ev.token.length,ev.label);await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'CLEAR_OVERLAYS': this.fx.clearOverlays(); await sleep(150); break;
+      case 'SHOW_CARD': await this.fx.showCard(ev); break;
+      case 'SHOW_CODE_CARD': await this.fx.showCard(Object.assign({type:'code'},ev)); break;
+
+      case 'AUTOCOMPLETE':
+        await this.autocomplete.show(ev.listType||'keywords', ev.filter||'', ev.selectLabel||null);
+        if (ev.doc) await this.autocomplete.showDoc(ev.doc);
+        if (ev.moveDown) await this.autocomplete.moveDown();
+        if (ev.accept) await this.autocomplete.accept(this.typing);
+        else this.autocomplete.hide();
+        break;
+
+      case 'TERM_TYPE': await this.terminal.typeCommand(ev.cmd); break;
+      case 'TERM_OUTPUT': await this.terminal.printOutput(ev.text, ev.cls||'term-output'); break;
+      case 'TERM_ERROR': await this.terminal.printError(ev.text); break;
+      case 'TERM_SUCCESS': await this.terminal.printSuccess(ev.text); break;
+      case 'TERM_INFO': await this.terminal.printInfo(ev.text); break;
+      case 'TERM_RUN_INDICATOR': await this.terminal.showRunIndicator(ev.ms); break;
+      case 'TERM_NEW_PROMPT': await this.terminal.newPrompt(); break;
+      case 'TERM_CLEAR': this.terminal.clear(); break;
+
+      case 'RENDER_TABLE': await this.preview.renderTable(ev.result, ev.title||'Query Results'); break;
+      case 'RENDER_SCHEMA': await this.preview.renderSchema(ev.tables, ev.title||'Database Schema'); break;
+      case 'SAVE': this.editor.setModified(false); await sleep(400); break;
+      case 'CHAPTER_TRANSITION':
+        if (this.audio) this.audio.pause();
+        await this.fx.showChapter(ev.num, ev.title);
+        if (this.audio && !this.paused) this.audio.play();
+        break;
+      case 'COLLAPSE_SIDEBAR': $('#sidebar').classList.add('collapsed'); await sleep(400); break;
+      case 'EXPAND_SIDEBAR': $('#sidebar').classList.remove('collapsed'); await sleep(300); break;
+      case 'START_MUSIC': if (this.audio) await this.audio.play(); break;
+      case 'STOP_MUSIC': if (this.audio) this.audio.pause(); break;
+      case 'DUCK_MUSIC': if (this.audio) this.audio.duck(); break;
+      case 'UNDUCK_MUSIC': if (this.audio) this.audio.unduck(); break;
+      case 'SHOW_SUBSCRIBE': await this.fx.showSubscribe(); break;
+      case 'CAPTION': this.fx.showCaption(ev.text); await sleep(ev.duration || 1500); break;
+      case 'HIDE_CAPTIONS': this.fx.hideCaptions(); break;
+      case 'FINISH':
+        if (this.audio) this.audio.stop();
+        this.fx.hideCaptions(); this.fx.clearOverlays();
+        if (this.onFinish) this.onFinish();
+        break;
+      default: break;
+    }
+  }
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    this.elapsedAccum += Date.now() - this.lastResumeTime;
+    this.typing.pause();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this._emitState();
+  }
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastResumeTime = Date.now();
+    this.typing.resume();
+    if (this.audio) this.audio.play();
+    this._emitState();
+  }
+  async restart() {
+    this._cancelled = true; this._stopTick();
+    await sleep(150);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.editor.reset();
+    this.autocomplete.hide();
+    this.terminal.reset();
+    this.preview.renderTable({message:'Ready. Run a query to see results.', messageType:'info'}, 'SQL Results');
+    this.eventIdx = 0; this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start();
+  }
+  async jumpToChapter(chIdx) {
+    if (chIdx < 0 || chIdx >= this.chapterBoundaries.length) return;
+    this._cancelled = true; this._stopTick();
+    await sleep(120);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this.fx.reset();
+    this.autocomplete.hide();
+    const snapshot = this.chapterSnapshots[chIdx];
+    if (snapshot != null) { this.editor.setContent(snapshot); this.editor.render(); }
+    else { this.editor.reset(); }
+    this.terminal.reset();
+    this.eventIdx = this.chapterBoundaries[chIdx];
+    this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start(true);
+  }
+  stop() {
+    this._cancelled = true; this._stopTick();
+    this.typing.cancelled = true; this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.running = false; this.paused = false;
+    this._emitState();
+  }
+}
+
+/* ============================================================
+   11. RECORDING CONTROLS
+   ============================================================ */
+class RecordingControls {
+  constructor(timeline, speech, audio) {
+    this.timeline = timeline; this.speech = speech; this.audio = audio;
+    this.panel = $('#control-panel'); this.showBtn = $('#show-controls-btn');
+    this.startScreen = $('#start-screen'); this.finishScreen = $('#finish-screen');
+    this._bindControls(); this._bindKeyboard(); this._populateVoices(); this._wireProgress();
+  }
+  _bindControls() {
+    $('#btn-start-rec').addEventListener('click', () => this._startFromConfig());
+    $('#btn-start').addEventListener('click', () => this._startFromConfig());
+    $('#btn-pause').addEventListener('click', () => this.timeline.pause());
+    $('#btn-resume').addEventListener('click', () => this.timeline.resume());
+    $('#btn-restart').addEventListener('click', () => this.timeline.restart());
+    $('#cp-collapse').addEventListener('click', () => this.hidePanel());
+    this.showBtn.addEventListener('click', () => this.showPanel());
+    $('#cp-voice').addEventListener('change', e => this.speech.setVoice(e.target.value));
+    $('#cp-rate').addEventListener('input', e => { const v = parseFloat(e.target.value); this.speech.setRate(v); $('#cp-rate-val').textContent = v.toFixed(2) + 'x'; });
+    $('#cp-mute').addEventListener('change', e => this.speech.setMuted(e.target.checked));
+    $('#btn-test-voice').addEventListener('click', () => this.speech.test());
+    $('#cp-typing').addEventListener('input', e => { const v = parseFloat(e.target.value); STATE.typingSpeedMul = v; $('#cp-typing-val').textContent = v.toFixed(1) + 'x'; });
+    $('#cp-music-url').addEventListener('change', e => this.audio.setUrl(e.target.value));
+    $('#cp-music-vol').addEventListener('input', e => { const v = parseInt(e.target.value); this.audio.setVolume(v); $('#cp-music-vol-val').textContent = v + '%'; });
+    $('#btn-music-test').addEventListener('click', () => this.audio.test());
+    $('#btn-music-mute').addEventListener('click', e => {
+      STATE.musicMuted = !STATE.musicMuted;
+      if (STATE.musicMuted) { this.audio.pause(); e.target.textContent = 'Unmute'; }
+      else { this.audio.play(); e.target.textContent = 'Mute'; }
+    });
+    $('#cp-captions').addEventListener('change', e => this.timeline.fx.setCaptionsOn(e.target.checked));
+    $('#cp-effects').addEventListener('change', e => this.timeline.fx.setEffectsOn(e.target.checked));
+    $('#cp-cursor').addEventListener('change', e => this.timeline.fx.setCursorOn(e.target.checked));
+    $('#btn-jump').addEventListener('click', () => { const ch = parseInt($('#cp-jump').value); this.timeline.jumpToChapter(ch); });
+    $('#btn-finish-close').addEventListener('click', () => this.finishScreen.classList.remove('visible'));
+  }
+  _bindKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); if (this.panel.classList.contains('hidden')) this.showPanel(); else this.hidePanel(); }
+      else if (e.key === ' ') { e.preventDefault(); if (this.timeline.running && !this.timeline.paused) this.timeline.pause(); else if (this.timeline.paused) this.timeline.resume(); }
+    });
+  }
+  hidePanel() { this.panel.classList.add('hidden'); this.showBtn.classList.add('visible'); }
+  showPanel() { this.panel.classList.remove('hidden'); this.showBtn.classList.remove('visible'); }
+  _populateVoices() {
+    const sel1 = $('#cp-voice'); const sel2 = $('#ss-voice');
+    const tryFill = () => {
+      const voices = this.speech.voices;
+      if (!voices.length) return false;
+      sel1.innerHTML = ''; sel2.innerHTML = '';
+      voices.forEach(v => {
+        const lbl = `${v.name} (${v.lang})${v.localService ? '' : ' [network]'}`;
+        const o1 = el('option', { value: v.voiceURI }, lbl);
+        const o2 = el('option', { value: v.voiceURI }, lbl);
+        if (this.speech.selectedVoice && v.voiceURI === this.speech.selectedVoice.voiceURI) { o1.selected = true; o2.selected = true; }
+        sel1.appendChild(o1); sel2.appendChild(o2);
+      });
+      return true;
+    };
+    if (!tryFill()) { let tries = 0; const iv = setInterval(() => { if (tryFill() || tries++ > 10) clearInterval(iv); }, 250); }
+    sel1.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel2.value = e.target.value; });
+    sel2.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel1.value = e.target.value; });
+  }
+  _wireProgress() {
+    this.timeline.onProgress = p => {
+      const pct = Math.min(100, (p.eventIdx / Math.max(1, p.total)) * 100);
+      $('#cp-progress-fill').style.width = pct + '%';
+      const sec = Math.floor(p.elapsed / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+    this.timeline.onChapterChange = ch => {
+      const names = ['Intro & SQL Basics','Tables & CRUD','Filtering & Sorting','Joins & Aggregates','Debugging (3 Mistakes)','Final Project & Walkthrough'];
+      $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
+      STATE.currentChapter = ch;
+    };
+    this.timeline.onStateChange = s => {
+      const recEl = $('#cp-rec'); const stateEl = $('#cp-state-label');
+      $('#btn-pause').disabled = !(s.running && !s.paused);
+      $('#btn-resume').disabled = !(s.running && s.paused);
+      if (!s.running && !s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> STANDBY';
+        recEl.style.color = '#858585';
+        recEl.querySelector('.rec-dot').style.background = '#858585';
+        stateEl.textContent = 'Not started';
+      } else if (s.paused) {
+        recEl.innerHTML = '<span class="rec-dot"></span> PAUSED';
+        recEl.style.color = '#febc2e';
+        recEl.querySelector('.rec-dot').style.background = '#febc2e';
+        stateEl.textContent = 'Paused';
+      } else if (s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> DONE';
+        recEl.style.color = '#107c10';
+        recEl.querySelector('.rec-dot').style.background = '#107c10';
+        stateEl.textContent = 'Complete';
+      } else {
+        recEl.innerHTML = '<span class="rec-dot"></span> REC';
+        recEl.style.color = '#ff5252';
+        recEl.querySelector('.rec-dot').style.background = '#ff5252';
+        stateEl.textContent = 'Recording';
+      }
+    };
+    this.timeline.onFinish = () => {
+      this.finishScreen.classList.add('visible');
+      const sec = Math.floor(this.timeline._elapsedMs() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#fs-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+  }
+  _startFromConfig() {
+    const ssVoice = $('#ss-voice').value;
+    const ssRate = parseFloat($('#ss-rate').value);
+    const ssTyping = parseFloat($('#ss-typing').value);
+    const ssCaptions = $('#ss-captions').value === '1';
+    const ssEffects = $('#ss-effects').value === '1';
+    const ssMusic = $('#ss-music').value;
+    const ssMusicVol = parseInt($('#ss-music-vol').value);
+    if (ssVoice) { $('#cp-voice').value = ssVoice; this.speech.setVoice(ssVoice); }
+    $('#cp-rate').value = ssRate; $('#cp-rate-val').textContent = ssRate.toFixed(2) + 'x'; this.speech.setRate(ssRate);
+    $('#cp-typing').value = ssTyping; $('#cp-typing-val').textContent = ssTyping.toFixed(1) + 'x'; STATE.typingSpeedMul = ssTyping;
+    $('#cp-captions').checked = ssCaptions; $('#cp-effects').checked = ssEffects; $('#cp-cursor').checked = true;
+    this.timeline.fx.setCaptionsOn(ssCaptions); this.timeline.fx.setEffectsOn(ssEffects); this.timeline.fx.setCursorOn(true);
+    if (ssMusic) {
+      $('#cp-music-url').value = ssMusic; this.audio.setUrl(ssMusic);
+      $('#cp-music-vol').value = ssMusicVol; $('#cp-music-vol-val').textContent = ssMusicVol + '%';
+      this.audio.setVolume(ssMusicVol); STATE.musicVolume = ssMusicVol / 100;
+    }
+    this.startScreen.classList.add('hidden');
+    setTimeout(() => this.startScreen.style.display = 'none', 500);
+    this.timeline.editor.reset();
+    this.timeline.terminal.reset();
+    this.timeline.fx.showCursor();
+    this.timeline.start();
+    if (ssMusic) setTimeout(() => this.audio.play(), 800);
+  }
+}
+
+/* ============================================================
+   SQL TUTORIAL TIMELINE DATA
+   6 chapters, ~10 minutes. Builds a small e-commerce database:
+   customers, products, orders. Covers tables, CRUD, filtering,
+   sorting, joins, aggregates. 3 deliberate SQL errors with fixes.
+   ============================================================ */
+function buildTutorial() {
+  const events = [];
+  const chapterBoundaries = [];
+  const snapshots = [];
+  const E = (ev) => { events.push(ev); return ev; };
+  const chapterStart = (num, title, snapshot) => {
+    chapterBoundaries.push(events.length);
+    snapshots.push(snapshot || '');
+    E({ type: 'CHAPTER_TRANSITION', num, title, _chapterStart: true });
+  };
+
+  /* The schema we'll build. Used for the Schema preview tab. */
+  const SCHEMA = [
+    { name: 'customers', columns: [
+      { name: 'id', type: 'INTEGER', flags: 'PRIMARY KEY' },
+      { name: 'name', type: 'TEXT', flags: 'NOT NULL' },
+      { name: 'email', type: 'TEXT', flags: 'UNIQUE' },
+      { name: 'city', type: 'TEXT', flags: '' },
+    ]},
+    { name: 'products', columns: [
+      { name: 'id', type: 'INTEGER', flags: 'PRIMARY KEY' },
+      { name: 'name', type: 'TEXT', flags: 'NOT NULL' },
+      { name: 'price', type: 'REAL', flags: 'NOT NULL' },
+      { name: 'stock', type: 'INTEGER', flags: 'DEFAULT 0' },
+    ]},
+    { name: 'orders', columns: [
+      { name: 'id', type: 'INTEGER', flags: 'PRIMARY KEY' },
+      { name: 'customer_id', type: 'INTEGER', flags: 'FOREIGN KEY' },
+      { name: 'product_id', type: 'INTEGER', flags: 'FOREIGN KEY' },
+      { name: 'quantity', type: 'INTEGER', flags: 'NOT NULL' },
+      { name: 'order_date', type: 'TEXT', flags: '' },
+    ]},
+  ];
+
+  /* ======================================================================
+     CHAPTER 1 — INTRODUCTION & SQL BASICS  (0:00–1:30)
+     ====================================================================== */
+  chapterStart(1, 'Introduction & SQL Basics', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to learn SQL — Structured Query Language. SQL is how you talk to databases. Every app you use — Instagram, your bank, this video — stores its data in a database, and SQL is the universal language for getting that data in and out." });
+  E({ type: 'SHOW_CARD', title: 'What is SQL?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="c1sql1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#336791"/><stop offset="1" stop-color="#1d4a6e"/></linearGradient><linearGradient id="c1sql2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f29111"/><stop offset="1" stop-color="#cc7a0e"/></linearGradient></defs><ellipse cx="128" cy="50" rx="100" ry="38" fill="url(#c1sql1)"/><path d="M28 50v70c0 21 45 38 100 38s100-17 100-38V50" fill="url(#c1sql1)"/><path d="M28 120v70c0 21 45 38 100 38s100-17 100-38v-70" fill="url(#c1sql2)"/><text x="128" y="180" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="52" font-weight="900" fill="#fff">SQL</text></svg>`, text: 'SQL is a declarative language — you describe WHAT data you want, not HOW to get it. The database engine figures out the steps. It was standardized in 1986 and is still the backbone of nearly every data system on Earth.', duration: 2400 });
+  E({ type: 'SPEAK', text: "So this is VS Code with a SQLite database set up. On the left is the file explorer with our SQL files, the middle is the editor where we write queries, the bottom is the sqlite3 command-line tool, and on the right is where query results show up as nice tables." });
+  E({ type: 'MOVE_CURSOR', target: '.sidebar' });
+  E({ type: 'CLICK' });
+  E({ type: 'SPEAK', text: "Let me collapse the sidebar to give us more room." });
+  E({ type: 'COLLAPSE_SIDEBAR' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-area' });
+  E({ type: 'SPEAK', text: "Let's write our very first query. The simplest SQL command is SELECT. It reads data from a table." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'CLICK' });
+  E({ type: 'TYPE', text: '-- My first SQL query' });
+  E({ type: 'TYPE_LINE', text: 'SELECT 1 + 1 AS result;', indent: '' });
+  E({ type: 'SPEAK', text: "So the double dash starts a comment — SQL ignores it. Then SELECT is the keyword. Here I'm selecting a simple math expression, one plus one, and giving it the alias result with the AS keyword. Every SQL statement ends with a semicolon." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'SELECT', label: 'read data from a table', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'SPEAK', text: "Let me run it. I'll execute the query in the terminal." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db "SELECT 1 + 1 AS result;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '2' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['result'], rows: [[2]] }, title: 'SELECT 1 + 1' });
+  E({ type: 'SPEAK', text: "And there it is. The result is 2, shown both in the terminal and as a nice table on the right. SQL evaluated our expression and returned one row, one column. You're officially writing SQL now." });
+
+  /* ======================================================================
+     CHAPTER 2 — TABLES & CRUD  (1:30–3:30)
+     ====================================================================== */
+  const snapshot2 = '-- My first SQL query\nSELECT 1 + 1 AS result;\n';
+  chapterStart(2, 'Tables & CRUD', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two. Tables and CRUD. CRUD stands for Create, Read, Update, Delete — the four basic operations on data. In SQL those map to INSERT, SELECT, UPDATE, and DELETE. But first, we need a table to work with." });
+  E({ type: 'SHOW_CARD', title: 'CRUD = the four data operations', text: 'C — Create → INSERT. R — Read → SELECT. U — Update → UPDATE. D — Delete → DELETE. Almost every database app is just these four operations wrapped in a user interface.', duration: 2400 });
+  E({ type: 'SPEAK', text: "Let me create a customers table. CREATE TABLE defines the structure — the columns and their data types. This is the schema, the blueprint for what each row looks like." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'SELECT 1 + 1 AS result;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Create the customers table', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'CREATE TABLE customers (', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'id INTEGER PRIMARY KEY,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'name TEXT NOT NULL,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'email TEXT UNIQUE,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'city TEXT', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: ');', indent: '' });
+  E({ type: 'SPEAK', text: "So CREATE TABLE customers, open paren, then each column on its own line. id is an INTEGER and the PRIMARY KEY — that means it uniquely identifies each row and auto-increments. name is TEXT and NOT NULL — it can't be empty. email is TEXT and UNIQUE — no two customers can share an email. city is just TEXT with no constraints. Close paren, semicolon." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'PRIMARY KEY', label: 'unique row identifier', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'NOT NULL', label: 'required field', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'UNIQUE', label: 'no duplicates allowed', duration: 1500 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db < schema.sql' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_SUCCESS', text: '(no output — table created successfully)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_SCHEMA', tables: [SCHEMA[0]], title: 'customers table created' });
+  E({ type: 'SPEAK', text: "Table created. No output means success — SQL is quiet when things go right. Now let's INSERT some data. INSERT INTO specifies the table and columns, VALUES provides the actual data." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: ');' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Insert some customers', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'INSERT INTO customers (name, email, city)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'VALUES (\'Maya Chen\', \'maya@example.com\', \'San Francisco\');', indent: '       ' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'INSERT INTO customers (name, email, city)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'VALUES (\'Leo Park\', \'leo@example.com\', \'Seoul\');', indent: '       ' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'INSERT INTO customers (name, email, city)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'VALUES (\'Ana Diaz\', \'ana@example.com\', \'Madrid\');', indent: '       ' });
+  E({ type: 'SPEAK', text: "Three INSERT statements. Notice I'm not providing the id — the PRIMARY KEY auto-increments. And strings in SQL use single quotes, not double quotes. That trips up a lot of beginners." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'VALUES', label: 'single quotes for strings!', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db < seed.sql' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_SUCCESS', text: '(3 rows inserted)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Three rows inserted. Now the Read part — let's SELECT them back. The star means all columns." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: "VALUES ('Ana Diaz'" });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Read all customers', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT * FROM customers;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT * FROM customers;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'id  name       email              city\n--  ---------  -----------------  -------------\n1   Maya Chen  maya@example.com   San Francisco\n2   Leo Park   leo@example.com    Seoul\n3   Ana Diaz   ana@example.com    Madrid' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['id','name','email','city'], rows: [[1,'Maya Chen','maya@example.com','San Francisco'],[2,'Leo Park','leo@example.com','Seoul'],[3,'Ana Diaz','ana@example.com','Madrid']] }, title: 'SELECT * FROM customers' });
+  E({ type: 'SPEAK', text: "All three customers, all columns. The id auto-assigned one, two, three. Star is great for exploring, but in production code you usually list the columns explicitly so your app doesn't break if the schema changes." });
+  E({ type: 'SPEAK', text: "Now Update and Delete. UPDATE modifies existing rows. You use SET to specify new values, and a WHERE clause to target specific rows. Always, always include a WHERE clause on UPDATE — without it, you update every single row in the table." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'SELECT * FROM customers;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Update: Maya moved to Oakland', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'UPDATE customers', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SET city = \'Oakland\'', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'WHERE id = 1;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Delete: Leo left', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'DELETE FROM customers', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'WHERE id = 2;', indent: '' });
+  E({ type: 'SPEAK', text: "So UPDATE customers SET city equals Oakland WHERE id equals one. That changes only Maya's city. Then DELETE FROM customers WHERE id equals two removes Leo entirely. The WHERE clause is what keeps you from nuking the whole table." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'WHERE id = 1', label: 'targets ONE row — always use WHERE!', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db "UPDATE customers SET city=\'Oakland\' WHERE id=1; DELETE FROM customers WHERE id=2;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_SUCCESS', text: '(1 row updated, 1 row deleted)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT * FROM customers;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'id  name       email              city\n--  ---------  -----------------  -------------\n1   Maya Chen  maya@example.com   Oakland\n3   Ana Diaz   ana@example.com    Madrid' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['id','name','email','city'], rows: [[1,'Maya Chen','maya@example.com','Oakland'],[3,'Ana Diaz','ana@example.com','Madrid']] }, title: 'After UPDATE and DELETE' });
+  E({ type: 'SPEAK', text: "Maya's city is now Oakland, and Leo is gone. CRUD complete: Create with INSERT, Read with SELECT, Update with UPDATE, Delete with DELETE. Those four commands are the foundation of everything you'll do in SQL." });
+
+  /* ======================================================================
+     CHAPTER 3 — FILTERING & SORTING  (3:30–5:00)
+     ====================================================================== */
+  const snapshot3 = snapshot2 + '\n-- Create the customers table\nCREATE TABLE customers (\n    id INTEGER PRIMARY KEY,\n    name TEXT NOT NULL,\n    email TEXT UNIQUE,\n    city TEXT\n);\n\n-- Insert some customers\nINSERT INTO customers (name, email, city)\nVALUES (\'Maya Chen\', \'maya@example.com\', \'San Francisco\');\n\nINSERT INTO customers (name, email, city)\nVALUES (\'Leo Park\', \'leo@example.com\', \'Seoul\');\n\nINSERT INTO customers (name, email, city)\nVALUES (\'Ana Diaz\', \'ana@example.com\', \'Madrid\');\n\n-- Read all customers\nSELECT * FROM customers;\n\n-- Update: Maya moved to Oakland\nUPDATE customers\nSET city = \'Oakland\'\nWHERE id = 1;\n\n-- Delete: Leo left\nDELETE FROM customers\nWHERE id = 2;\n';
+  chapterStart(3, 'Filtering & Sorting', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three. Filtering and sorting. Real databases have millions of rows. You almost never want all of them. WHERE filters rows, ORDER BY sorts them, and LIMIT caps how many come back." });
+  E({ type: 'SPEAK', text: "Before we filter, let me set up a products table with some data so we have something interesting to query. I'll create it and insert a handful of products in one go." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'WHERE id = 2;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Products table for filtering demos', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'CREATE TABLE products (', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'id INTEGER PRIMARY KEY,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'name TEXT NOT NULL,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'price REAL NOT NULL,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'stock INTEGER DEFAULT 0', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: ');', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'INSERT INTO products (name, price, stock) VALUES', indent: '' });
+  E({ type: 'TYPE_LINE', text: "('Wireless Mouse', 29.99, 50),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('Mechanical Keyboard', 129.99, 15),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('USB-C Hub', 49.99, 0),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('4K Monitor', 449.99, 8),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('Webcam', 89.99, 30),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('Laptop Stand', 34.99, 0),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "('Headphones', 199.99, 12);", indent: '    ' });
+  E({ type: 'SPEAK', text: "Seven products with prices and stock counts. Notice you can insert multiple rows in one INSERT — just comma-separate the value groups. Much cleaner than seven separate statements." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db < seed.sql' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_SUCCESS', text: '(7 rows inserted)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Now let's filter. WHERE takes a condition — only rows where the condition is true come back. Let's find products that cost more than 100 dollars." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: "('Headphones', 199.99, 12);" });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Products over $100', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT name, price FROM products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'WHERE price > 100;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT name, price FROM products WHERE price > 100;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name                price\n------------------  -------\nMechanical Keyboard  129.99\n4K Monitor           449.99\nHeadphones           199.99' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','price'], rows: [['Mechanical Keyboard',129.99],['4K Monitor',449.99],['Headphones',199.99]] }, title: 'Products over $100' });
+  E({ type: 'SPEAK', text: "Three products over a hundred bucks. We selected just name and price instead of star — only the columns we care about. WHERE price greater than 100. The comparison operators are the usual ones: greater than, less than, equals, not equals, greater than or equal." });
+  E({ type: 'SPEAK', text: "You can combine conditions with AND and OR. Let's find products that are in stock — stock greater than zero — AND cost less than a hundred. Two conditions, both must be true." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'WHERE price > 100;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- In stock AND under $100', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT name, price, stock FROM products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'WHERE stock > 0 AND price < 100;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT name, price, stock FROM products WHERE stock > 0 AND price < 100;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name             price  stock\n----------------  -----  -----\nWireless Mouse    29.99  50\nWebcam            89.99  30' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','price','stock'], rows: [['Wireless Mouse',29.99,50],['Webcam',89.99,30]] }, title: 'In stock AND under $100' });
+  E({ type: 'SPEAK', text: "Two products match both conditions. AND means both must be true. OR means either one. You can chain as many as you need, and use parentheses to group them." });
+  E({ type: 'SPEAK', text: "Now sorting. ORDER BY sorts the results. ASC for ascending, DESC for descending. Default is ascending. Let's get all products sorted by price, most expensive first." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'WHERE stock > 0 AND price < 100;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Most expensive products first', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT name, price FROM products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'ORDER BY price DESC;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT name, price FROM products ORDER BY price DESC;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name                price\n------------------  -------\n4K Monitor          449.99\nHeadphones          199.99\nMechanical Keyboard  129.99\nWebcam               89.99\nUSB-C Hub            49.99\nLaptop Stand         34.99\nWireless Mouse       29.99' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','price'], rows: [['4K Monitor',449.99],['Headphones',199.99],['Mechanical Keyboard',129.99],['Webcam',89.99],['USB-C Hub',49.99],['Laptop Stand',34.99],['Wireless Mouse',29.99]] }, title: 'ORDER BY price DESC' });
+  E({ type: 'SPEAK', text: "Sorted from priciest to cheapest. DESC for descending. And if you only want the top few, add LIMIT. Let's grab the three cheapest products — ORDER BY price ASC, LIMIT 3." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'ORDER BY price DESC;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Three cheapest products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT name, price FROM products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'ORDER BY price ASC', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'LIMIT 3;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT name, price FROM products ORDER BY price ASC LIMIT 3;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name            price\n---------------  ------\nWireless Mouse   29.99\nLaptop Stand     34.99\nUSB-C Hub        49.99' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','price'], rows: [['Wireless Mouse',29.99],['Laptop Stand',34.99],['USB-C Hub',49.99]] }, title: '3 cheapest (ORDER BY + LIMIT)' });
+  E({ type: 'SPEAK', text: "Three cheapest. So the full pattern is: SELECT the columns you want, FROM the table, WHERE to filter, ORDER BY to sort, LIMIT to cap. That covers the vast majority of read queries you'll ever write." });
+
+  /* ======================================================================
+     CHAPTER 4 — JOINS & AGGREGATES  (5:00–7:00)
+     ====================================================================== */
+  chapterStart(4, 'Joins & Aggregates', snapshot3 + "\n-- Products table for filtering demos\nCREATE TABLE products (\n    id INTEGER PRIMARY KEY,\n    name TEXT NOT NULL,\n    price REAL NOT NULL,\n    stock INTEGER DEFAULT 0\n);\n\nINSERT INTO products (name, price, stock) VALUES\n    ('Wireless Mouse', 29.99, 50),\n    ('Mechanical Keyboard', 129.99, 15),\n    ('USB-C Hub', 49.99, 0),\n    ('4K Monitor', 449.99, 8),\n    ('Webcam', 89.99, 30),\n    ('Laptop Stand', 34.99, 0),\n    ('Headphones', 199.99, 12);\n\n-- Products over $100\nSELECT name, price FROM products\nWHERE price > 100;\n\n-- In stock AND under $100\nSELECT name, price, stock FROM products\nWHERE stock > 0 AND price < 100;\n\n-- Most expensive products first\nSELECT name, price FROM products\nORDER BY price DESC;\n\n-- Three cheapest products\nSELECT name, price FROM products\nORDER BY price ASC\nLIMIT 3;\n");
+  E({ type: 'SPEAK', text: "Chapter four. Joins and aggregates. This is where SQL gets powerful. Real data lives in multiple tables, and JOINs stitch them together. Aggregates like COUNT, SUM, and AVG summarize groups of rows." });
+  E({ type: 'SHOW_CODE_CARD', title: 'JOIN — combine rows from two tables', code: [
+    { caption: 'Match customers to their orders', code: 'SELECT c.name, o.id AS order_id\nFROM customers c\nJOIN orders o ON c.id = o.customer_id;' },
+  ], text: 'JOIN matches rows from two tables using a condition — usually a foreign key. The ON clause says how they connect. Table aliases (c, o) keep the query readable.', duration: 2800 });
+  E({ type: 'SPEAK', text: "We have customers and products. To connect them — a customer buys a product — we need an orders table. It references both via foreign keys. Let me create it and add some orders." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'LIMIT 3;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Orders connect customers to products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'CREATE TABLE orders (', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'id INTEGER PRIMARY KEY,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'customer_id INTEGER,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'product_id INTEGER,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'quantity INTEGER NOT NULL,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'order_date TEXT,', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'FOREIGN KEY (customer_id) REFERENCES customers(id),', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'FOREIGN KEY (product_id) REFERENCES products(id)', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: ');', indent: '' });
+  E({ type: 'SPEAK', text: "Notice the FOREIGN KEY lines at the bottom. They tell the database that customer_id points to the id column in customers, and product_id points to id in products. This enforces referential integrity — you can't create an order for a customer or product that doesn't exist." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'FOREIGN KEY', label: 'links to another table', duration: 2000 });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'INSERT INTO orders (customer_id, product_id, quantity, order_date) VALUES', indent: '' });
+  E({ type: 'TYPE_LINE', text: "(1, 1, 2, '2026-11-20'),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "(1, 5, 1, '2026-11-21'),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "(3, 2, 1, '2026-11-22'),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "(3, 7, 1, '2026-11-22'),", indent: '    ' });
+  E({ type: 'TYPE_LINE', text: "(1, 4, 1, '2026-11-23');", indent: '    ' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db < seed.sql' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_SUCCESS', text: '(5 orders inserted)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_SCHEMA', tables: SCHEMA, title: 'Full database schema (3 tables)' });
+  E({ type: 'SPEAK', text: "Five orders across two customers. Now the fun part — a JOIN. I want to see each customer's name next to the products they ordered. That data lives in three tables: customers has the name, products has the product name, orders connects them." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: "(1, 4, 1, '2026-11-23');" });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Join customers to their ordered products', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT c.name AS customer, p.name AS product, o.quantity', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FROM orders o', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'JOIN customers c ON o.customer_id = c.id', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'JOIN products p ON o.product_id = p.id;', indent: '' });
+  E({ type: 'SPEAK', text: "Let me unpack this. FROM orders, give it the alias o. JOIN customers as c ON o dot customer_id equals c dot id — that connects each order to its customer. Then JOIN products as p ON o dot product_id equals p dot id — connects each order to its product. We select the customer name, product name, and quantity. Two joins, three tables, one result set." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'JOIN customers c ON', label: 'connect orders → customers', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'JOIN products p ON', label: 'connect orders → products', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT c.name AS customer, p.name AS product, o.quantity FROM orders o JOIN customers c ON o.customer_id=c.id JOIN products p ON o.product_id=p.id;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'customer   product              quantity\n---------  -------------------  --------\nMaya Chen  Wireless Mouse       2\nMaya Chen  Webcam               1\nAna Diaz   Mechanical Keyboard  1\nAna Diaz   Headphones           1\nMaya Chen  4K Monitor           1' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['customer','product','quantity'], rows: [['Maya Chen','Wireless Mouse',2],['Maya Chen','Webcam',1],['Ana Diaz','Mechanical Keyboard',1],['Ana Diaz','Headphones',1],['Maya Chen','4K Monitor',1]] }, title: 'JOIN: customers + products via orders' });
+  E({ type: 'SPEAK', text: "There it is. Each row shows who bought what and how many. The JOIN flattened three tables into one readable result. This is the single most important skill in SQL — once joins click, everything else gets easier." });
+  E({ type: 'SPEAK', text: "Now aggregates. COUNT, SUM, AVG, MIN, MAX. These collapse multiple rows into one. GROUP BY splits rows into groups, then the aggregate runs per group. Let's count how many orders each customer placed." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'JOIN products p ON o.product_id = p.id;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- How many orders per customer?', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT c.name, COUNT(o.id) AS order_count', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FROM customers c', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'LEFT JOIN orders o ON c.id = o.customer_id', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'GROUP BY c.id, c.name;', indent: '' });
+  E({ type: 'SPEAK', text: "COUNT o dot id counts the order rows. GROUP BY c dot id, c dot name groups by customer. I used LEFT JOIN here instead of regular JOIN — LEFT JOIN keeps all customers even if they have zero orders, which matters if a customer hasn't bought anything yet. Leo was deleted, but if he weren't, LEFT JOIN would still show him with a count of zero." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'COUNT(o.id)', label: 'aggregate: count rows per group', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'GROUP BY', label: 'one row per customer', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT c.name, COUNT(o.id) AS order_count FROM customers c LEFT JOIN orders o ON c.id=o.customer_id GROUP BY c.id, c.name;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name       order_count\n---------  ------------\nMaya Chen  3\nAna Diaz   2' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','order_count'], rows: [['Maya Chen',3],['Ana Diaz',2]] }, title: 'COUNT + GROUP BY: orders per customer' });
+  E({ type: 'SPEAK', text: "Maya has three orders, Ana has two. The aggregate collapsed the rows — without GROUP BY, COUNT would return a single number for the whole table. GROUP BY splits it per customer." });
+  E({ type: 'SPEAK', text: "Let's do one more — total revenue per customer. That's SUM of quantity times price. We need all three tables joined, then group by customer." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'GROUP BY c.id, c.name;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Total revenue per customer', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'SELECT c.name,', indent: '' });
+  E({ type: 'TYPE_LINE', text: '       ROUND(SUM(o.quantity * p.price), 2) AS total_spent', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FROM orders o', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'JOIN customers c ON o.customer_id = c.id', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'JOIN products p ON o.product_id = p.id', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'GROUP BY c.id, c.name', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'ORDER BY total_spent DESC;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT c.name, ROUND(SUM(o.quantity*p.price),2) AS total_spent FROM orders o JOIN customers c ON o.customer_id=c.id JOIN products p ON o.product_id=p.id GROUP BY c.id, c.name ORDER BY total_spent DESC;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'name       total_spent\n---------  -----------\nMaya Chen  588.97\nAna Diaz   329.98' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['name','total_spent'], rows: [['Maya Chen',588.97],['Ana Diaz',329.98]] }, title: 'SUM + GROUP BY: revenue per customer' });
+  E({ type: 'SPEAK', text: "Maya spent 588 dollars and 97 cents, Ana spent 329.98. We multiplied quantity by price per order, summed them per customer with GROUP BY, rounded to two decimals, and sorted highest first. That's a real business query — total revenue per customer — in seven lines of SQL." });
+
+  /* ======================================================================
+     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (7:00–8:30)
+     ====================================================================== */
+  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  E({ type: 'SPEAK', text: "Chapter five. Three SQL mistakes I see constantly. I'll make each one on purpose so you recognize the error message and know the fix." });
+  // ===== BUG #1: Missing semicolon / using double quotes for a string =====
+  E({ type: 'SPEAK', text: "Bug number one. Using double quotes for a string literal. In SQL, single quotes are for strings, double quotes are for identifiers like table or column names. Mix them up and you get a confusing error. Let me show you." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'ORDER BY total_spent DESC;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  // DELIBERATE BUG #1 — double quotes around a string
+  E({ type: 'TYPE_LINE', text: '-- Find Maya by name (BUG: wrong quotes)', indent: '' });
+  E({ type: 'TYPE_LINE', text: "SELECT * FROM customers WHERE name = \"Maya Chen\";", indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db "SELECT * FROM customers WHERE name = \"Maya Chen\";"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Parse error: no such column: Maya Chen" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Parse error: no such column Maya Chen. See what happened? SQL treated the double-quoted Maya Chen as a column name, not a string value. It looked for a column called Maya Chen and couldn't find one. The fix: single quotes for strings." });
+  E({ type: 'FIX_TOKEN', from: '"Maya Chen"', to: "'Maya Chen'", highlightMs: 1500 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: "sqlite3 shop.db -header -column \"SELECT * FROM customers WHERE name = 'Maya Chen';\"" });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'id  name       email             city\n--  ---------  ----------------  -------\n1   Maya Chen  maya@example.com  Oakland' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['id','name','email','city'], rows: [[1,'Maya Chen','maya@example.com','Oakland']] }, title: 'Fixed: single quotes for strings' });
+  E({ type: 'SPEAK', text: "Fixed. Single quotes — always single quotes for string values. Double quotes are for identifiers. This is the most common SQL mistake by far." });
+
+  // ===== BUG #2: Ambiguous column name in a JOIN =====
+  E({ type: 'SPEAK', text: "Bug number two. Ambiguous column. When you join two tables that both have a column called id — and most tables do — referring to just id confuses the database. Which table's id do you mean? Let me show you." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: "WHERE name = 'Maya Chen';" });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Join orders to customers (BUG: ambiguous id)', indent: '' });
+  // DELIBERATE BUG #2 — bare 'id' is ambiguous
+  E({ type: 'TYPE_LINE', text: 'SELECT id, name, quantity', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FROM orders o', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'JOIN customers c ON o.customer_id = c.id;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db "SELECT id, name, quantity FROM orders o JOIN customers c ON o.customer_id = c.id;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Runtime error: 1st ORDER BY term out of range - should be between 1 and -1\n  ambiguous column name: id" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Ambiguous column name id. Both orders and customers have an id column, so the database can't tell which one you want. The fix: always qualify column names with the table alias when joining. o dot id for the order id, c dot id for the customer id." });
+  E({ type: 'FIX_TOKEN', from: 'SELECT id, name, quantity', to: 'SELECT o.id, c.name, o.quantity', highlightMs: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT o.id, c.name, o.quantity FROM orders o JOIN customers c ON o.customer_id = c.id;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'id  name       quantity\n--  ---------  --------\n1   Maya Chen  2\n2   Maya Chen  1\n3   Ana Diaz   1\n4   Ana Diaz   1\n5   Maya Chen  1' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['id','name','quantity'], rows: [[1,'Maya Chen',2],[2,'Maya Chen',1],[3,'Ana Diaz',1],[4,'Ana Diaz',1],[5,'Maya Chen',1]] }, title: 'Fixed: qualified column names (o.id, c.name)' });
+  E({ type: 'SPEAK', text: "Works now. o dot id is the order id, c dot name is the customer name, o dot quantity is the order quantity. Always qualify columns in joins — it removes ambiguity and makes the query self-documenting." });
+
+  // ===== BUG #3: GROUP BY missing a non-aggregated column =====
+  E({ type: 'SPEAK', text: "Bug number three. The GROUP BY rule. When you use GROUP BY, every column in your SELECT must either be in the GROUP BY clause or wrapped in an aggregate function like COUNT or SUM. Forget that and SQL refuses to run. Let me trigger it." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'JOIN customers c ON o.customer_id = c.id;' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '-- Orders per customer (BUG: name not in GROUP BY)', indent: '' });
+  // DELIBERATE BUG #3 — selecting c.name but only grouping by c.id
+  E({ type: 'TYPE_LINE', text: 'SELECT c.id, c.name, COUNT(o.id) AS cnt', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FROM customers c', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'LEFT JOIN orders o ON c.id = o.customer_id', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'GROUP BY c.id;', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db "SELECT c.id, c.name, COUNT(o.id) AS cnt FROM customers c LEFT JOIN orders o ON c.id=o.customer_id GROUP BY c.id;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Runtime error: ambiguous column name: c.name\n  (in strict mode, c.name must appear in GROUP BY or be aggregated)" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Error: c.name must appear in GROUP BY or be aggregated. We selected c.name but only grouped by c.id. The database can't decide which name to show for each id group. The fix is simple — add c.name to the GROUP BY clause." });
+  E({ type: 'FIX_TOKEN', from: 'GROUP BY c.id;', to: 'GROUP BY c.id, c.name;', highlightMs: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT c.id, c.name, COUNT(o.id) AS cnt FROM customers c LEFT JOIN orders o ON c.id=o.customer_id GROUP BY c.id, c.name;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'id  name       cnt\n--  ---------  ---\n1   Maya Chen  3\n3   Ana Diaz   2' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['id','name','cnt'], rows: [[1,'Maya Chen',3],[3,'Ana Diaz',2]] }, title: 'Fixed: all non-aggregated columns in GROUP BY' });
+  E({ type: 'SPEAK', text: "Now it runs. Maya three orders, Ana two. The rule to remember: in a GROUP BY query, every selected column is either grouped or aggregated. Get that right and you'll never see this error again." });
+  E({ type: 'SPEAK', text: "Three bugs, three fixes. Double quotes instead of single quotes, ambiguous column names in joins, and the GROUP BY rule. These three cover maybe eighty percent of the SQL errors beginners hit." });
+
+  /* ======================================================================
+     CHAPTER 6 — FINAL PROJECT & WALKTHROUGH  (8:30–10:00)
+     ====================================================================== */
+  chapterStart(6, 'Final Project & Walkthrough', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together with one query that uses everything we've learned — joins, aggregates, filtering, sorting. The question: which products have been ordered, how many times, and what's the total revenue from each? Sorted by revenue, top three only." });
+  E({ type: 'TYPE_FINAL_QUERY' });
+  E({ type: 'SPEAK', text: "Let me walk you through this. We're selecting the product name, the count of distinct order ids — that's how many times it was ordered — and the sum of quantity times price, which is total revenue, rounded to two decimals. FROM products, JOIN orders on the product id, GROUP BY product so each row is one product, and we filter with HAVING count greater than zero — that excludes products nobody has ordered. HAVING is like WHERE, but it runs after the GROUP BY, so it can filter on aggregates. WHERE can't. Finally ORDER BY revenue DESC and LIMIT 3 for the top three." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'COUNT(DISTINCT', label: 'how many times ordered', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'ROUND(SUM', label: 'total revenue per product', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'HAVING', label: 'filter AFTER grouping (WHERE cant)', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+
+  // ===== LIKE & SUBSCRIBE CTA =====
+  E({ type: 'SPEAK', text: "Quick break! If SQL is starting to make sense, smash that like button and subscribe. It genuinely helps the channel, and it tells the algorithm to show this to other people learning SQL. Back to the query." });
+  E({ type: 'SHOW_SUBSCRIBE' });
+
+  E({ type: 'SPEAK', text: "Let's run it and see the top three products by revenue." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_CLEAR' });
+  E({ type: 'TERM_TYPE', cmd: 'sqlite3 shop.db -header -column "SELECT p.name AS product, COUNT(DISTINCT o.id) AS times_ordered, ROUND(SUM(o.quantity * p.price), 2) AS revenue FROM products p JOIN orders o ON p.id = o.product_id GROUP BY p.id, p.name HAVING COUNT(DISTINCT o.id) > 0 ORDER BY revenue DESC LIMIT 3;"' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'product              times_ordered  revenue\n-------------------  -------------  -------\n4K Monitor           1              449.99\nHeadphones           1              199.99\nMechanical Keyboard  1              129.99' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_TABLE', result: { columns: ['product','times_ordered','revenue'], rows: [['4K Monitor',1,449.99],['Headphones',1,199.99],['Mechanical Keyboard',1,129.99]] }, title: 'Top 3 products by revenue (final query)' });
+  E({ type: 'SPEAK', text: "There's our answer. The 4K Monitor is the top revenue product at 449.99, followed by Headphones and the Mechanical Keyboard. One query, three tables joined, two aggregates, a HAVING filter, sorted and limited. That's a real analytics query you'd run at an actual company." });
+
+  // Final walkthrough
+  E({ type: 'SPEAK', text: "Let's recap the whole journey. We started with SELECT one plus one. We created tables with CREATE TABLE, defined columns and constraints like PRIMARY KEY and NOT NULL. We did CRUD — INSERT, SELECT, UPDATE, DELETE. We filtered with WHERE, combined conditions with AND and OR, sorted with ORDER BY, and capped results with LIMIT." });
+  E({ type: 'MOVE_CURSOR', target: '.preview-area' });
+  E({ type: 'SLEEP', ms: 1500 });
+  E({ type: 'SPEAK', text: "Then the big ones: JOINs to combine tables, aggregates like COUNT and SUM with GROUP BY to summarize, and HAVING to filter after grouping. We hit three real SQL errors — wrong quote style, ambiguous columns, and the GROUP BY rule — and fixed all three. And we wrapped up with a top-products-by-revenue query that ties everything together." });
+  E({ type: 'SPEAK', text: "The mindset shift with SQL: you describe the shape of the answer you want, not the steps to compute it. Tell the database what columns, what tables, how they connect, how to filter, how to group, how to sort — and let it figure out the rest. Once that clicks, SQL becomes the most powerful tool in your toolbox." });
+  E({ type: 'SPEAK', text: "That's it for today. If you followed along, you now know enough SQL to query a real database — joins, aggregates, and all. Go find a dataset, load it into SQLite, and start asking questions. That's how you learn. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'FINISH' });
+
+  return { events, chapterBoundaries, snapshots };
+}
+
+/* The final project query — typed out for the last chapter. */
+const FINAL_QUERY_CODE = `-- Top 3 products by revenue
+SELECT
+    p.name AS product,
+    COUNT(DISTINCT o.id) AS times_ordered,
+    ROUND(SUM(o.quantity * p.price), 2) AS revenue
+FROM products p
+JOIN orders o ON p.id = o.product_id
+GROUP BY p.id, p.name
+HAVING COUNT(DISTINCT o.id) > 0
+ORDER BY revenue DESC
+LIMIT 3;
+`;
+
+/* Custom event TYPE_FINAL_QUERY: replace editor content with the final query. */
+const _origExecuteSql = TimelineEngine.prototype._executeEvent;
+TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'TYPE_FINAL_QUERY') {
+    this.editor.setContent(FINAL_QUERY_CODE);
+    const lines = FINAL_QUERY_CODE.split('\n');
+    this.editor.setCursor(lines.length - 2, lines[lines.length - 2].length);
+    this.editor.setModified(true);
+    this.editor.render();
+    await sleep(800);
+    return;
+  }
+  return _origExecuteSql.call(this, ev);
+};
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+(function init() {
+  const editor = new EditorSimulator();
+  const typing = new TypingEngine(editor);
+  const autocomplete = new AutoCompleteEngine(editor);
+  const speech = new SpeechController();
+  const audio = new AudioController();
+  const terminal = new TerminalController();
+  const preview = new PreviewController(editor, terminal);
+  const fx = new VisualEffectsController(editor);
+  const timeline = new TimelineEngine(editor, typing, autocomplete, speech, audio, preview, terminal, fx);
+  const controls = new RecordingControls(timeline, speech, audio);
+
+  const tut = buildTutorial();
+  timeline.setEvents(tut.events, tut.chapterBoundaries, tut.snapshots);
+
+  window.__sim = { editor, typing, autocomplete, speech, audio, terminal, preview, fx, timeline, controls };
+})();
+
+</script>
+</body>
+</html>
