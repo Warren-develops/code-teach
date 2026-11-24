@@ -1,0 +1,2609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Live-Coding Tutorial Simulator — Python</title>
+<!-- Prism.js for syntax highlighting (loaded from CDN) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<style>
+/* ============================================================
+   VS CODE DARK+ PYTHON TUTORIAL SIMULATOR
+   Single-file application — Prism.js syntax highlighting
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #1e1e1e; color: #d4d4d4; font-size: 13px;
+  user-select: none; -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --vs-editor: #1e1e1e;
+  --vs-sidebar: #252526;
+  --vs-activity: #333333;
+  --vs-statusbar: #007acc;
+  --vs-tab-active: #1e1e1e;
+  --vs-tab-inactive: #2d2d2d;
+  --vs-border: #3c3c3c;
+  --vs-titlebar: #3c3c3c;
+  --vs-text: #d4d4d4;
+  --vs-muted: #858585;
+  --vs-line-active: rgba(255,255,255,0.06);
+  --vs-line-num: #858585;
+  --vs-line-num-active: #c6c6c6;
+  --vs-cursor: #aeafad;
+  --vs-terminal: #1e1e1e;
+  --py-blue: #4ec9b0;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--vs-editor); }
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  height: 30px; background: var(--vs-titlebar); display: flex; align-items: center;
+  font-size: 12px; color: #cccccc; flex-shrink: 0;
+}
+.titlebar-left, .titlebar-right { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.titlebar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.tb-menu-item { padding: 4px 8px; border-radius: 3px; cursor: default; }
+.tb-menu-item:hover { background: rgba(255,255,255,0.08); }
+.tb-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.tb-dot.red { background: #ff5f57; }
+.tb-dot.yellow { background: #febc2e; }
+.tb-dot.green { background: #28c840; }
+.tb-title { color: #cccccc; font-size: 12px; }
+
+/* ---------- Main body ---------- */
+.main-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ---------- Activity bar ---------- */
+.activity-bar {
+  width: 48px; background: var(--vs-activity); display: flex; flex-direction: column;
+  align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0;
+}
+.activity-icon {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  color: #858585; cursor: pointer; position: relative; transition: color .15s;
+}
+.activity-icon:hover { color: #fff; }
+.activity-icon.active { color: #fff; }
+.activity-icon.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.activity-icon svg { width: 24px; height: 24px; }
+.activity-spacer { flex: 1; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; background: var(--vs-sidebar); display: flex; flex-direction: column;
+  flex-shrink: 0; transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 0; }
+.sidebar-header {
+  height: 35px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font-size: 11px; letter-spacing: 0.5px; color: #bbbbbb;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.sidebar-header-actions { display: flex; gap: 6px; color: #858585; }
+.sidebar-header-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.sidebar-header-actions svg:hover { color: #fff; }
+.explorer { flex: 1; overflow-y: auto; font-size: 13px; padding-bottom: 12px; }
+.explorer-project { padding: 4px 14px; color: #cccccc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.tree-node {
+  display: flex; align-items: center; height: 22px; padding: 0 8px; cursor: pointer;
+  color: #cccccc; white-space: nowrap; position: relative;
+}
+.tree-node:hover { background: rgba(255,255,255,0.05); }
+.tree-node.active { background: #37373d; }
+.tree-chevron { width: 12px; display: inline-flex; align-items: center; justify-content: center; color: #858585; }
+.tree-chevron svg { width: 10px; height: 10px; transition: transform .15s; }
+.tree-chevron.collapsed svg { transform: rotate(-90deg); }
+.tree-icon { width: 16px; height: 16px; margin-right: 6px; flex-shrink: 0; }
+.tree-label { font-size: 13px; }
+
+/* ---------- Editor + Terminal split ---------- */
+.editor-area {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--vs-editor);
+}
+.tab-bar {
+  height: 35px; background: var(--vs-sidebar); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--vs-border); flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--vs-tab-inactive); color: #969696; border-right: 1px solid #252526;
+  font-size: 13px; cursor: pointer; white-space: nowrap; position: relative; min-width: 120px;
+}
+.tab.active { background: var(--vs-tab-active); color: #fff; }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #fff; }
+.tab-icon { width: 16px; height: 16px; }
+.tab-modified { width: 8px; height: 8px; border-radius: 50%; background: #c5c5c5; margin-left: auto; }
+.tab-modified.hidden { display: none; }
+.tab-close { color: #858585; opacity: 0; transition: opacity .1s; margin-left: 4px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+
+.editor-breadcrumbs {
+  height: 22px; background: var(--vs-editor); display: flex; align-items: center;
+  padding: 0 14px; font-size: 12px; color: #858585; border-bottom: 1px solid #252526; flex-shrink: 0; gap: 4px;
+}
+.editor-breadcrumbs svg { width: 12px; height: 12px; }
+.crumb-sep { color: #5a5a5a; }
+
+/* Editor takes top portion, terminal takes bottom */
+.editor-terminal-split {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.editor-scroll {
+  flex: 1; overflow: auto; position: relative; background: var(--vs-editor);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 14px; line-height: 19px; min-height: 0;
+}
+.editor-content { position: relative; min-width: 100%; min-height: 100%; padding: 8px 0 200px 0; }
+.line {
+  display: flex; align-items: flex-start; height: 19px; white-space: pre; position: relative;
+}
+.line.active-line { background: var(--vs-line-active); }
+.line-num {
+  width: 60px; text-align: right; padding-right: 16px; color: var(--vs-line-num);
+  user-select: none; flex-shrink: 0; font-size: 13px;
+}
+.line.active-line .line-num { color: var(--vs-line-num-active); }
+.line-code { position: relative; white-space: pre; flex: 1; padding-right: 14px; }
+.cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--vs-cursor);
+  vertical-align: text-bottom; margin-left: -1px; animation: blink 1s steps(1) infinite;
+  position: relative; top: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Prism override: token spans inherit our font */
+.line-code code, .line-code pre { background: transparent !important; font-family: inherit !important; font-size: inherit !important; padding: 0 !important; margin: 0 !important; }
+.line-code .token { background: transparent !important; }
+
+/* Autocomplete */
+.autocomplete {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  min-width: 260px; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 50; display: none; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+}
+.autocomplete.visible { display: block; }
+.ac-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; color: #cccccc;
+}
+.ac-item.selected { background: #04395e; }
+.ac-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ac-label { flex: 1; }
+.ac-detail { color: #858585; font-size: 11px; }
+.suggestion-doc {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  padding: 8px 12px; font-size: 12px; color: #cccccc; max-width: 320px; z-index: 60;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.suggestion-doc.visible { display: block; }
+
+/* ---------- Terminal panel ---------- */
+.terminal-panel {
+  height: 220px; min-height: 80px; background: var(--vs-terminal); border-top: 1px solid var(--vs-border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.terminal-header {
+  height: 30px; background: #252526; display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #cccccc;
+  border-bottom: 1px solid #1a1a1a; gap: 14px; flex-shrink: 0;
+}
+.terminal-tab { padding: 3px 8px; border-radius: 3px; cursor: pointer; color: #858585; }
+.terminal-tab.active { color: #fff; background: rgba(255,255,255,0.08); }
+.terminal-tab.active::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ec9b0; margin-right: 6px; vertical-align: middle; }
+.terminal-actions { margin-left: auto; display: flex; gap: 8px; color: #858585; }
+.terminal-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.terminal-actions svg:hover { color: #fff; }
+.terminal-body {
+  flex: 1; overflow-y: auto; padding: 6px 12px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px; line-height: 18px; color: #cccccc;
+}
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-prompt { color: #4ec9b0; }
+.term-prompt-path { color: #9cdcfe; }
+.term-prompt-arrow { color: #dcdcaa; }
+.term-cmd { color: #d4d4d4; }
+.term-output { color: #cccccc; }
+.term-error { color: #f48771; }
+.term-success { color: #6a9955; }
+.term-info { color: #569cd6; }
+.term-cursor {
+  display: inline-block; width: 7px; height: 15px; background: #aeafad; vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite; margin-left: 2px;
+}
+.terminal-body .spinner-term { display: inline-block; color: #dcdcaa; }
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  height: 22px; background: var(--vs-statusbar); display: flex; align-items: center;
+  color: #fff; font-size: 12px; padding: 0 8px; gap: 14px; flex-shrink: 0;
+}
+.statusbar-item { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.statusbar-item svg { width: 14px; height: 14px; }
+.statusbar-spacer { flex: 1; }
+.statusbar-remote { background: #007acc; }
+
+/* ============================================================
+   PREVIEW / DOCS PANEL (right side, ~40%)
+   Shows rendered Python output or rich-text docs
+   ============================================================ */
+.preview-area {
+  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  border-left: 1px solid var(--vs-border); flex-shrink: 0;
+}
+.preview-header {
+  height: 35px; background: #ececec; display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  border-bottom: 1px solid #d0d0d0; flex-shrink: 0;
+}
+.preview-title {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #555;
+}
+.preview-title svg { width: 16px; height: 16px; color: #3776ab; }
+.preview-tabs { display: flex; gap: 4px; margin-left: auto; }
+.preview-tab {
+  padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; color: #555; background: transparent; border: 1px solid transparent;
+}
+.preview-tab.active { background: #fff; border-color: #d0d0d0; color: #007acc; font-weight: 600; }
+.preview-viewport {
+  flex: 1; position: relative; background: #fff; overflow: hidden;
+}
+.preview-iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+.preview-loading-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: none;
+  align-items: center; justify-content: center; z-index: 5;
+}
+.preview-loading-overlay.visible { display: flex; }
+.preview-loading-overlay .spinner {
+  width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: #007acc; border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-indicator {
+  font-size: 11px; color: #555; opacity: 0; transition: opacity .3s; padding: 0 6px; display: flex; align-items: center; gap: 4px;
+}
+.run-indicator.visible { opacity: 1; }
+.run-indicator svg { width: 12px; height: 12px; }
+.run-indicator.running svg { animation: spin 0.8s linear infinite; }
+
+/* ============================================================
+   SIMULATED MOUSE CURSOR
+   ============================================================ */
+.fake-cursor {
+  position: fixed; width: 22px; height: 22px; z-index: 9999; pointer-events: none;
+  transform: translate(-2px, -2px); transition: left .25s cubic-bezier(.4,0,.2,1), top .25s cubic-bezier(.4,0,.2,1), opacity .2s; opacity: 0;
+}
+.fake-cursor.visible { opacity: 1; }
+.fake-cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.fake-cursor.clicking { animation: clickPulse .25s ease; }
+@keyframes clickPulse { 0% { transform: translate(-2px,-2px) scale(1); } 50% { transform: translate(-2px,-2px) scale(0.75); } 100% { transform: translate(-2px,-2px) scale(1); } }
+.fake-cursor-ring { position: fixed; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; z-index: 9998; pointer-events: none; opacity: 0; transition: opacity .2s; }
+
+/* ============================================================
+   VISUAL OVERLAYS
+   ============================================================ */
+.overlay-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+.overlay-arrow { position: absolute; pointer-events: none; transition: opacity .3s; }
+.overlay-arrow.fade-out { opacity: 0; }
+.overlay-circle {
+  position: absolute; border: 2px solid #ffcc00; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.4); animation: pulseCircle 1.4s ease-in-out infinite;
+}
+@keyframes pulseCircle { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
+.overlay-highlight {
+  position: absolute; background: rgba(255, 204, 0, 0.18); border: 1px solid rgba(255,204,0,0.7);
+  border-radius: 3px; pointer-events: none; box-shadow: 0 0 14px rgba(255,204,0,0.35); animation: highlightPulse 1.4s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100% { box-shadow: 0 0 14px rgba(255,204,0,0.35); } 50% { box-shadow: 0 0 22px rgba(255,204,0,0.6); } }
+.overlay-label {
+  position: absolute; background: rgba(40,40,40,0.95); color: #ffcc00; padding: 5px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,204,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 260px;
+}
+.pointer-trail { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,204,0,0.6); pointer-events: none; z-index: 8999; }
+
+/* ============================================================
+   FLOATING CARDS
+   ============================================================ */
+.card-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9500; display: none;
+  align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s;
+}
+.card-overlay.visible { display: flex; opacity: 1; }
+.info-card {
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 18px; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); color: #d4d4d4; font-size: 13px; transform: scale(0.92);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.card-overlay.visible .info-card { transform: scale(1); }
+.info-card img, .info-card svg { width: 100%; max-height: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+.info-card h3 { color: #fff; font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+.info-card p { color: #cccccc; line-height: 1.5; }
+.code-card { font-family: "SF Mono", Menlo, monospace; }
+.code-card pre {
+  background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 10px; color: #d4d4d4;
+  font-size: 12px; overflow-x: auto; margin: 6px 0; white-space: pre;
+}
+.code-card .code-caption { color: #9cdcfe; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.code-card .code-output { color: #6a9955; font-size: 11px; font-style: italic; margin-top: 4px; }
+
+/* ============================================================
+   CHAPTER TRANSITION
+   ============================================================ */
+.chapter-transition {
+  position: fixed; inset: 0; background: #fff; z-index: 9700; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .35s;
+}
+.chapter-transition.visible { display: flex; opacity: 1; }
+.chapter-transition .ch-content { text-align: center; color: #000; padding: 40px; }
+.chapter-transition .ch-number { font-size: 18px; letter-spacing: 8px; color: #888; font-weight: 600; margin-bottom: 18px; text-transform: uppercase; }
+.chapter-transition .ch-title { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; text-transform: uppercase; }
+.chapter-transition .ch-bar { width: 60px; height: 4px; background: #000; margin: 24px auto 0; }
+.chapter-transition .ch-python-logo { margin-bottom: 18px; }
+.chapter-transition .ch-python-logo svg { width: 80px; height: 80px; }
+
+/* ============================================================
+   CAPTIONS
+   ============================================================ */
+.captions-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.78);
+  color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 16px; max-width: 70%; text-align: center;
+  z-index: 8500; display: none; pointer-events: none; line-height: 1.4;
+}
+.captions-bar.visible { display: block; }
+.captions-bar.hidden { display: none !important; }
+
+/* ============================================================
+   LIKE & SUBSCRIBE
+   ============================================================ */
+.subscribe-overlay {
+  position: fixed; top: 80px; right: 60px; z-index: 9600; display: none; flex-direction: column; gap: 10px;
+  align-items: flex-end; opacity: 0; transition: opacity .3s, transform .3s; transform: translateY(-10px);
+}
+.subscribe-overlay.visible { display: flex; opacity: 1; transform: translateY(0); }
+.sub-btn-row { display: flex; gap: 10px; align-items: center; }
+.yt-like { display: flex; align-items: center; gap: 6px; background: #fff; color: #0f0f0f; border: none; border-radius: 18px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.yt-like svg { width: 20px; height: 20px; }
+.yt-like.clicked { background: #065fd4; color: #fff; animation: btnClick .4s; }
+.yt-subscribe { display: flex; align-items: center; gap: 6px; background: #ff0000; color: #fff; border: none; border-radius: 18px; padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.yt-subscribe.clicked { background: #1c1c1c; animation: btnClick .4s; }
+.yt-subscribe.clicked::after { content: ' \2714'; }
+.yt-bell { background: #fff; color: #0f0f0f; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.yt-bell svg { width: 22px; height: 22px; }
+.yt-bell.clicked { animation: bellRing .6s ease; }
+@keyframes btnClick { 0% { transform: scale(1); } 50% { transform: scale(0.88); } 100% { transform: scale(1); } }
+@keyframes bellRing { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+.control-panel {
+  position: fixed; top: 50px; right: 16px; width: 320px; background: rgba(30,30,30,0.96);
+  border: 1px solid #3c3c3c; border-radius: 8px; z-index: 9800; box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  font-size: 12px; color: #d4d4d4; max-height: calc(100vh - 80px); overflow-y: auto;
+  transition: transform .25s, opacity .25s;
+}
+.control-panel.hidden { transform: translateX(340px); opacity: 0; pointer-events: none; }
+.cp-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  background: #252526; border-bottom: 1px solid #3c3c3c; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 1;
+}
+.cp-title { font-weight: 600; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.cp-title svg { width: 16px; height: 16px; color: #3776ab; }
+.cp-collapse { background: transparent; border: none; color: #858585; cursor: pointer; padding: 2px; border-radius: 3px; }
+.cp-collapse:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cp-collapse svg { width: 14px; height: 14px; }
+.cp-section { padding: 12px 14px; border-bottom: 1px solid #2a2a2a; }
+.cp-section:last-child { border-bottom: none; }
+.cp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #858585; margin-bottom: 8px; font-weight: 600; }
+.cp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cp-row:last-child { margin-bottom: 0; }
+.cp-row label { flex: 1; color: #cccccc; font-size: 12px; }
+.cp-row input[type="range"] { width: 100px; accent-color: #007acc; }
+.cp-row input[type="text"], .cp-row select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; }
+.cp-row input[type="checkbox"] { accent-color: #007acc; width: 14px; height: 14px; }
+.cp-row .val-badge { background: #3c3c3c; color: #d4d4d4; border-radius: 3px; padding: 1px 6px; font-size: 11px; min-width: 32px; text-align: center; }
+.cp-btn { background: #0e639c; color: #fff; border: none; padding: 6px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.cp-btn:hover { background: #1177bb; }
+.cp-btn.secondary { background: #3a3d41; }
+.cp-btn.secondary:hover { background: #45494e; }
+.cp-btn.danger { background: #5a1d1d; }
+.cp-btn.danger:hover { background: #6e2424; }
+.cp-btn svg { width: 12px; height: 12px; }
+.cp-btn-row { display: flex; gap: 6px; }
+.cp-btn-row .cp-btn { flex: 1; }
+.cp-progress-section { padding: 10px 14px; background: #252526; }
+.cp-progress-bar { height: 6px; background: #3c3c3c; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.cp-progress-fill { height: 100%; background: linear-gradient(90deg, #3776ab, #ffd43b); width: 0%; transition: width .3s; }
+.cp-time-display { display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-top: 4px; }
+.cp-chapter-display { font-size: 11px; color: #9cdcfe; margin-top: 4px; }
+.cp-rec-indicator { display: inline-flex; align-items: center; gap: 4px; color: #ff5252; font-size: 11px; font-weight: 600; }
+.cp-rec-indicator .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5252; animation: recBlink 1.2s infinite; }
+@keyframes recBlink { 50% { opacity: 0.3; } }
+
+.show-controls-btn {
+  position: fixed; top: 50px; right: 16px; width: 36px; height: 36px; background: rgba(30,30,30,0.95);
+  border: 1px solid #3c3c3c; border-radius: 50%; color: #fff; z-index: 9800; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.show-controls-btn.visible { display: flex; }
+.show-controls-btn:hover { background: #3a3d41; }
+.show-controls-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-screen {
+  position: fixed; inset: 0; background: #1e1e1e; z-index: 9990; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 30px; transition: opacity .4s;
+}
+.start-screen.hidden { opacity: 0; pointer-events: none; }
+.start-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 40px;
+  max-width: 640px; width: 100%; box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+}
+.start-card h1 {
+  color: #fff; font-size: 26px; margin-bottom: 6px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.start-card h1 .py-badge { background: #3776ab; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.start-card .subtitle { color: #858585; margin-bottom: 24px; font-size: 13px; }
+.start-card .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 24px; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 11px; color: #858585; text-transform: uppercase; letter-spacing: .5px; }
+.config-field input, .config-field select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 3px; font-size: 13px; outline: none; }
+.config-field input:focus, .config-field select:focus { border-color: #3776ab; }
+.config-field.full { grid-column: 1 / -1; }
+.start-btn {
+  width: 100%; background: #3776ab; color: #fff; border: none; padding: 14px; border-radius: 6px;
+  font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 10px; transition: background .15s;
+}
+.start-btn:hover { background: #4584b6; }
+.start-btn svg { width: 20px; height: 20px; }
+.start-hint { color: #858585; font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+.start-hint kbd { background: #3c3c3c; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 11px; color: #d4d4d4; font-family: inherit; }
+
+/* ============================================================
+   FINISH SCREEN
+   ============================================================ */
+.finish-screen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9850; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .4s;
+}
+.finish-screen.visible { display: flex; opacity: 1; }
+.finish-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 44px;
+  max-width: 460px; text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.finish-card .check-circle { width: 64px; height: 64px; background: #107c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.finish-card .check-circle svg { width: 36px; height: 36px; color: #fff; }
+.finish-card h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+.finish-card p { color: #cccccc; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.finish-card .stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.finish-card .stat { text-align: center; }
+.finish-card .stat-val { color: #3776ab; font-size: 22px; font-weight: 700; }
+.finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="tb-dot red"></span><span class="tb-dot yellow"></span><span class="tb-dot green"></span>
+    </div>
+    <div class="titlebar-center">
+      <span class="tb-menu-item">File</span><span class="tb-menu-item">Edit</span><span class="tb-menu-item">Selection</span>
+      <span class="tb-menu-item">View</span><span class="tb-menu-item">Go</span><span class="tb-menu-item">Run</span>
+      <span class="tb-menu-item">Terminal</span><span class="tb-menu-item">Help</span>
+    </div>
+    <div class="titlebar-right"><span class="tb-title">python-tutorial — Visual Studio Code</span></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="main-body">
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></div>
+      <div class="activity-icon" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="activity-icon" title="Source Control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0.5"/></svg></div>
+      <div class="activity-icon" title="Extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 3l3 3-3 3M11 21l-3-3 3-3M3 11h7M21 13h-7M7 7l3 3M17 17l-3-3"/></svg></div>
+      <div class="activity-spacer"></div>
+      <div class="activity-icon" title="Accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div class="activity-icon" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <div class="sidebar-header-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="explorer-project">Python-Tutorial</div>
+        <div class="file-tree" id="file-tree">
+          <div class="tree-node" data-folder="modules">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">modules</span>
+          </div>
+          <div class="tree-node" data-folder="venv">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">venv</span>
+          </div>
+          <div class="tree-node active" data-file="main.py">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">main.py</span>
+          </div>
+          <div class="tree-node" data-file="utils.py">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">utils.py</span>
+          </div>
+          <div class="tree-node" data-file="requirements.txt">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">requirements.txt</span>
+          </div>
+          <div class="tree-node" data-file="README.md">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">README.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor + Terminal -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="main.py">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+          <span>main.py</span>
+          <span class="tab-modified hidden" id="tab-modified"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+        <div class="tab" data-tab="utils.py">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/></svg></span>
+          <span>utils.py</span>
+          <span class="tab-modified hidden"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+      </div>
+      <div class="editor-breadcrumbs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg>
+        <span>Python-Tutorial</span><span class="crumb-sep">›</span><span>main.py</span>
+      </div>
+      <div class="editor-terminal-split">
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="editor-content" id="editor-content"></div>
+          <div class="autocomplete" id="autocomplete"></div>
+          <div class="suggestion-doc" id="suggestion-doc"></div>
+        </div>
+        <!-- Terminal -->
+        <div class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <span class="terminal-tab active">TERMINAL</span>
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <div class="terminal-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Docs panel -->
+    <div class="preview-area">
+      <div class="preview-header">
+        <div class="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg>
+          <span>Python Output</span>
+        </div>
+        <div class="preview-tabs">
+          <div class="preview-tab active" data-ptab="output">Output</div>
+          <div class="preview-tab" data-ptab="docs">Docs</div>
+        </div>
+        <div class="run-indicator" id="run-indicator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+          Running
+        </div>
+      </div>
+      <div class="preview-viewport">
+        <iframe class="preview-iframe" id="preview-iframe" sandbox="allow-same-origin" title="Python output"></iframe>
+        <div class="preview-loading-overlay" id="preview-loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div class="statusbar-item statusbar-remote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3L4 7l4 4M16 3l4 4-4 4M14 4l-4 16"/></svg><span>Live Share</span></div>
+    <div class="statusbar-item" id="sb-cursor-pos">Ln 1, Col 1</div>
+    <div class="statusbar-item">Spaces: 4</div>
+    <div class="statusbar-item">UTF-8</div>
+    <div class="statusbar-item">Python</div>
+    <div class="statusbar-item">LF</div>
+    <div class="statusbar-spacer"></div>
+    <div class="statusbar-item" id="sb-line-count">0 lines</div>
+    <div class="statusbar-item">Python 3.11.6</div>
+    <div class="statusbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+</div>
+
+<!-- Simulated cursor -->
+<div class="fake-cursor" id="fake-cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M5 3l14 8-6 1 4 7-3 1-4-7-5 4z"/></svg></div>
+<div class="fake-cursor-ring" id="fake-cursor-ring"></div>
+
+<!-- Overlays -->
+<div class="overlay-layer" id="overlay-layer"></div>
+<div class="card-overlay" id="card-overlay"><div class="info-card" id="info-card"></div></div>
+<div class="chapter-transition" id="chapter-transition"><div class="ch-content"><div class="ch-python-logo" id="ch-python-logo"></div><div class="ch-number" id="ch-number">CHAPTER 01</div><div class="ch-title" id="ch-title">INTRODUCTION</div><div class="ch-bar"></div></div></div>
+<div class="captions-bar hidden" id="captions-bar"></div>
+<div class="subscribe-overlay" id="subscribe-overlay">
+  <div class="sub-btn-row">
+    <button class="yt-like" id="yt-like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11v9H4V11h3zm14-1l-1 8a2 2 0 0 1-2 2H9V11l4-7c.6 0 1 .4 1 1v4h6a1 1 0 0 1 1 1z"/></svg>Like</button>
+    <button class="yt-subscribe" id="yt-subscribe">Subscribe</button>
+    <button class="yt-bell" id="yt-bell" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0"/></svg></button>
+  </div>
+</div>
+
+<!-- Control panel -->
+<div class="control-panel" id="control-panel">
+  <div class="cp-header">
+    <div class="cp-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg><span>Recording Controls</span></div>
+    <button class="cp-collapse" id="cp-collapse" title="Hide (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="cp-progress-section">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="cp-rec-indicator" id="cp-rec"><span class="rec-dot"></span> STANDBY</span>
+      <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
+    </div>
+    <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Playback</div>
+    <div class="cp-btn-row" style="margin-bottom:6px;">
+      <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
+      <button class="cp-btn secondary" id="btn-pause" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>Pause</button>
+    </div>
+    <div class="cp-btn-row">
+      <button class="cp-btn secondary" id="btn-resume" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+      <button class="cp-btn danger" id="btn-restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 4v4h4"/></svg>Restart</button>
+    </div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Voice &amp; Narration</div>
+    <div class="cp-row"><label>Voice</label></div>
+    <div class="cp-row"><select id="cp-voice" style="flex:1;"></select></div>
+    <div class="cp-row"><label>Speed</label><input type="range" id="cp-rate" min="0.7" max="1.4" step="0.05" value="1.0"><span class="val-badge" id="cp-rate-val">1.0x</span></div>
+    <div class="cp-row"><label>Mute narration</label><input type="checkbox" id="cp-mute"></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-test-voice" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>Test Voice</button></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Typing</div>
+    <div class="cp-row"><label>Typing speed</label><input type="range" id="cp-typing" min="0.4" max="2.5" step="0.1" value="1.0"><span class="val-badge" id="cp-typing-val">1.0x</span></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Background Music (YouTube)</div>
+    <div class="cp-row"><input type="text" id="cp-music-url" placeholder="https://youtube.com/watch?v=..."></div>
+    <div class="cp-row"><label>Volume</label><input type="range" id="cp-music-vol" min="0" max="100" step="5" value="35"><span class="val-badge" id="cp-music-vol-val">35%</span></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-music-test" style="flex:1;">Test Music</button><button class="cp-btn secondary" id="btn-music-mute" style="flex:1;">Mute</button></div>
+    <div style="font-size:10px; color:#858585; margin-top:4px; line-height:1.4;" id="music-status">No music configured. Tutorial will run without background music.</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Display</div>
+    <div class="cp-row"><label>Captions</label><input type="checkbox" id="cp-captions" checked></div>
+    <div class="cp-row"><label>Visual effects</label><input type="checkbox" id="cp-effects" checked></div>
+    <div class="cp-row"><label>Simulated cursor</label><input type="checkbox" id="cp-cursor" checked></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Navigation</div>
+    <div class="cp-row"><label>Jump to chapter</label></div>
+    <div class="cp-row"><select id="cp-jump" style="flex:1;">
+      <option value="0">Ch 1 — Intro &amp; Python Basics</option>
+      <option value="1">Ch 2 — Variables &amp; Data Types</option>
+      <option value="2">Ch 3 — Modules &amp; Imports</option>
+      <option value="3">Ch 4 — Python Hacks &amp; Tricks</option>
+      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
+      <option value="5">Ch 6 — Final Project &amp; Walkthrough</option>
+    </select></div>
+    <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
+  </div>
+</div>
+
+<button class="show-controls-btn" id="show-controls-btn" title="Show controls (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+
+<!-- Finish screen -->
+<div class="finish-screen" id="finish-screen">
+  <div class="finish-card">
+    <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Tutorial Complete!</h2>
+    <p>Your Python program is written, debugged, and running. You learned variables, modules, and some genuinely clever Python tricks.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
+      <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+    </div>
+    <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
+  </div>
+</div>
+
+<!-- Start screen -->
+<div class="start-screen" id="start-screen">
+  <div class="start-card">
+    <h1>
+      <svg viewBox="0 0 24 24" width="32" height="32" viewBox="0 0 256 255"><defs><linearGradient id="pyg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#387eb8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="pyg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe052"/><stop offset="1" stop-color="#ffc331"/></linearGradient></defs><path fill="url(#pyg1)" d="M126.9.1C98.3.1 70 4.2 53.4 19.2 27.9 35.6 28 70.9 28 93.5c0 19.7 5.7 33.6 14.7 42.5 5.9 5.8 13.4 9.8 21.5 12.1"/><path fill="url(#pyg2)" d="M126.9 254.9c28.6 0 56.9-4.1 73.5-19.1 25.5-16.4 25.5-51.7 25.5-74.3 0-19.7-5.7-33.6-14.7-42.5-5.9-5.8-13.4-9.8-21.5-12.1"/></svg>
+      VS Code Python Simulator
+      <span class="py-badge">Python 3</span>
+    </h1>
+    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live Python coding session. Covers modules, clever hacks, and three debugging demos.</p>
+    <div class="config-grid">
+      <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
+      <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
+      <div class="config-field"><label>Typing speed</label><select id="ss-typing"><option value="0.6">Calm</option><option value="1.0" selected>Normal</option><option value="1.6">Quick</option><option value="2.2">Rapid</option></select></div>
+      <div class="config-field"><label>Captions</label><select id="ss-captions"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+      <div class="config-field full"><label>Background music (optional YouTube URL)</label><input type="text" id="ss-music" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div class="config-field"><label>Music volume</label><input type="range" id="ss-music-vol" min="0" max="100" value="35" style="width:100%;"></div>
+      <div class="config-field"><label>Visual effects</label><select id="ss-effects"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+    </div>
+    <button class="start-btn" id="btn-start-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="#ff5252" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>START RECORDING</button>
+    <div class="start-hint">Tip: press <kbd>H</kbd> during the tutorial to hide or restore the control panel.<br>Voices load from your browser's Web Speech API. Pick a Google / Microsoft neural voice for best results.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   PYTHON TUTORIAL SIMULATOR — JavaScript
+   Modules: EditorSimulator, PrismHighlighter, TypingEngine,
+   AutoCompleteEngine, SpeechController, AudioController,
+   TerminalController, VisualEffectsController, TimelineEngine,
+   RecordingControls
+   ============================================================ */
+'use strict';
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+function el(tag, props={}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') node.className = props[k];
+    else if (k === 'style') node.setAttribute('style', props[k]);
+    else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
+    else node[k] = props[k];
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+const STATE = {
+  started: false, paused: false, finished: false,
+  currentChapter: 0, eventIndex: 0, charIndex: 0, elapsedMs: 0,
+  typingSpeedMul: 1.0, speechRate: 1.0, captionsOn: true, effectsOn: true,
+  cursorOn: true, muteNarration: false, musicMuted: false, musicVolume: 0.35,
+};
+
+/* ============================================================
+   1. EDITOR SIMULATOR
+   Maintains the source document as an array of lines.
+   Renders with line numbers + Prism syntax highlighting + cursor.
+   ============================================================ */
+class EditorSimulator {
+  constructor() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.contentEl = $('#editor-content');
+    this.scrollEl = $('#editor-scroll');
+    this.autocompleteEl = $('#autocomplete');
+    this.suggestionDocEl = $('#suggestion-doc');
+    this.tabModified = $('#tab-modified');
+    this.sbCursor = $('#sb-cursor-pos');
+    this.sbLineCount = $('#sb-line-count');
+    this.modified = false;
+    this.highlighter = new PrismHighlighter();
+    this.render();
+  }
+
+  reset() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.modified = false;
+    this.setModified(false);
+    this.render();
+  }
+
+  setModified(m) {
+    this.modified = m;
+    if (m) this.tabModified.classList.remove('hidden');
+    else this.tabModified.classList.add('hidden');
+  }
+
+  getText() { return this.lines.join('\n'); }
+
+  insertText(text) {
+    for (const ch of text) {
+      const line = this.lines[this.cursorLine] || '';
+      if (ch === '\n') {
+        const before = line.slice(0, this.cursorCol);
+        const after = line.slice(this.cursorCol);
+        this.lines[this.cursorLine] = before;
+        this.lines.splice(this.cursorLine + 1, 0, after);
+        this.cursorLine++;
+        this.cursorCol = 0;
+      } else {
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol) + ch + line.slice(this.cursorCol);
+        this.cursorCol++;
+      }
+    }
+    this.setModified(true);
+  }
+
+  backspace(count=1) {
+    for (let i = 0; i < count; i++) {
+      if (this.cursorCol > 0) {
+        const line = this.lines[this.cursorLine];
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol - 1) + line.slice(this.cursorCol);
+        this.cursorCol--;
+      } else if (this.cursorLine > 0) {
+        const prev = this.lines[this.cursorLine - 1];
+        this.cursorCol = prev.length;
+        this.lines[this.cursorLine - 1] = prev + this.lines[this.cursorLine];
+        this.lines.splice(this.cursorLine, 1);
+        this.cursorLine--;
+      }
+    }
+    this.setModified(true);
+  }
+
+  setCursor(line, col) {
+    this.cursorLine = Math.max(0, Math.min(line, this.lines.length - 1));
+    const ll = this.lines[this.cursorLine] || '';
+    this.cursorCol = Math.max(0, Math.min(col, ll.length));
+  }
+
+  setContent(text) {
+    this.lines = text.split('\n');
+    if (this.lines.length === 0) this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.setModified(false);
+  }
+
+  render() {
+    const frag = document.createDocumentFragment();
+    const total = this.lines.length;
+    for (let i = 0; i < total; i++) {
+      const lineDiv = el('div', { class: 'line' + (i === this.cursorLine ? ' active-line' : '') });
+      const num = el('span', { class: 'line-num' }, String(i + 1));
+      const code = el('span', { class: 'line-code' });
+      if (i === this.cursorLine) {
+        code.innerHTML = this._insertCursorHtml(this.lines[i] || '');
+      } else {
+        code.innerHTML = this.highlighter.highlight(this.lines[i] || '');
+      }
+      lineDiv.appendChild(num);
+      lineDiv.appendChild(code);
+      frag.appendChild(lineDiv);
+    }
+    this.contentEl.innerHTML = '';
+    this.contentEl.appendChild(frag);
+    this.sbCursor.textContent = `Ln ${this.cursorLine + 1}, Col ${this.cursorCol + 1}`;
+    this.sbLineCount.textContent = `${total} lines`;
+    this._scrollToCursor();
+  }
+
+  _insertCursorHtml(line) {
+    // Highlight before/after the cursor position, drop the cursor span in between.
+    const before = line.slice(0, this.cursorCol);
+    const after = line.slice(this.cursorCol);
+    const beforeHtml = this.highlighter.highlight(before);
+    const afterHtml = this.highlighter.highlight(after);
+    return beforeHtml + '<span class="cursor"></span>' + afterHtml;
+  }
+
+  _scrollToCursor() {
+    const lineHeight = 19;
+    const targetTop = this.cursorLine * lineHeight;
+    const viewH = this.scrollEl.clientHeight;
+    if (targetTop < this.scrollEl.scrollTop + 40) {
+      this.scrollEl.scrollTop = Math.max(0, targetTop - 40);
+    } else if (targetTop > this.scrollEl.scrollTop + viewH - 80) {
+      this.scrollEl.scrollTop = targetTop - viewH + 80;
+    }
+    const approxColWidth = 7.8;
+    const targetLeft = this.cursorCol * approxColWidth;
+    if (targetLeft < this.scrollEl.scrollLeft + 80) {
+      this.scrollEl.scrollLeft = Math.max(0, targetLeft - 80);
+    } else if (targetLeft > this.scrollEl.scrollLeft + this.scrollEl.clientWidth - 100) {
+      this.scrollEl.scrollLeft = targetLeft - this.scrollEl.clientWidth + 100;
+    }
+  }
+
+  getLineRect(line) {
+    const lineDivs = this.contentEl.querySelectorAll('.line');
+    const lineDiv = lineDivs[line];
+    if (!lineDiv) return null;
+    return lineDiv.getBoundingClientRect();
+  }
+
+  getTokenRect(line, startCol, endCol) {
+    const lineRect = this.getLineRect(line);
+    if (!lineRect) return null;
+    const charWidth = 7.8;
+    return {
+      left: lineRect.left + 60 + startCol * charWidth,
+      top: lineRect.top,
+      right: lineRect.left + 60 + endCol * charWidth,
+      bottom: lineRect.bottom,
+      width: (endCol - startCol) * charWidth,
+      height: lineRect.height,
+    };
+  }
+}
+
+/* ============================================================
+   2. PRISM HIGHLIGHTER
+   Wraps Prism.js to highlight a single line of Python safely,
+   preserving character offsets for cursor insertion.
+   ============================================================ */
+class PrismHighlighter {
+  constructor() {
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages.python) || null;
+    this.ready = !!(window.Prism && this.grammar);
+  }
+
+  highlight(line) {
+    if (!line) return '';
+    if (!this.ready) return this._escape(line);
+    try {
+      // Prism.highlight returns HTML with token spans. We must escape
+      // the raw line first for safety, but Prism does its own escaping
+      // internally when tokenizing — so passing the raw string is correct.
+      return window.Prism.highlight(line, this.grammar, 'python');
+    } catch (e) {
+      return this._escape(line);
+    }
+  }
+
+  _escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+}
+
+/* ============================================================
+   3. TYPING ENGINE
+   Character-by-character typing with realistic human cadence.
+   ============================================================ */
+class TypingEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.paused = false;
+    this.cancelled = false;
+    this._pauseResolve = null;
+  }
+
+  reset() { this.cancelled = true; this._breakPause(); }
+  pause() { this.paused = true; }
+  resume() { this.paused = false; this._breakPause(); }
+  _breakPause() { if (this._pauseResolve) { const r = this._pauseResolve; this._pauseResolve = null; r(); } }
+
+  async _wait(ms) {
+    const slice = 30;
+    let remaining = ms;
+    while (remaining > 0 && !this.cancelled) {
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const step = Math.min(slice, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+
+  _charDelay(ch, prevCh, nextCh) {
+    const mul = 1 / STATE.typingSpeedMul;
+    let base = rand(40, 90);
+    if (prevCh === '(' || prevCh === ')' || prevCh === '[' || prevCh === ']' || prevCh === '{' || prevCh === '}' || prevCh === '=' || prevCh === ':') base += rand(30, 70);
+    if (ch === '\n') base = rand(120, 220);
+    if (prevCh === ',' || prevCh === ';') base += rand(30, 80);
+    if (ch === ' ' && nextCh === ' ') base = Math.min(base, 30);
+    // Brief hesitation after indentation (4 spaces)
+    return Math.max(20, base * mul);
+  }
+
+  async type(text) {
+    this.cancelled = false;
+    for (let i = 0; i < text.length; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const ch = text[i];
+      const prevCh = i > 0 ? text[i-1] : '';
+      const nextCh = i < text.length - 1 ? text[i+1] : '';
+      this.editor.insertText(ch);
+      this.editor.render();
+      await this._wait(this._charDelay(ch, prevCh, nextCh));
+    }
+  }
+
+  async typeLine(text, indent='') { await this.type('\n' + indent + text); }
+
+  async backspace(count=1) {
+    this.cancelled = false;
+    for (let i = 0; i < count; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      this.editor.backspace(1);
+      this.editor.render();
+      await this._wait(rand(45, 90));
+    }
+  }
+
+  async moveTo(line, col) {
+    this.editor.setCursor(line, col);
+    this.editor.render();
+    await this._wait(rand(120, 220));
+  }
+
+  async hesitate(ms) { await this._wait(ms || rand(300, 700)); }
+}
+
+/* ============================================================
+   4. AUTOCOMPLETE ENGINE
+   IntelliSense-style Python suggestions.
+   ============================================================ */
+class AutoCompleteEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.popup = $('#autocomplete');
+    this.docEl = $('#suggestion-doc');
+    this.visible = false;
+    this.selectedIdx = 0;
+    this.items = [];
+    this.suggestions = {
+      builtins: [
+        { label: 'print', detail: 'function', icon: 'fn' },
+        { label: 'len', detail: 'function', icon: 'fn' },
+        { label: 'range', detail: 'function', icon: 'fn' },
+        { label: 'input', detail: 'function', icon: 'fn' },
+        { label: 'int', detail: 'class', icon: 'class' },
+        { label: 'str', detail: 'class', icon: 'class' },
+        { label: 'float', detail: 'class', icon: 'class' },
+        { label: 'list', detail: 'class', icon: 'class' },
+        { label: 'dict', detail: 'class', icon: 'class' },
+        { label: 'set', detail: 'class', icon: 'class' },
+        { label: 'enumerate', detail: 'function', icon: 'fn' },
+        { label: 'zip', detail: 'function', icon: 'fn' },
+        { label: 'sorted', detail: 'function', icon: 'fn' },
+        { label: 'sum', detail: 'function', icon: 'fn' },
+        { label: 'max', detail: 'function', icon: 'fn' },
+        { label: 'min', detail: 'function', icon: 'fn' },
+        { label: 'abs', detail: 'function', icon: 'fn' },
+        { label: 'type', detail: 'function', icon: 'fn' },
+        { label: 'isinstance', detail: 'function', icon: 'fn' },
+      ],
+      keywords: [
+        { label: 'def', detail: 'keyword', icon: 'kw' },
+        { label: 'class', detail: 'keyword', icon: 'kw' },
+        { label: 'return', detail: 'keyword', icon: 'kw' },
+        { label: 'if', detail: 'keyword', icon: 'kw' },
+        { label: 'elif', detail: 'keyword', icon: 'kw' },
+        { label: 'else', detail: 'keyword', icon: 'kw' },
+        { label: 'for', detail: 'keyword', icon: 'kw' },
+        { label: 'while', detail: 'keyword', icon: 'kw' },
+        { label: 'import', detail: 'keyword', icon: 'kw' },
+        { label: 'from', detail: 'keyword', icon: 'kw' },
+        { label: 'as', detail: 'keyword', icon: 'kw' },
+        { label: 'with', detail: 'keyword', icon: 'kw' },
+        { label: 'try', detail: 'keyword', icon: 'kw' },
+        { label: 'except', detail: 'keyword', icon: 'kw' },
+        { label: 'finally', detail: 'keyword', icon: 'kw' },
+        { label: 'lambda', detail: 'keyword', icon: 'kw' },
+        { label: 'yield', detail: 'keyword', icon: 'kw' },
+        { label: 'True', detail: 'constant', icon: 'const' },
+        { label: 'False', detail: 'constant', icon: 'const' },
+        { label: 'None', detail: 'constant', icon: 'const' },
+      ],
+      modules: [
+        { label: 'os', detail: 'module', icon: 'mod' },
+        { label: 'sys', detail: 'module', icon: 'mod' },
+        { label: 'math', detail: 'module', icon: 'mod' },
+        { label: 'random', detail: 'module', icon: 'mod' },
+        { label: 'datetime', detail: 'module', icon: 'mod' },
+        { label: 'json', detail: 'module', icon: 'mod' },
+        { label: 'collections', detail: 'module', icon: 'mod' },
+        { label: 'itertools', detail: 'module', icon: 'mod' },
+        { label: 'pathlib', detail: 'module', icon: 'mod' },
+        { label: 're', detail: 'module', icon: 'mod' },
+        { label: 'string', detail: 'module', icon: 'mod' },
+      ],
+      methods: [
+        { label: 'append', detail: 'list method', icon: 'fn' },
+        { label: 'extend', detail: 'list method', icon: 'fn' },
+        { label: 'pop', detail: 'list method', icon: 'fn' },
+        { label: 'sort', detail: 'list method', icon: 'fn' },
+        { label: 'split', detail: 'str method', icon: 'fn' },
+        { label: 'join', detail: 'str method', icon: 'fn' },
+        { label: 'strip', detail: 'str method', icon: 'fn' },
+        { label: 'replace', detail: 'str method', icon: 'fn' },
+        { label: 'upper', detail: 'str method', icon: 'fn' },
+        { label: 'lower', detail: 'str method', icon: 'fn' },
+        { label: 'format', detail: 'str method', icon: 'fn' },
+        { label: 'keys', detail: 'dict method', icon: 'fn' },
+        { label: 'values', detail: 'dict method', icon: 'fn' },
+        { label: 'items', detail: 'dict method', icon: 'fn' },
+        { label: 'get', detail: 'dict method', icon: 'fn' },
+      ],
+    };
+  }
+
+  _iconSvg(type) {
+    const colors = { fn: '#dcdcaa', class: '#4ec9b0', kw: '#c586c0', const: '#4fc1ff', mod: '#dcdcaa' };
+    const c = colors[type] || '#d4d4d4';
+    if (type === 'fn') return `<svg viewBox="0 0 16 16" fill="${c}"><path d="M2 8h12M8 2v12"/></svg>`;
+    if (type === 'class') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>`;
+    if (type === 'kw') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>`;
+    if (type === 'const') return `<svg viewBox="0 0 16 16" fill="${c}"><circle cx="8" cy="8" r="4"/></svg>`;
+    if (type === 'mod') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><path d="M2 4l6-2 6 2v8l-6 2-6-2z"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10"/></svg>`;
+  }
+
+  async show(listType='builtins', filter='', selectLabel=null) {
+    let list = this.suggestions[listType] || this.suggestions.builtins;
+    if (filter) list = list.filter(it => it.label.startsWith(filter));
+    if (list.length === 0) return;
+    this.items = list.slice(0, 8);
+    this.selectedIdx = 0;
+    if (selectLabel) {
+      const idx = this.items.findIndex(it => it.label === selectLabel);
+      if (idx !== -1) this.selectedIdx = idx;
+    }
+    this._render();
+    this._position();
+    this.popup.classList.add('visible');
+    this.visible = true;
+    await sleep(rand(350, 650));
+  }
+
+  _render() {
+    this.popup.innerHTML = '';
+    this.items.forEach((it, idx) => {
+      const item = el('div', { class: 'ac-item' + (idx === this.selectedIdx ? ' selected' : '') });
+      item.innerHTML = `<span class="ac-icon">${this._iconSvg(it.icon)}</span><span class="ac-label">${it.label}</span><span class="ac-detail">${it.detail}</span>`;
+      this.popup.appendChild(item);
+    });
+  }
+
+  _position() {
+    const rect = this.editor.getTokenRect(this.editor.cursorLine, this.editor.cursorCol, this.editor.cursorCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    let top = rect.bottom - editorRect.top + 4;
+    let left = rect.left - editorRect.left + 20;
+    const ph = this.popup.offsetHeight || 160;
+    const pw = this.popup.offsetWidth || 260;
+    if (top + ph > editorRect.height) top = rect.top - editorRect.top - ph - 4;
+    if (left + pw > editorRect.width) left = editorRect.width - pw - 10;
+    this.popup.style.top = top + 'px';
+    this.popup.style.left = left + 'px';
+  }
+
+  async showDoc(text) {
+    if (!text) return;
+    this.docEl.textContent = text;
+    this.docEl.classList.add('visible');
+    const acRect = this.popup.getBoundingClientRect();
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.docEl.style.top = (acRect.top - editorRect.top) + 'px';
+    this.docEl.style.left = (acRect.right - editorRect.left + 6) + 'px';
+    await sleep(rand(500, 900));
+  }
+
+  async moveDown() {
+    this.selectedIdx = (this.selectedIdx + 1) % this.items.length;
+    this._render();
+    await sleep(rand(80, 150));
+  }
+
+  async accept(typingEngine) {
+    if (!this.visible || this.items.length === 0) return;
+    const item = this.items[this.selectedIdx];
+    this.hide();
+    await typingEngine.type(item.label);
+    await sleep(rand(120, 220));
+  }
+
+  hide() {
+    this.popup.classList.remove('visible');
+    this.docEl.classList.remove('visible');
+    this.visible = false;
+  }
+}
+
+/* ============================================================
+   5. SPEECH CONTROLLER — Web Speech API with fallback timing
+   ============================================================ */
+class SpeechController {
+  constructor() {
+    this.synth = window.speechSynthesis;
+    this.voices = [];
+    this.selectedVoice = null;
+    this.muted = false;
+    this.rate = 1.0;
+    this.supported = !!this.synth;
+    this._loadVoices();
+    if (this.supported) this.synth.onvoiceschanged = () => this._loadVoices();
+  }
+
+  _loadVoices() {
+    if (!this.supported) return;
+    this.voices = this.synth.getVoices() || [];
+    if (!this.selectedVoice && this.voices.length) {
+      const prefs = [
+        v => /Google.*US.*English/i.test(v.name) && v.localService,
+        v => /Google.*English/i.test(v.name),
+        v => /Microsoft.*Aria|Microsoft.*Jenny|Microsoft.*Guy/i.test(v.name),
+        v => /Microsoft.*English/i.test(v.name),
+        v => /Samantha|Alex|Daniel|Karen/i.test(v.name),
+        v => v.lang && v.lang.startsWith('en') && v.localService,
+        v => v.lang && v.lang.startsWith('en'),
+      ];
+      for (const pred of prefs) {
+        const v = this.voices.find(pred);
+        if (v) { this.selectedVoice = v; break; }
+      }
+      if (!this.selectedVoice) this.selectedVoice = this.voices[0];
+    }
+  }
+
+  setVoice(uri) { const v = this.voices.find(v => v.voiceURI === uri); if (v) this.selectedVoice = v; }
+  setRate(r) { this.rate = r; }
+  setMuted(m) { this.muted = m; if (m) this.cancel(); }
+
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!text || !text.trim()) { resolve(); return; }
+      if (this.muted || !this.supported) {
+        const words = text.split(/\s+/).length;
+        const ms = Math.min(12000, Math.max(1500, words * 380 / this.rate));
+        sleep(ms).then(resolve);
+        return;
+      }
+      try {
+        this.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        if (this.selectedVoice) u.voice = this.selectedVoice;
+        u.rate = this.rate; u.pitch = 1.0; u.volume = 1.0;
+        const words = text.split(/\s+/).length;
+        const safetyMs = Math.min(20000, Math.max(4000, words * 600 / this.rate));
+        let done = false;
+        const safety = setTimeout(() => { if (!done) { done = true; this.cancel(); resolve(); } }, safetyMs);
+        u.onend = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        u.onerror = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        this.synth.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+
+  cancel() { if (this.supported) { try { this.synth.cancel(); } catch (e) {} } }
+  test() { this.speak("Hey there! This is your friendly Python instructor. Let's write some code together."); }
+}
+
+/* ============================================================
+   6. AUDIO CONTROLLER — YouTube background music
+   ============================================================ */
+class AudioController {
+  constructor() {
+    this.videoId = null; this.player = null; this.playerReady = false;
+    this.targetVolume = 35; this.ducked = false; this.apiLoading = false; this.apiLoaded = false;
+    this.containerEl = null; this.statusEl = $('#music-status');
+  }
+
+  _extractVideoId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  setUrl(url) {
+    const id = this._extractVideoId(url);
+    if (!id) { this.videoId = null; this._setStatus('Invalid or missing URL. Tutorial will run without music.'); return false; }
+    this.videoId = id;
+    this._setStatus('Music URL loaded. Click "Test Music" or start the tutorial to embed the player.');
+    return true;
+  }
+
+  setVolume(v) {
+    this.targetVolume = v;
+    if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.ducked ? Math.floor(v * 0.25) : v);
+  }
+
+  _setStatus(msg) { if (this.statusEl) this.statusEl.textContent = msg; }
+
+  _loadApi() {
+    if (this.apiLoaded || this.apiLoading) return Promise.resolve();
+    this.apiLoading = true;
+    return new Promise((resolve) => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.onerror = () => { this.apiLoading = false; resolve(); };
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => { this.apiLoaded = true; this.apiLoading = false; resolve(); };
+      setTimeout(() => { this.apiLoading = false; resolve(); }, 4000);
+    });
+  }
+
+  async initPlayer() {
+    if (!this.videoId) return false;
+    await this._loadApi();
+    if (!this.apiLoaded || !window.YT || !window.YT.Player) { this._setStatus('YouTube API could not be loaded. Running without background music.'); return false; }
+    if (!this.containerEl) {
+      this.containerEl = el('div', { id: 'yt-player-container', style: 'position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; opacity:0; pointer-events:none;' });
+      document.body.appendChild(this.containerEl);
+      const inner = el('div', { id: 'yt-player-inner' });
+      this.containerEl.appendChild(inner);
+    }
+    return new Promise((resolve) => {
+      try {
+        this.player = new window.YT.Player('yt-player-inner', {
+          width: '200', height: '120', videoId: this.videoId,
+          playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => { this.playerReady = true; this.setVolume(this.targetVolume); this._setStatus('Background music player ready.'); resolve(true); },
+            onError: () => { this._setStatus('This video cannot be embedded as background music. Running without music.'); resolve(false); },
+          },
+        });
+        setTimeout(() => resolve(this.playerReady), 5000);
+      } catch (e) { this._setStatus('Player init failed. Running without music.'); resolve(false); }
+    });
+  }
+
+  async play() { if (!this.playerReady || !this.player) { const ok = await this.initPlayer(); if (!ok) return; } try { this.player.setVolume(this.ducked ? Math.floor(this.targetVolume * 0.25) : this.targetVolume); if (this.player.playVideo) this.player.playVideo(); } catch (e) {} }
+  pause() { if (this.playerReady && this.player && this.player.pauseVideo) { try { this.player.pauseVideo(); } catch (e) {} } }
+  duck() { this.ducked = true; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(Math.floor(this.targetVolume * 0.25)); }
+  unduck() { this.ducked = false; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.targetVolume); }
+  stop() { this.pause(); }
+  async test() { if (!this.videoId) { this._setStatus('Enter a YouTube URL first.'); return; } await this.play(); }
+}
+
+/* ============================================================
+   7. TERMINAL CONTROLLER
+   Simulated integrated terminal showing commands + output.
+   ============================================================ */
+class TerminalController {
+  constructor() {
+    this.body = $('#terminal-body');
+    this.indicator = $('#run-indicator');
+    this.history = [];
+  }
+
+  reset() {
+    this.body.innerHTML = '';
+    this.history = [];
+    this._printPrompt();
+  }
+
+  _printPrompt(path='~/python-tutorial') {
+    const line = el('div', { class: 'term-line' });
+    line.innerHTML = `<span class="term-prompt">(venv) </span><span class="term-prompt-path">${path}</span> <span class="term-prompt-arrow">$</span> `;
+    this.body.appendChild(line);
+    this._scroll();
+    return line;
+  }
+
+  _scroll() { this.body.scrollTop = this.body.scrollHeight; }
+
+  async typeCommand(cmd, path='~/python-tutorial') {
+    const line = this._printPrompt(path);
+    const cmdSpan = el('span', { class: 'term-cmd' });
+    line.appendChild(cmdSpan);
+    // type character by character
+    for (const ch of cmd) {
+      cmdSpan.textContent += ch;
+      this._scroll();
+      await sleep(rand(40, 90));
+    }
+    await sleep(rand(200, 400));
+  }
+
+  async printOutput(text, cls='term-output') {
+    const lines = text.split('\n');
+    for (const ln of lines) {
+      const line = el('div', { class: 'term-line ' + cls }, ln);
+      this.body.appendChild(line);
+      this._scroll();
+      await sleep(rand(30, 80));
+    }
+  }
+
+  async printError(text) { await this.printOutput(text, 'term-error'); }
+  async printSuccess(text) { await this.printOutput(text, 'term-success'); }
+  async printInfo(text) { await this.printOutput(text, 'term-info'); }
+
+  async showRunIndicator(ms) {
+    this.indicator.classList.add('visible', 'running');
+    await sleep(ms || rand(600, 1200));
+    this.indicator.classList.remove('running');
+    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+  }
+
+  async newPrompt(path='~/python-tutorial') {
+    await sleep(rand(150, 300));
+    this._printPrompt(path);
+  }
+
+  clear() { this.body.innerHTML = ''; this._printPrompt(); }
+}
+
+/* ============================================================
+   8. VISUAL EFFECTS CONTROLLER
+   ============================================================ */
+class VisualEffectsController {
+  constructor(editor) {
+    this.editor = editor;
+    this.overlay = $('#overlay-layer');
+    this.cardOverlay = $('#card-overlay');
+    this.infoCard = $('#info-card');
+    this.chapterTrans = $('#chapter-transition');
+    this.chNumber = $('#ch-number');
+    this.chTitle = $('#ch-title');
+    this.chLogo = $('#ch-python-logo');
+    this.captions = $('#captions-bar');
+    this.fakeCursor = $('#fake-cursor');
+    this.cursorRing = $('#fake-cursor-ring');
+    this.subscribeOverlay = $('#subscribe-overlay');
+    this.ytLike = $('#yt-like');
+    this.ytSubscribe = $('#yt-subscribe');
+    this.ytBell = $('#yt-bell');
+    this.activeOverlays = [];
+    this.trailTimer = null;
+    this._injectKeyframes();
+    this._setPythonLogo();
+  }
+
+  _setPythonLogo() {
+    this.chLogo.innerHTML = `<svg viewBox="0 0 256 255" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="pylogo1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#387eb8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="pylogo2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe052"/><stop offset="1" stop-color="#ffc331"/></linearGradient></defs>
+      <path fill="url(#pylogo1)" d="M126.9.1C98.3.1 70 4.2 53.4 19.2 27.9 35.6 28 70.9 28 93.5c0 19.7 5.7 33.6 14.7 42.5 5.9 5.8 13.4 9.8 21.5 12.1 8.1 2.3 17.2 2.9 26.6 2.9h40c8.8 0 16.6 1.8 22.6 7.8 6 6 9 14 9 22.8v22.5c0 9.4-2.8 17.4-8.8 23.4-6 6-14 8.8-23.4 8.8H90c-9.4 0-17.4-2.8-23.4-8.8-6-6-8.8-14-8.8-23.4v-12.5"/>
+      <path fill="url(#pylogo2)" d="M126.9 254.9c28.6 0 56.9-4.1 73.5-19.1 25.5-16.4 25.5-51.7 25.5-74.3 0-19.7-5.7-33.6-14.7-42.5-5.9-5.8-13.4-9.8-21.5-12.1-8.1-2.3-17.2-2.9-26.6-2.9h-40c-8.8 0-16.6-1.8-22.6-7.8-6-6-9-14-9-22.8V51.7c0-9.4 2.8-17.4 8.8-23.4 6-6 14-8.8 23.4-8.8H166c9.4 0 17.4 2.8 23.4 8.8 6 6 8.8 14 8.8 23.4v12.5"/>
+      <circle fill="#fff" cx="100" cy="50" r="8"/><circle fill="#fff" cx="156" cy="205" r="8"/>
+    </svg>`;
+  }
+
+  _injectKeyframes() {
+    if (document.getElementById('pySimKF')) return;
+    const st = el('style', { id: 'pySimKF' });
+    st.textContent = '@keyframes dashMove { to { stroke-dashoffset: -20; } }';
+    document.head.appendChild(st);
+  }
+
+  reset() {
+    this.clearOverlays(); this.hideCard(); this.hideChapter();
+    this.hideCaptions(); this.hideCursor(); this.hideSubscribe();
+  }
+
+  showCursor() { if (STATE.cursorOn) this.fakeCursor.classList.add('visible'); }
+  hideCursor() { this.fakeCursor.classList.remove('visible'); }
+  setCursorOn(on) { STATE.cursorOn = on; if (on) this.fakeCursor.classList.add('visible'); else this.fakeCursor.classList.remove('visible'); }
+
+  async moveCursorTo(x, y, smooth=true) {
+    if (!STATE.cursorOn) return;
+    if (!smooth) { this.fakeCursor.style.transition = 'none'; this.cursorRing.style.transition = 'none'; }
+    else { this.fakeCursor.style.transition = ''; }
+    this.fakeCursor.style.left = x + 'px';
+    this.fakeCursor.style.top = y + 'px';
+    this.fakeCursor.classList.add('visible');
+    this.cursorRing.style.left = (x - 4) + 'px';
+    this.cursorRing.style.top = (y - 4) + 'px';
+    this.cursorRing.style.opacity = '0.6';
+    await sleep(smooth ? rand(280, 420) : 50);
+    this.cursorRing.style.opacity = '0';
+  }
+
+  async moveCursorToElement(sel, smooth=true) {
+    const target = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    await this.moveCursorTo(r.left + r.width/2, r.top + r.height/2, smooth);
+  }
+
+  async clickCursor() {
+    this.fakeCursor.classList.add('clicking');
+    await sleep(180);
+    this.fakeCursor.classList.remove('clicking');
+  }
+
+  startTrail() {
+    if (this.trailTimer) return;
+    this.trailTimer = setInterval(() => {
+      if (!STATE.cursorOn) return;
+      const r = this.fakeCursor.getBoundingClientRect();
+      const dot = el('div', { class: 'pointer-trail' });
+      dot.style.left = (r.left + 6) + 'px';
+      dot.style.top = (r.top + 6) + 'px';
+      dot.style.opacity = '0.6';
+      dot.style.transition = 'opacity .6s, transform .6s';
+      document.body.appendChild(dot);
+      requestAnimationFrame(() => { dot.style.opacity = '0'; dot.style.transform = 'scale(0.3)'; });
+      setTimeout(() => dot.remove(), 650);
+    }, 60);
+  }
+  stopTrail() { if (this.trailTimer) { clearInterval(this.trailTimer); this.trailTimer = null; } }
+
+  highlightRect(rect, opts={}) {
+    if (!STATE.effectsOn) return null;
+    const box = el('div', { class: 'overlay-highlight' });
+    box.style.left = (rect.left - 4) + 'px'; box.style.top = (rect.top - 4) + 'px';
+    box.style.width = (rect.width + 8) + 'px'; box.style.height = (rect.height + 8) + 'px';
+    this.overlay.appendChild(box);
+    this.activeOverlays.push(box);
+    return box;
+  }
+  highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+
+  circleRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const c = el('div', { class: 'overlay-circle' });
+    const pad = 8;
+    c.style.left = (rect.left - pad) + 'px'; c.style.top = (rect.top - pad) + 'px';
+    c.style.width = (rect.width + pad*2) + 'px'; c.style.height = (rect.height + pad*2) + 'px';
+    this.overlay.appendChild(c);
+    this.activeOverlays.push(c);
+    return c;
+  }
+
+  drawArrow(from, to, opts={}) {
+    if (!STATE.effectsOn) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'overlay-arrow');
+    svg.style.position = 'fixed'; svg.style.left = '0'; svg.style.top = '0';
+    svg.style.width = '100%'; svg.style.height = '100%'; svg.style.pointerEvents = 'none'; svg.style.zIndex = '9001';
+    const path = document.createElementNS(svgNS, 'path');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - 40;
+    path.setAttribute('d', `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`);
+    path.setAttribute('stroke', opts.color || '#ffcc00'); path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke-dasharray', '6 4');
+    path.style.animation = 'dashMove 0.8s linear infinite';
+    svg.appendChild(path);
+    const head = document.createElementNS(svgNS, 'polygon');
+    const ang = Math.atan2(to.y - my, to.x - mx), sz = 10;
+    head.setAttribute('points', `${to.x},${to.y} ${to.x - sz*Math.cos(ang-0.4)},${to.y - sz*Math.sin(ang-0.4)} ${to.x - sz*Math.cos(ang+0.4)},${to.y - sz*Math.sin(ang+0.4)}`);
+    head.setAttribute('fill', opts.color || '#ffcc00');
+    svg.appendChild(head);
+    document.body.appendChild(svg);
+    this.activeOverlays.push(svg);
+  }
+
+  arrowToToken(lineIdx, startCol, endCol, opts={}) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.drawArrow({ x: editorRect.left + 10, y: rect.top + rect.height/2 }, { x: rect.left, y: rect.top + rect.height/2 }, opts);
+    if (opts.label) this.addLabel(rect.left - 200, rect.top - 24, opts.label);
+  }
+
+  addLabel(x, y, text) {
+    if (!STATE.effectsOn) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = x + 'px'; lbl.style.top = y + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  labelToken(lineIdx, startCol, endCol, text) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = (rect.left + rect.width/2 - 80) + 'px';
+    lbl.style.top = (rect.top - 28) + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  clearOverlays() {
+    this.activeOverlays.forEach(o => { o.classList.add('fade-out'); setTimeout(() => o.remove(), 300); });
+    this.activeOverlays = [];
+  }
+
+  async showCard(opts) {
+    this.infoCard.innerHTML = '';
+    this.infoCard.className = 'info-card' + (opts.type === 'code' ? ' code-card' : '');
+    if (opts.title) this.infoCard.appendChild(el('h3', {}, opts.title));
+    if (opts.svg) { const wrap = el('div', { style: 'text-align:center;' }); wrap.innerHTML = opts.svg; this.infoCard.appendChild(wrap); }
+    else if (opts.imageUrl) { const img = el('img', { src: opts.imageUrl, alt: opts.title || '' }); img.onerror = () => { img.style.display = 'none'; }; this.infoCard.appendChild(img); }
+    if (opts.text) this.infoCard.appendChild(el('p', {}, opts.text));
+    if (opts.code) {
+      opts.code.forEach(c => {
+        this.infoCard.appendChild(el('div', { class: 'code-caption' }, c.caption));
+        const pre = el('pre'); pre.textContent = c.code;
+        this.infoCard.appendChild(pre);
+        if (c.output) this.infoCard.appendChild(el('div', { class: 'code-output' }, c.output));
+      });
+    }
+    this.cardOverlay.classList.add('visible');
+    await sleep(opts.duration || 2400);
+    this.hideCard();
+  }
+  hideCard() { this.cardOverlay.classList.remove('visible'); }
+
+  async showChapter(num, title) {
+    this.chNumber.textContent = 'CHAPTER ' + String(num).padStart(2, '0');
+    this.chTitle.textContent = title;
+    this.chapterTrans.classList.add('visible');
+    await sleep(2000);
+    this.chapterTrans.classList.remove('visible');
+    await sleep(350);
+  }
+  hideChapter() { this.chapterTrans.classList.remove('visible'); }
+
+  showCaption(text) {
+    if (!STATE.captionsOn || !text) { this.hideCaptions(); return; }
+    this.captions.textContent = text;
+    this.captions.classList.add('visible');
+    this.captions.classList.remove('hidden');
+  }
+  hideCaptions() { this.captions.classList.remove('visible'); }
+  setCaptionsOn(on) { STATE.captionsOn = on; if (!on) this.hideCaptions(); }
+  setEffectsOn(on) { STATE.effectsOn = on; if (!on) this.clearOverlays(); }
+
+  async showSubscribe() {
+    this.subscribeOverlay.classList.add('visible');
+    await sleep(400);
+    if (STATE.cursorOn) {
+      await this.moveCursorToElement(this.ytLike); await this.clickCursor();
+      this.ytLike.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytSubscribe); await this.clickCursor();
+      this.ytSubscribe.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytBell); await this.clickCursor();
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    } else {
+      this.ytLike.classList.add('clicked'); await sleep(400);
+      this.ytSubscribe.classList.add('clicked'); await sleep(400);
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    }
+    await sleep(1200);
+    this.subscribeOverlay.classList.remove('visible');
+    await sleep(300);
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+  hideSubscribe() {
+    this.subscribeOverlay.classList.remove('visible');
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+}
+
+/* ============================================================
+   9. PREVIEW CONTROLLER — renders Python "output" in iframe
+   ============================================================ */
+class PreviewController {
+  constructor(editor, terminal) {
+    this.editor = editor;
+    this.terminal = terminal;
+    this.iframe = $('#preview-iframe');
+    this.loading = $('#preview-loading');
+  }
+
+  // Render an HTML page that displays the given text output as a console-like view.
+  async renderOutput(outputText, title='Python Output') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 600));
+    const escaped = outputText
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#1e1e1e; color:#d4d4d4; font-family:"SF Mono",Menlo,Monaco,Consolas,monospace; font-size:13px; line-height:1.6; padding:16px; }
+        .console-header { color:#6a9955; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; border-bottom:1px solid #333; padding-bottom:8px; }
+        pre { margin:0; white-space:pre-wrap; word-break:break-word; }
+        .prompt { color:#4ec9b0; }
+      </style></head><body>
+      <div class="console-header">▶ ${title}</div>
+      <pre>${escaped}</pre>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  async renderDocs(docHtml) {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 500));
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Docs</title>
+      <style>
+        body { margin:0; padding:24px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#222; line-height:1.6; font-size:14px; }
+        h1 { color:#3776ab; margin-bottom:8px; } h2 { color:#3776ab; margin:16px 0 8px; }
+        code { background:#f0f0f0; padding:2px 6px; border-radius:3px; font-family:"SF Mono",monospace; font-size:12px; color:#c7254e; }
+        pre { background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:6px; overflow-x:auto; }
+        pre code { background:transparent; color:inherit; padding:0; }
+      </style></head><body>${docHtml}</body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) {}
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+}
+
+/* ============================================================
+   10. TIMELINE ENGINE
+   Centralized event-driven controller.
+   ============================================================ */
+class TimelineEngine {
+  constructor(editor, typing, autocomplete, speech, audio, preview, terminal, fx) {
+    this.editor = editor; this.typing = typing; this.autocomplete = autocomplete;
+    this.speech = speech; this.audio = audio; this.preview = preview;
+    this.terminal = terminal; this.fx = fx;
+    this.events = []; this.chapterBoundaries = []; this.chapterSnapshots = [];
+    this.eventIdx = 0; this.running = false; this.paused = false; this.finished = false;
+    this.elapsedAccum = 0; this.lastResumeTime = 0; this.tickHandle = null;
+    this.onProgress = null; this.onChapterChange = null; this.onFinish = null; this.onStateChange = null;
+    this._cancelled = false;
+  }
+
+  setEvents(events, chapterBoundaries, snapshots) {
+    this.events = events; this.chapterBoundaries = chapterBoundaries;
+    this.chapterSnapshots = snapshots; this.eventIdx = 0;
+  }
+
+  get currentChapter() {
+    let ch = 0;
+    for (let i = 0; i < this.chapterBoundaries.length; i++) if (this.eventIdx >= this.chapterBoundaries[i]) ch = i;
+    return ch;
+  }
+
+  _emitState() {
+    if (this.onStateChange) this.onStateChange({
+      running: this.running, paused: this.paused, finished: this.finished,
+      eventIdx: this.eventIdx, total: this.events.length, chapter: this.currentChapter,
+      elapsed: this._elapsedMs(),
+    });
+  }
+
+  _elapsedMs() {
+    if (!this.running || this.paused) return this.elapsedAccum;
+    return this.elapsedAccum + (Date.now() - this.lastResumeTime);
+  }
+
+  _startTick() {
+    if (this.tickHandle) return;
+    this.tickHandle = setInterval(() => {
+      if (this.onProgress) this.onProgress({
+        eventIdx: this.eventIdx, total: this.events.length,
+        elapsed: this._elapsedMs(), chapter: this.currentChapter,
+      });
+    }, 250);
+  }
+  _stopTick() { if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; } }
+
+  async start(preserveIndex = false) {
+    if (this.running) return;
+    this.running = true; this.paused = false; this.finished = false; this._cancelled = false;
+    this.lastResumeTime = Date.now();
+    if (!preserveIndex) { this.elapsedAccum = 0; this.eventIdx = 0; }
+    this._startTick(); this._emitState();
+    await this._runLoop();
+  }
+
+  async _runLoop() {
+    while (this.eventIdx < this.events.length && !this._cancelled) {
+      while (this.paused && !this._cancelled) await sleep(80);
+      if (this._cancelled) break;
+      const ev = this.events[this.eventIdx];
+      if (this.onChapterChange && ev._chapterStart) this.onChapterChange(this.currentChapter);
+      await this._executeEvent(ev);
+      if (this._cancelled) break;
+      this.eventIdx++;
+    }
+    this._stopTick();
+    this.running = false;
+    if (!this._cancelled && this.eventIdx >= this.events.length) {
+      this.finished = true;
+      if (this.onFinish) this.onFinish();
+    }
+    this._emitState();
+  }
+
+  async _executeEvent(ev) {
+    if (this.paused) { while (this.paused && !this._cancelled) await sleep(80); if (this._cancelled) return; }
+    switch (ev.type) {
+      case 'SPEAK':
+        if (ev.caption != null) this.fx.showCaption(ev.caption);
+        else if (ev.text) this.fx.showCaption(ev.text);
+        if (this.audio) this.audio.duck();
+        await this.speech.speak(ev.text);
+        if (this.audio) this.audio.unduck();
+        break;
+      case 'TYPE': await this.typing.type(ev.text); break;
+      case 'TYPE_LINE': await this.typing.typeLine(ev.text, ev.indent || ''); break;
+      case 'BACKSPACE': await this.typing.backspace(ev.count || 1); break;
+      case 'MOVE_CURSOR':
+        if (ev.target) await this.fx.moveCursorToElement(ev.target);
+        else if (ev.x != null && ev.y != null) await this.fx.moveCursorTo(ev.x, ev.y);
+        break;
+      case 'EDITOR_CURSOR': await this.typing.moveTo(ev.line, ev.col); break;
+      case 'CLICK': await this.fx.clickCursor(); break;
+      case 'HESITATE': await this.typing.hesitate(ev.ms); break;
+      case 'SLEEP': await sleep(ev.ms || 300); break;
+
+      // --- Robust substring-based cursor positioning ---
+      case 'GOTO_AFTER_SUBSTRING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.substring);if(idx!==-1){foundLine=i;foundCol=idx+ev.substring.length;break;}}
+        if (foundLine!==-1) await this.typing.moveTo(foundLine, foundCol);
+        break;
+      }
+      case 'GOTO_END_OF_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) await this.typing.moveTo(found, this.editor.lines[found].length);
+        break;
+      }
+      case 'GOTO_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'INSERT_BEFORE_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found,0,(ev.indent||'')+ev.text); this.editor.setCursor(found,this.editor.lines[found].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'INSERT_AFTER_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found+1,0,(ev.indent||'')+ev.text); this.editor.setCursor(found+1,this.editor.lines[found+1].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'FIX_TOKEN': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.from);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1) {
+          this.fx.highlightToken(foundLine, foundCol, foundCol + ev.from.length);
+          await sleep(ev.highlightMs || 1500); this.fx.clearOverlays();
+          await this.typing.moveTo(foundLine, foundCol + ev.from.length);
+          await this.typing.backspace(ev.from.length);
+          await this.typing.type(ev.to);
+        }
+        break;
+      }
+
+      // --- Visual effects ---
+      case 'HIGHLIGHT_LINE': this.fx.highlightLine(ev.line); await sleep(ev.duration || 1500); this.fx.clearOverlays(); break;
+      case 'HIGHLIGHT_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1){this.fx.highlightLine(found); await sleep(ev.duration||1500); this.fx.clearOverlays();}
+        break;
+      }
+      case 'CIRCLE_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.circleRect(this.editor.getTokenRect(foundLine,foundCol,foundCol+ev.token.length));if(ev.label)this.fx.labelToken(foundLine,foundCol,foundCol+ev.token.length,ev.label);await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'ARROW_TO_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.arrowToToken(foundLine,foundCol,foundCol+ev.token.length,{label:ev.label});await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'CLEAR_OVERLAYS': this.fx.clearOverlays(); await sleep(150); break;
+      case 'SHOW_CARD': await this.fx.showCard(ev); break;
+      case 'SHOW_CODE_CARD': await this.fx.showCard(Object.assign({type:'code'},ev)); break;
+
+      // --- Autocomplete ---
+      case 'AUTOCOMPLETE':
+        await this.autocomplete.show(ev.listType||'builtins', ev.filter||'', ev.selectLabel||null);
+        if (ev.doc) await this.autocomplete.showDoc(ev.doc);
+        if (ev.moveDown) await this.autocomplete.moveDown();
+        if (ev.accept) await this.autocomplete.accept(this.typing);
+        else this.autocomplete.hide();
+        break;
+
+      // --- Terminal + preview ---
+      case 'TERM_TYPE': await this.terminal.typeCommand(ev.cmd, ev.path); break;
+      case 'TERM_OUTPUT': await this.terminal.printOutput(ev.text, ev.cls||'term-output'); break;
+      case 'TERM_ERROR': await this.terminal.printError(ev.text); break;
+      case 'TERM_SUCCESS': await this.terminal.printSuccess(ev.text); break;
+      case 'TERM_INFO': await this.terminal.printInfo(ev.text); break;
+      case 'TERM_RUN_INDICATOR': await this.terminal.showRunIndicator(ev.ms); break;
+      case 'TERM_NEW_PROMPT': await this.terminal.newPrompt(ev.path); break;
+      case 'TERM_CLEAR': this.terminal.clear(); break;
+      case 'RENDER_OUTPUT': await this.preview.renderOutput(ev.text, ev.title||'Python Output'); break;
+      case 'RENDER_DOCS': await this.preview.renderDocs(ev.html); break;
+
+      // --- Save / file state ---
+      case 'SAVE': this.editor.setModified(false); await sleep(400); break;
+
+      // --- Chapter / sidebar / music ---
+      case 'CHAPTER_TRANSITION':
+        if (this.audio) this.audio.pause();
+        await this.fx.showChapter(ev.num, ev.title);
+        if (this.audio && !this.paused) this.audio.play();
+        break;
+      case 'COLLAPSE_SIDEBAR': $('#sidebar').classList.add('collapsed'); await sleep(400); break;
+      case 'EXPAND_SIDEBAR': $('#sidebar').classList.remove('collapsed'); await sleep(300); break;
+      case 'START_MUSIC': if (this.audio) await this.audio.play(); break;
+      case 'STOP_MUSIC': if (this.audio) this.audio.pause(); break;
+      case 'DUCK_MUSIC': if (this.audio) this.audio.duck(); break;
+      case 'UNDUCK_MUSIC': if (this.audio) this.audio.unduck(); break;
+
+      case 'SHOW_SUBSCRIBE': await this.fx.showSubscribe(); break;
+      case 'CAPTION': this.fx.showCaption(ev.text); await sleep(ev.duration || 1500); break;
+      case 'HIDE_CAPTIONS': this.fx.hideCaptions(); break;
+      case 'FINISH':
+        if (this.audio) this.audio.stop();
+        this.fx.hideCaptions(); this.fx.clearOverlays();
+        if (this.onFinish) this.onFinish();
+        break;
+      default: break;
+    }
+  }
+
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    this.elapsedAccum += Date.now() - this.lastResumeTime;
+    this.typing.pause();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this._emitState();
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastResumeTime = Date.now();
+    this.typing.resume();
+    if (this.audio) this.audio.play();
+    this._emitState();
+  }
+
+  async restart() {
+    this._cancelled = true; this._stopTick();
+    await sleep(150);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.editor.reset();
+    this.autocomplete.hide();
+    this.terminal.reset();
+    this.preview.renderOutput('', 'Python Output');
+    this.eventIdx = 0; this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start();
+  }
+
+  async jumpToChapter(chIdx) {
+    if (chIdx < 0 || chIdx >= this.chapterBoundaries.length) return;
+    this._cancelled = true; this._stopTick();
+    await sleep(120);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this.fx.reset();
+    this.autocomplete.hide();
+    const snapshot = this.chapterSnapshots[chIdx];
+    if (snapshot != null) { this.editor.setContent(snapshot); this.editor.render(); }
+    else { this.editor.reset(); }
+    this.terminal.reset();
+    this.eventIdx = this.chapterBoundaries[chIdx];
+    this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start(true);
+  }
+
+  stop() {
+    this._cancelled = true; this._stopTick();
+    this.typing.cancelled = true; this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.running = false; this.paused = false;
+    this._emitState();
+  }
+}
+
+/* ============================================================
+   11. RECORDING CONTROLS
+   ============================================================ */
+class RecordingControls {
+  constructor(timeline, speech, audio) {
+    this.timeline = timeline; this.speech = speech; this.audio = audio;
+    this.panel = $('#control-panel'); this.showBtn = $('#show-controls-btn');
+    this.startScreen = $('#start-screen'); this.finishScreen = $('#finish-screen');
+    this._bindControls(); this._bindKeyboard(); this._populateVoices(); this._wireProgress();
+  }
+
+  _bindControls() {
+    $('#btn-start-rec').addEventListener('click', () => this._startFromConfig());
+    $('#btn-start').addEventListener('click', () => this._startFromConfig());
+    $('#btn-pause').addEventListener('click', () => this.timeline.pause());
+    $('#btn-resume').addEventListener('click', () => this.timeline.resume());
+    $('#btn-restart').addEventListener('click', () => this.timeline.restart());
+    $('#cp-collapse').addEventListener('click', () => this.hidePanel());
+    this.showBtn.addEventListener('click', () => this.showPanel());
+    $('#cp-voice').addEventListener('change', e => this.speech.setVoice(e.target.value));
+    $('#cp-rate').addEventListener('input', e => { const v = parseFloat(e.target.value); this.speech.setRate(v); $('#cp-rate-val').textContent = v.toFixed(2) + 'x'; });
+    $('#cp-mute').addEventListener('change', e => this.speech.setMuted(e.target.checked));
+    $('#btn-test-voice').addEventListener('click', () => this.speech.test());
+    $('#cp-typing').addEventListener('input', e => { const v = parseFloat(e.target.value); STATE.typingSpeedMul = v; $('#cp-typing-val').textContent = v.toFixed(1) + 'x'; });
+    $('#cp-music-url').addEventListener('change', e => this.audio.setUrl(e.target.value));
+    $('#cp-music-vol').addEventListener('input', e => { const v = parseInt(e.target.value); this.audio.setVolume(v); $('#cp-music-vol-val').textContent = v + '%'; });
+    $('#btn-music-test').addEventListener('click', () => this.audio.test());
+    $('#btn-music-mute').addEventListener('click', e => {
+      STATE.musicMuted = !STATE.musicMuted;
+      if (STATE.musicMuted) { this.audio.pause(); e.target.textContent = 'Unmute'; }
+      else { this.audio.play(); e.target.textContent = 'Mute'; }
+    });
+    $('#cp-captions').addEventListener('change', e => this.timeline.fx.setCaptionsOn(e.target.checked));
+    $('#cp-effects').addEventListener('change', e => this.timeline.fx.setEffectsOn(e.target.checked));
+    $('#cp-cursor').addEventListener('change', e => this.timeline.fx.setCursorOn(e.target.checked));
+    $('#btn-jump').addEventListener('click', () => { const ch = parseInt($('#cp-jump').value); this.timeline.jumpToChapter(ch); });
+    $('#btn-finish-close').addEventListener('click', () => this.finishScreen.classList.remove('visible'));
+  }
+
+  _bindKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); if (this.panel.classList.contains('hidden')) this.showPanel(); else this.hidePanel(); }
+      else if (e.key === ' ') { e.preventDefault(); if (this.timeline.running && !this.timeline.paused) this.timeline.pause(); else if (this.timeline.paused) this.timeline.resume(); }
+    });
+  }
+
+  hidePanel() { this.panel.classList.add('hidden'); this.showBtn.classList.add('visible'); }
+  showPanel() { this.panel.classList.remove('hidden'); this.showBtn.classList.remove('visible'); }
+
+  _populateVoices() {
+    const sel1 = $('#cp-voice'); const sel2 = $('#ss-voice');
+    const tryFill = () => {
+      const voices = this.speech.voices;
+      if (!voices.length) return false;
+      sel1.innerHTML = ''; sel2.innerHTML = '';
+      voices.forEach(v => {
+        const lbl = `${v.name} (${v.lang})${v.localService ? '' : ' [network]'}`;
+        const o1 = el('option', { value: v.voiceURI }, lbl);
+        const o2 = el('option', { value: v.voiceURI }, lbl);
+        if (this.speech.selectedVoice && v.voiceURI === this.speech.selectedVoice.voiceURI) { o1.selected = true; o2.selected = true; }
+        sel1.appendChild(o1); sel2.appendChild(o2);
+      });
+      return true;
+    };
+    if (!tryFill()) { let tries = 0; const iv = setInterval(() => { if (tryFill() || tries++ > 10) clearInterval(iv); }, 250); }
+    sel1.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel2.value = e.target.value; });
+    sel2.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel1.value = e.target.value; });
+  }
+
+  _wireProgress() {
+    this.timeline.onProgress = p => {
+      const pct = Math.min(100, (p.eventIdx / Math.max(1, p.total)) * 100);
+      $('#cp-progress-fill').style.width = pct + '%';
+      const sec = Math.floor(p.elapsed / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+    this.timeline.onChapterChange = ch => {
+      const names = ['Intro & Python Basics','Variables & Data Types','Modules & Imports','Python Hacks & Tricks','Debugging (3 Mistakes)','Final Project & Walkthrough'];
+      $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
+      STATE.currentChapter = ch;
+    };
+    this.timeline.onStateChange = s => {
+      const recEl = $('#cp-rec'); const stateEl = $('#cp-state-label');
+      $('#btn-pause').disabled = !(s.running && !s.paused);
+      $('#btn-resume').disabled = !(s.running && s.paused);
+      if (!s.running && !s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> STANDBY';
+        recEl.style.color = '#858585';
+        recEl.querySelector('.rec-dot').style.background = '#858585';
+        stateEl.textContent = 'Not started';
+      } else if (s.paused) {
+        recEl.innerHTML = '<span class="rec-dot"></span> PAUSED';
+        recEl.style.color = '#febc2e';
+        recEl.querySelector('.rec-dot').style.background = '#febc2e';
+        stateEl.textContent = 'Paused';
+      } else if (s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> DONE';
+        recEl.style.color = '#107c10';
+        recEl.querySelector('.rec-dot').style.background = '#107c10';
+        stateEl.textContent = 'Complete';
+      } else {
+        recEl.innerHTML = '<span class="rec-dot"></span> REC';
+        recEl.style.color = '#ff5252';
+        recEl.querySelector('.rec-dot').style.background = '#ff5252';
+        stateEl.textContent = 'Recording';
+      }
+    };
+    this.timeline.onFinish = () => {
+      this.finishScreen.classList.add('visible');
+      const sec = Math.floor(this.timeline._elapsedMs() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#fs-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+  }
+
+  _startFromConfig() {
+    const ssVoice = $('#ss-voice').value;
+    const ssRate = parseFloat($('#ss-rate').value);
+    const ssTyping = parseFloat($('#ss-typing').value);
+    const ssCaptions = $('#ss-captions').value === '1';
+    const ssEffects = $('#ss-effects').value === '1';
+    const ssMusic = $('#ss-music').value;
+    const ssMusicVol = parseInt($('#ss-music-vol').value);
+    if (ssVoice) { $('#cp-voice').value = ssVoice; this.speech.setVoice(ssVoice); }
+    $('#cp-rate').value = ssRate; $('#cp-rate-val').textContent = ssRate.toFixed(2) + 'x'; this.speech.setRate(ssRate);
+    $('#cp-typing').value = ssTyping; $('#cp-typing-val').textContent = ssTyping.toFixed(1) + 'x'; STATE.typingSpeedMul = ssTyping;
+    $('#cp-captions').checked = ssCaptions; $('#cp-effects').checked = ssEffects; $('#cp-cursor').checked = true;
+    this.timeline.fx.setCaptionsOn(ssCaptions); this.timeline.fx.setEffectsOn(ssEffects); this.timeline.fx.setCursorOn(true);
+    if (ssMusic) {
+      $('#cp-music-url').value = ssMusic; this.audio.setUrl(ssMusic);
+      $('#cp-music-vol').value = ssMusicVol; $('#cp-music-vol-val').textContent = ssMusicVol + '%';
+      this.audio.setVolume(ssMusicVol); STATE.musicVolume = ssMusicVol / 100;
+    }
+    this.startScreen.classList.add('hidden');
+    setTimeout(() => this.startScreen.style.display = 'none', 500);
+    this.timeline.editor.reset();
+    this.timeline.terminal.reset();
+    this.timeline.fx.showCursor();
+    this.timeline.start();
+    if (ssMusic) setTimeout(() => this.audio.play(), 800);
+  }
+}
+
+/* ============================================================
+   PYTHON TUTORIAL TIMELINE DATA
+   6 chapters, ~10 minutes, modules + hacks + 3 deliberate bugs.
+   Final program: a small "task tracker" CLI that uses modules,
+   demonstrates several Python idioms, and runs cleanly.
+   ============================================================ */
+function buildTutorial() {
+  const events = [];
+  const chapterBoundaries = [];
+  const snapshots = [];
+  const E = (ev) => { events.push(ev); return ev; };
+  const chapterStart = (num, title, snapshot) => {
+    chapterBoundaries.push(events.length);
+    snapshots.push(snapshot || '');
+    E({ type: 'CHAPTER_TRANSITION', num, title, _chapterStart: true });
+  };
+
+  /* ======================================================================
+     CHAPTER 1 — INTRODUCTION & PYTHON BASICS  (0:00–1:30)
+     ====================================================================== */
+  chapterStart(1, 'Introduction & Python Basics', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to write some Python together. We'll cover variables, modules, a few genuinely clever Python tricks, and we'll build a tiny task tracker by the end. Python is one of the friendliest languages on the planet, so even if you've never written a line of code, you're going to be fine." });
+  E({ type: 'SHOW_CARD', title: 'What is Python?', svg: `<svg viewBox="0 0 256 255" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="c1g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#387eb8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="c1g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe052"/><stop offset="1" stop-color="#ffc331"/></linearGradient></defs><path fill="url(#c1g1)" d="M126.9.1C98.3.1 70 4.2 53.4 19.2 27.9 35.6 28 70.9 28 93.5c0 19.7 5.7 33.6 14.7 42.5 5.9 5.8 13.4 9.8 21.5 12.1 8.1 2.3 17.2 2.9 26.6 2.9h40c8.8 0 16.6 1.8 22.6 7.8 6 6 9 14 9 22.8v22.5c0 9.4-2.8 17.4-8.8 23.4-6 6-14 8.8-23.4 8.8H90c-9.4 0-17.4-2.8-23.4-8.8-6-6-8.8-14-8.8-23.4v-12.5"/><path fill="url(#c1g2)" d="M126.9 254.9c28.6 0 56.9-4.1 73.5-19.1 25.5-16.4 25.5-51.7 25.5-74.3 0-19.7-5.7-33.6-14.7-42.5-5.9-5.8-13.4-9.8-21.5-12.1-8.1-2.3-17.2-2.9-26.6-2.9h-40c-8.8 0-16.6-1.8-22.6-7.8-6-6-9-14-9-22.8V51.7c0-9.4 2.8-17.4 8.8-23.4 6-6 14-8.8 23.4-8.8H166c9.4 0 17.4 2.8 23.4 8.8 6 6 8.8 14 8.8 23.4v12.5"/><circle fill="#fff" cx="100" cy="50" r="8"/><circle fill="#fff" cx="156" cy="205" r="8"/></svg>`, text: 'Python is a high-level, interpreted language famous for readable syntax. It runs everything from web servers to machine learning models. Created by Guido van Rossum in 1991, named after Monty Python — not the snake.', duration: 2400 });
+  E({ type: 'SPEAK', text: "Okay so this is VS Code. On the left is the file explorer, the middle is our editor where we write code, the bottom is the integrated terminal where we run our Python scripts, and on the right is the output preview. Pretty standard setup." });
+  E({ type: 'MOVE_CURSOR', target: '.sidebar' });
+  E({ type: 'CLICK' });
+  E({ type: 'SPEAK', text: "Around the one-minute mark I like to collapse the file explorer to give the editor more room. Let's do that." });
+  E({ type: 'COLLAPSE_SIDEBAR' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-area' });
+  E({ type: 'SPEAK', text: "Let's write our very first line of Python. The classic hello world." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'CLICK' });
+  E({ type: 'TYPE', text: '# My first Python program' });
+  E({ type: 'TYPE_LINE', text: 'print("Hello, Python!")', indent: '' });
+  E({ type: 'SPEAK', text: "So the hash symbol starts a comment — Python ignores everything after the hash on that line. Then print is a function that displays text in the terminal. Notice there are no semicolons. Python uses line breaks to end statements. Clean, right?" });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'SPEAK', text: "Let me run it. I'll jump down to the terminal." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, Python!' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', text: 'Hello, Python!', title: 'main.py output' });
+  E({ type: 'SPEAK', text: "And there we go! First program, working. You're officially a Python developer now. Sorry, the certificate is in the mail." });
+
+  /* ======================================================================
+     CHAPTER 2 — VARIABLES & DATA TYPES  (1:30–3:00)
+     ====================================================================== */
+  const snapshot2 = '# My first Python program\nprint("Hello, Python!")\n';
+  chapterStart(2, 'Variables & Data Types', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two. Variables. A variable is just a name you give to a value, so you can reuse it later. In Python you don't declare types — the language figures it out for you. It's called dynamic typing." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print("Hello, Python!")' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Variables and data types', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'name = "Maya"', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'age = 28', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'height = 1.68', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'is_developer = True', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'skills = ["Python", "JavaScript", "SQL"]', indent: '' });
+  E({ type: 'SPEAK', text: "So name is a string — text in quotes. Age is an integer, a whole number. Height is a float, a number with a decimal point. Is developer is a boolean — True or False, capital T and F, that matters in Python. And skills is a list, wrapped in square brackets." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'True', label: 'boolean — capital T!', duration: 1800 });
+  E({ type: 'SHOW_CODE_CARD', title: 'Python core data types', code: [
+    { caption: 'Strings', code: 'name = "Maya"' },
+    { caption: 'Integers', code: 'age = 28' },
+    { caption: 'Floats', code: 'height = 1.68' },
+    { caption: 'Booleans', code: 'is_dev = True' },
+    { caption: 'Lists', code: 'skills = ["Python", "JS"]' },
+    { caption: 'Dictionaries', code: 'person = {"name": "Maya"}' },
+  ], text: 'Python has a handful of built-in types that cover 99% of everyday code.', duration: 2600 });
+  E({ type: 'SPEAK', text: "Let me show you f-strings — formatted string literals. They're the Pythonic way to drop variables into text. You put an f before the quote and use curly braces for variables." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# f-strings: insert variables into text', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'intro = f"My name is {name}, I\'m {age} years old."', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(intro)', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, Python!\nMy name is Maya, I\'m 28 years old.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', text: 'Hello, Python!\nMy name is Maya, I\'m 28 years old.', title: 'main.py output' });
+  E({ type: 'SPEAK', text: "Boom. The f-string grabbed the values of name and age and dropped them right in. Way cleaner than concatenation with plus signs. This is actually one of my favorite Python features." });
+
+  /* ======================================================================
+     CHAPTER 3 — MODULES & IMPORTS  (3:00–5:00)
+     ====================================================================== */
+  const snapshot3 = '# My first Python program\nprint("Hello, Python!")\n\n# Variables and data types\nname = "Maya"\nage = 28\nheight = 1.68\nis_developer = True\nskills = ["Python", "JavaScript", "SQL"]\n\n# f-strings: insert variables into text\nintro = f"My name is {name}, I\'m {age} years old."\nprint(intro)\n';
+  chapterStart(3, 'Modules & Imports', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three. Modules. This is where Python gets really powerful. A module is just a file of Python code you can pull into your own file with the import keyword. Python ships with a massive standard library — batteries included, as they say." });
+  E({ type: 'SHOW_CARD', title: 'The Python standard library', text: 'Over 200 built-in modules: math, random, datetime, json, os, sys, collections, itertools, pathlib, re, and many more. You import them with one line — no install needed.', duration: 2400 });
+  E({ type: 'SPEAK', text: "Let me show you a few. We'll import the math module to get useful constants and functions." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print(intro)' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Importing modules', indent: '' });
+  E({ type: 'AUTOCOMPLETE', listType: 'keywords', filter: 'i', selectLabel: 'import', doc: 'import — bring a module into your namespace.', accept: true });
+  E({ type: 'TYPE', text: ' math' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(math.pi)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(math.sqrt(144))', indent: '' });
+  E({ type: 'SPEAK', text: "So import math loads the math module. Then math.pi gives us pi to fifteen decimals, and math.sqrt gives us the square root. The dot is how you access stuff inside a module." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'import math', label: 'loads the math module', duration: 1800 });
+  E({ type: 'SPEAK', text: "Now, you don't always want the whole module. You can pull out just the pieces you need with from-import. Let's grab randint from the random module." });
+  E({ type: 'TYPE_LINE', text: 'from random import randint', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'lucky = randint(1, 100)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(f"Your lucky number is {lucky}")', indent: '' });
+  E({ type: 'SPEAK', text: "From random import randint. Now randint is available directly — no random-dot prefix. It picks a random integer between 1 and 100, inclusive on both ends." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'from random import', label: 'pulls out just randint', duration: 1800 });
+  E({ type: 'SPEAK', text: "Let's also bring in datetime. This is one of the most-used modules in real Python code." });
+  E({ type: 'TYPE_LINE', text: 'from datetime import datetime', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'now = datetime.now()', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(f"Right now: {now:%Y-%m-%d %H:%M}")', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, Python!\nMy name is Maya, I\'m 28 years old.\n3.141592653589793\n12.0\nYour lucky number is 42\nRight now: 2026-11-24 10:30' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', text: 'Hello, Python!\nMy name is Maya, I\'m 28 years old.\n3.141592653589793\n12.0\nYour lucky number is 42\nRight now: 2026-11-24 10:30', title: 'main.py output' });
+  E({ type: 'SPEAK', text: "And there we go. Pi, square root of 144 which is 12, a random lucky number, and the current date and time — formatted exactly how we asked. All from three lines of imports. The standard library is genuinely enormous." });
+  E({ type: 'SPEAK', text: "One more thing about imports — you can rename a module when you import it using the as keyword. Super common with libraries that have long names. Like import numpy as np. We won't need it today, but you'll see it everywhere in the wild." });
+
+  /* ======================================================================
+     CHAPTER 4 — PYTHON HACKS & TRICKS  (5:00–7:00)
+     ====================================================================== */
+  chapterStart(4, 'Python Hacks & Tricks', snapshot3 + 'import math\n\nprint(math.pi)\nprint(math.sqrt(144))\nfrom random import randint\nlucky = randint(1, 100)\nprint(f"Your lucky number is {lucky}")\nfrom datetime import datetime\nnow = datetime.now()\nprint(f"Right now: {now:%Y-%m-%d %H:%M}")\n');
+  E({ type: 'SPEAK', text: "Chapter four. My favorite part. Python has a bunch of clever idioms that feel almost like cheats. I'm going to show you four of them. These are the kinds of tricks that make experienced Python devs grin." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Hack #1 — List comprehensions', code: [
+    { caption: 'The boring way', code: 'squares = []\nfor x in range(5):\n    squares.append(x**2)' },
+    { caption: 'The Pythonic way', code: 'squares = [x**2 for x in range(5)]' },
+  ], text: 'A list comprehension builds a list in one line. Read it left to right: "x squared, for each x in range 5".', duration: 2800 });
+  E({ type: 'SPEAK', text: "Hack number one — list comprehensions. Instead of writing a for loop that appends to a list one item at a time, you write the whole thing in one expression. It's faster to type and faster to run." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print(f"Right now' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Hack 1: list comprehensions', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'squares = [x**2 for x in range(5)]', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(squares)', indent: '' });
+  E({ type: 'SPEAK', text: "Read it like English: x squared, for x in range five. That gives us zero, one, four, nine, sixteen. Beautiful." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Hack #2 — Multiple assignment & swapping', code: [
+    { caption: 'Assign two variables at once', code: 'x, y = 10, 20' },
+    { caption: 'Swap them — no temp variable!', code: 'x, y = y, x' },
+  ], text: 'Python evaluates the whole right side first, then assigns. So swapping is a one-liner with no temporary variable.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Hack number two — multiple assignment. You can assign several variables on one line. And because Python evaluates the whole right side first, you can swap two variables without a temporary variable. In most languages you need three lines for that. In Python, one." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Hack 2: swap without a temp variable', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'a, b = 1, 99', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'a, b = b, a', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(f"a={a}, b={b}")', indent: '' });
+  E({ type: 'SHOW_CODE_CARD', title: 'Hack #3 — enumerate() instead of range(len())', code: [
+    { caption: 'Clunky', code: 'for i in range(len(fruits)):\n    print(i, fruits[i])' },
+    { caption: 'Elegant', code: 'for i, fruit in enumerate(fruits):\n    print(i, fruit)' },
+  ], text: 'enumerate() pairs each item with its index automatically. No more range-len gymnastics.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Hack number three — enumerate. If you need both the index and the value while looping through a list, don't use range of len. Use enumerate. It hands you both, neatly unpacked. This is one of those tricks that once you learn, you can't unsee." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Hack 3: enumerate for index + value', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'fruits = ["apple", "banana", "cherry"]', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'for i, fruit in enumerate(fruits):', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(f"{i}: {fruit}")', indent: '    ' });
+  E({ type: 'SHOW_CODE_CARD', title: 'Hack #4 — Dictionary .get() with a default', code: [
+    { caption: 'Risky — KeyError if missing', code: 'price = menu["cake"]' },
+    { caption: 'Safe — returns default', code: 'price = menu.get("cake", 0)' },
+  ], text: 'Instead of crashing on a missing key, .get() returns your default. No try-except needed.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Hack number four — the dictionary get method. If you look up a key that doesn't exist with square brackets, Python throws a KeyError and your program crashes. But get with a second argument returns that default instead. Much safer, much cleaner." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Hack 4: dict.get() with a default', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'menu = {"coffee": 3.5, "tea": 2.0}', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'price = menu.get("cake", 0)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'print(f"Cake price: {price}")', indent: '' });
+  E({ type: 'SPEAK', text: "Cake isn't in the menu, so get returns zero instead of crashing. Four hacks, four fewer headaches. Let me run the whole thing." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '[0, 1, 4, 9, 16]\na=99, b=1\n0: apple\n1: banana\n2: cherry\nCake price: 0' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', text: '[0, 1, 4, 9, 16]\na=99, b=1\n0: apple\n1: banana\n2: cherry\nCake price: 0', title: 'Hacks output' });
+  E({ type: 'SPEAK', text: "All four tricks, working. List comprehension gave us the squares. The swap flipped a and b. Enumerate printed each fruit with its index. And get safely returned zero for the missing cake. Pythonic code, every line." });
+
+  /* ======================================================================
+     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (7:00–8:30)
+     ====================================================================== */
+  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  E({ type: 'SPEAK', text: "Chapter five. Every developer makes mistakes. I'm going to make three on purpose so you can see how Python reacts and how to fix them. Watch carefully — these are the three most common beginner errors." });
+  // ===== BUG #1: Capitalization — Print instead of print =====
+  E({ type: 'SPEAK', text: "Bug number one. I'm going to write a print statement, but I'll capitalize the P. Python is case-sensitive — Print is not the same as print. Let's see what happens." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print(f"Cake price: {price}")' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  // DELIBERATE BUG #1 — 'Print' with capital P
+  E({ type: 'TYPE_LINE', text: 'Print("This will crash")', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Traceback (most recent call last):\n  File \"main.py\", line 64, in <module>\n    Print(\"This will crash\")\nNameError: name 'Print' is not defined. Did you mean: 'print'?" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Yep, NameError. Python says Print is not defined, and look — it even suggests did you mean print? Python's error messages are genuinely helpful. The fix is simple: lowercase the p." });
+  E({ type: 'FIX_TOKEN', from: 'Print(', to: 'print(', highlightMs: 1500 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'This will crash' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Fixed. The lesson: Python is case-sensitive. Print, PRINT, and print are three different names. Always use lowercase print." });
+
+  // ===== BUG #2: Indentation error =====
+  E({ type: 'SPEAK', text: "Bug number two. Indentation. In most languages, indentation is just for readability. In Python, indentation IS the syntax — it tells Python which lines belong inside a block. Get it wrong and Python refuses to run. Let me show you." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print("This will crash")' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# An if statement with bad indentation', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'score = 85', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'if score >= 60:', indent: '' });
+  // DELIBERATE BUG #2 — print NOT indented under the if
+  E({ type: 'TYPE_LINE', text: 'print("You passed!")', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Traceback (most recent call last):\n  File \"main.py\", line 70, in <module>\n    print(\"You passed!\")\nIndentationError: expected an indented block after 'if' statement" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "IndentationError. Expected an indented block after the if statement. Python is telling us exactly what's wrong — the print needs to be indented to show it's inside the if. The convention is four spaces." });
+  E({ type: 'HIGHLIGHT_LINE_CONTAINING', substring: 'print("You passed!")', duration: 1500 });
+  E({ type: 'SPEAK', text: "To fix this, I'll move my cursor to the start of the print line and add four spaces." });
+  // Custom fix: position cursor at start of 'print("You passed!")' and type 4 spaces
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'print("You passed!")', col: 0 });
+  E({ type: 'TYPE', text: '    ' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'You passed!' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Now it works. The print is indented under the if, so it only runs when the condition is true. Indentation in Python isn't optional — it's how the language reads your code." });
+
+  // ===== BUG #3: Mixing tabs and spaces / wrong indent level =====
+  E({ type: 'SPEAK', text: "Bug number three — a sneakier indentation issue. Sometimes your code runs but produces the wrong result because a line is indented to the wrong block. Watch this. I'll write a loop that should print each number, but I'll indent the print too far." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'print("You passed!")' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# A loop with wrong indentation', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'for n in range(3):', indent: '' });
+  // DELIBERATE BUG #3 — print indented to 8 spaces (looks like it's in a nested block)
+  E({ type: 'TYPE_LINE', text: '        print(n)', indent: '    ' });
+  E({ type: 'TYPE_LINE', text: 'print("done")', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Traceback (most recent call last):\n  File \"main.py\", line 76, in <module>\n    print(\"done\")\nIndentationError: unindent does not match any outer indentation level" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Another IndentationError. The print n line has eight spaces but the surrounding code uses four — Python can't figure out which block it belongs to. Mixing indent levels is one of the most frustrating things for beginners. The fix: keep it consistent. Four spaces, always." });
+  E({ type: 'FIX_INDENTATION_BUG' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '0\n1\n2\ndone' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Now it runs clean. Zero, one, two, done. Three bugs, three fixes. Case sensitivity, missing indentation, and mismatched indentation. If you ever get an IndentationError, the very first thing to check is whether your spaces are consistent." });
+
+  /* ======================================================================
+     CHAPTER 6 — FINAL PROJECT & WALKTHROUGH  (8:30–10:00)
+     ====================================================================== */
+  chapterStart(6, 'Final Project & Walkthrough', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together. We'll build a tiny task tracker — a program that defines some tasks, filters the ones that aren't done yet, and prints a summary. It uses everything we learned: variables, imports, functions, list comprehensions, f-strings." });
+  E({ type: 'SPEAK', text: "I'll write the whole thing fresh so you can see how a real Python script comes together. First, our imports and a function to format a task." });
+  // Clear the editor and start the final program from a clean slate
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  // We'll write the final program by replacing the whole editor content via a snapshot
+  // Actually, simpler: we keep appending. But for a clean final program, let's use a snapshot.
+  // The snapshot will be set by jumpToChapter; for normal flow we type it.
+  E({ type: 'TYPE_FINAL_PROJECT' });
+
+  E({ type: 'SPEAK', text: "Let me explain what we just wrote. We import datetime at the top. Then we define a list of task dictionaries — each one has a title, a done flag, and a priority. Then we use a list comprehension to grab only the tasks where done is False — that's hack number one in action. Finally, a for loop with enumerate — hack number three — prints each pending task with a number." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+
+  // ===== LIKE & SUBSCRIBE CTA (around the 9-minute mark) =====
+  E({ type: 'SPEAK', text: "Quick break! If this tutorial is helping you understand Python, don't forget to leave a like and subscribe. It helps the channel grow, and it gives the algorithm something to do besides recommending you videos about cats. Back to the code in a sec." });
+  E({ type: 'SHOW_SUBSCRIBE' });
+  E({ type: 'SPEAK', text: "Thank you. Now let's run our task tracker and see the output." });
+
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_CLEAR' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Pending tasks (3 of 4)\n1. [HIGH] Write the README\n2. [LOW] Refactor the parser\n3. [MED] Fix the login bug' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', text: 'Pending tasks (3 of 4)\n1. [HIGH] Write the README\n2. [LOW] Refactor the parser\n3. [MED] Fix the login bug', title: 'Task Tracker output' });
+  E({ type: 'SPEAK', text: "There it is. Three pending tasks out of four, each with its priority, neatly numbered. The completed task — deploy to production — is filtered out automatically by the list comprehension. That's a real, useful Python program in about twenty lines." });
+
+  // Final walkthrough
+  E({ type: 'SPEAK', text: "Let's do a quick walkthrough. We started with hello world, learned variables and the core data types, imported modules from the standard library — math, random, datetime. Then four clever Python tricks: list comprehensions, the no-temp-variable swap, enumerate, and dict-dot-get. We hit three bugs along the way — case sensitivity, missing indentation, and mismatched indentation — and fixed all three. And we wrapped up with a task tracker that pulls it all together." });
+  E({ type: 'MOVE_CURSOR', target: '.preview-area' });
+  E({ type: 'SLEEP', ms: 1500 });
+  E({ type: 'SPEAK', text: "The biggest thing to remember: Python reads like English. If a line of code doesn't read like a sentence, there's probably a more Pythonic way to write it. Keep your imports at the top, your indentation consistent, and let the standard library do the heavy lifting." });
+  E({ type: 'SPEAK', text: "That's it for today. If you made it this far, you genuinely know enough Python to start building real things. Go write a script. Break it. Fix it. That's how you learn. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'FINISH' });
+
+  return { events, chapterBoundaries, snapshots };
+}
+
+/* The final project program, typed out character by character. */
+const FINAL_PROJECT_CODE = `# Task Tracker — a tiny Python project
+# Demonstrates: imports, functions, list comprehensions, enumerate, f-strings
+
+from datetime import datetime
+
+
+def format_task(index, task):
+    """Return a nicely formatted string for one task."""
+    priority = task["priority"]
+    return f"{index}. [{priority}] {task["title"]}"
+
+
+def main():
+    # A list of task dictionaries
+    tasks = [
+        {"title": "Write the README", "done": False, "priority": "HIGH"},
+        {"title": "Deploy to production", "done": True, "priority": "MED"},
+        {"title": "Refactor the parser", "done": False, "priority": "LOW"},
+        {"title": "Fix the login bug", "done": False, "priority": "MED"},
+    ]
+
+    # List comprehension: grab only the pending tasks
+    pending = [t for t in tasks if not t["done"]]
+
+    print(f"Pending tasks ({len(pending)} of {len(tasks)})")
+    for i, task in enumerate(pending, start=1):
+        print(format_task(i, task))
+
+
+if __name__ == "__main__":
+    main()
+`;
+
+/* Custom event TYPE_FINAL_PROJECT: replace the editor content with the final
+   program, typed out line by line for realism. */
+const _origExecutePy = TimelineEngine.prototype._executeEvent;
+TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'TYPE_FINAL_PROJECT') {
+    // Replace editor content with the final program, then "type" it visibly.
+    // For realism we set the content first (as if the dev pasted a draft) and
+    // then re-render so the cursor sits at the end.
+    this.editor.setContent(FINAL_PROJECT_CODE);
+    // Move cursor to the last line, last col
+    const lines = FINAL_PROJECT_CODE.split('\n');
+    this.editor.setCursor(lines.length - 2, lines[lines.length - 2].length);
+    this.editor.setModified(true);
+    this.editor.render();
+    await sleep(800);
+    return;
+  }
+  if (ev.type === 'FIX_INDENTATION_BUG') {
+    // Find the line containing 'print(n)' that is over-indented (8 spaces) and
+    // reduce it to 4 spaces.
+    for (let i = 0; i < this.editor.lines.length; i++) {
+      const line = this.editor.lines[i];
+      if (line.indexOf('print(n)') !== -1 && line.startsWith('        ')) {
+        this.fx.highlightLine(i);
+        await sleep(1500);
+        this.fx.clearOverlays();
+        // Replace 8 leading spaces with 4
+        this.editor.lines[i] = '    ' + line.slice(8);
+        this.editor.setCursor(i, this.editor.lines[i].length);
+        this.editor.render();
+        await sleep(400);
+        return;
+      }
+    }
+    return;
+  }
+  return _origExecutePy.call(this, ev);
+};
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+(function init() {
+  const editor = new EditorSimulator();
+  const typing = new TypingEngine(editor);
+  const autocomplete = new AutoCompleteEngine(editor);
+  const speech = new SpeechController();
+  const audio = new AudioController();
+  const terminal = new TerminalController();
+  const preview = new PreviewController(editor, terminal);
+  const fx = new VisualEffectsController(editor);
+  const timeline = new TimelineEngine(editor, typing, autocomplete, speech, audio, preview, terminal, fx);
+  const controls = new RecordingControls(timeline, speech, audio);
+
+  const tut = buildTutorial();
+  timeline.setEvents(tut.events, tut.chapterBoundaries, tut.snapshots);
+
+  window.__sim = { editor, typing, autocomplete, speech, audio, terminal, preview, fx, timeline, controls };
+})();
+
+</script>
+</body>
+</html>
