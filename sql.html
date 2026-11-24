@@ -1347,32 +1347,25 @@ class TerminalController {
   _scroll() { this.body.scrollTop = this.body.scrollHeight; }
   async typeCommand(cmd) {
     const line = this._printPrompt();
-    const cmdSpan = el('span', { class: 'term-cmd' });
-    line.appendChild(cmdSpan);
-    for (const ch of cmd) {
-      cmdSpan.textContent += ch;
-      this._scroll();
-      await sleep(rand(30, 70));
-    }
-    await sleep(rand(200, 400));
+    line.appendChild(el('span', { class: 'term-cmd' }, cmd));
+    this._scroll();
   }
   async printOutput(text, cls='term-output') {
-    const lines = text.split('\n');
-    for (const ln of lines) {
-      const line = el('div', { class: 'term-line ' + cls }, ln);
-      this.body.appendChild(line);
-      this._scroll();
-      await sleep(rand(20, 50));
+    const frag = document.createDocumentFragment();
+    for (const ln of text.split('\n')) {
+      frag.appendChild(el('div', { class: 'term-line ' + cls }, ln));
     }
+    this.body.appendChild(frag);
+    this._scroll();
   }
   async printError(text) { await this.printOutput(text, 'term-error'); }
   async printSuccess(text) { await this.printOutput(text, 'term-success'); }
   async printInfo(text) { await this.printOutput(text, 'term-info'); }
   async showRunIndicator(ms) {
     this.indicator.classList.add('visible', 'running');
-    await sleep(ms || rand(600, 1200));
+    await sleep(ms || 250);
     this.indicator.classList.remove('running');
-    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+    setTimeout(() => this.indicator.classList.remove('visible'), 250);
   }
   async newPrompt() { await sleep(rand(150, 300)); this._printPrompt(); }
   clear() { this.body.innerHTML = ''; this._printPrompt(); }
@@ -1600,7 +1593,6 @@ class PreviewController {
   // Render a results TABLE from { columns: [...], rows: [[...]], title, message }
   async renderTable(result, title='Query Results') {
     this.loading.classList.add('visible');
-    await sleep(rand(300, 600));
     let bodyHtml;
     if (result.message) {
       bodyHtml = `<div class="msg-box ${result.messageType || 'info'}">${this._esc(result.message)}</div>`;
@@ -1610,7 +1602,7 @@ class PreviewController {
       const ths = (result.columns || []).map(c => `<th>${this._esc(c)}</th>`).join('');
       const trs = result.rows.map((r, i) => {
         const tds = r.map(v => `<td>${v === null || v === undefined ? '<span class="null">NULL</span>' : this._esc(String(v))}</td>`).join('');
-        return `<tr class="${i % 2 ? 'alt' : ''}">${trs}</tr>`;
+        return `<tr class="${i % 2 ? 'alt' : ''}">${tds}</tr>`;
       }).join('');
       bodyHtml = `<table class="result-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
     }
@@ -1643,14 +1635,12 @@ class PreviewController {
       <div class="table-wrap">${bodyHtml}</div>
       </body></html>`;
     try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
-    await sleep(rand(200, 400));
     this.loading.classList.remove('visible');
   }
 
   // Render a schema view: list of tables with their columns
   async renderSchema(tables, title='Database Schema') {
     this.loading.classList.add('visible');
-    await sleep(rand(300, 500));
     const cards = tables.map(t => {
       const cols = t.columns.map(c => `<div class="col"><span class="col-name">${this._esc(c.name)}</span><span class="col-type">${this._esc(c.type)}</span><span class="col-flags">${this._esc(c.flags || '')}</span></div>`).join('');
       return `<div class="schema-card"><h3>📄 ${this._esc(t.name)} <span style="color:#888;font-weight:400;font-size:11px;">(${t.columns.length} columns)</span></h3>${cols}</div>`;
@@ -1670,7 +1660,6 @@ class PreviewController {
       ${cards}
       </body></html>`;
     try { this.iframe.srcdoc = html; } catch (e) {}
-    await sleep(rand(200, 400));
     this.loading.classList.remove('visible');
   }
 
