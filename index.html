@@ -1,1 +1,114 @@
-<a href="./html.html">html course<a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epsilon Studio // Simulation Hub</title>
+  <style>
+    :root {
+      --bg: #0b0f0c;
+      --card: #131a15;
+      --border: #1f2e23;
+      --accent: #00ff66;
+      --accent-dim: rgba(0, 255, 102, 0.15);
+      --text: #e2e8f0;
+      --muted: #718096;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, monospace; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container { max-width: 800px; width: 100%; }
+    header { margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    h1 { font-size: 1.75rem; color: var(--accent); letter-spacing: 1px; }
+    p { color: var(--muted); font-size: 0.9rem; margin-top: 0.3rem; }
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin: 1.5rem 0 0.8rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 1.2rem;
+      border-radius: 8px;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 255, 102, 0.1);
+    }
+    .btn-title { font-weight: 700; font-size: 1.1rem; color: var(--accent); }
+    .btn-file { font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>EPSILON STUDIO // SIM-HUB</h1>
+      <p>Automated coding & explainer video simulation launcher. Hit record and let it cook.</p>
+    </header>
+
+    <div class="section-title">Coding & Teaching Sims</div>
+    <div class="grid">
+      <a href=".py.html" class="btn">
+        <span class="btn-title">Python</span>
+        <span class="btn-file">.py.html</span>
+      </a>
+      <a href="js.html" class="btn">
+        <span class="btn-title">JavaScript</span>
+        <span class="btn-file">js.html</span>
+      </a>
+      <a href="html.html" class="btn">
+        <span class="btn-title">HTML</span>
+        <span class="btn-file">html.html</span>
+      </a>
+      <a href="sql.html" class="btn">
+        <span class="btn-title">SQL</span>
+        <span class="btn-file">sql.html</span>
+      </a>
+      <a href="cpp.html" class="btn">
+        <span class="btn-title">C++</span>
+        <span class="btn-file">cpp.html</span>
+      </a>
+      <a href="csh.html" class="btn">
+        <span class="btn-title">C#</span>
+        <span class="btn-file">csh.html</span>
+      </a>
+    </div>
+
+    <div class="section-title">Full Edited Explainer Sims</div>
+    <div class="grid">
+      <a href="ct.html" class="btn">
+        <span class="btn-title">CT Explainer</span>
+        <span class="btn-file">ct.html</span>
+      </a>
+      <a href="lpl.html" class="btn">
+        <span class="btn-title">LPL Explainer</span>
+        <span class="btn-file">lpl.html</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
