@@ -2165,6 +2165,42 @@ class TypingEngine {
   }
 }
 
+/* Auto-close the style element as the simulated editor types its opening tag.
+   The cursor stays between the tags so subsequent CSS is inserted inside. */
+(() => {
+  const originalType = TypingEngine.prototype.type;
+  const originalTypeLine = TypingEngine.prototype.typeLine;
+
+  TypingEngine.prototype.type = async function(text) {
+    if (text.includes('<!DOCTYPE html>')) this._autoClosedStyle = false;
+    await originalType.call(this, text);
+    if (this.cancelled || this._autoClosedStyle) return;
+
+    const line = this.editor.lines[this.editor.cursorLine] || '';
+    if (line.trim() !== '<style>' || this.editor.cursorCol !== line.length) return;
+
+    const cursorLine = this.editor.cursorLine;
+    const cursorCol = this.editor.cursorCol;
+    this.editor.insertText('</style>');
+    this.editor.setCursor(cursorLine, cursorCol);
+    this.editor.render();
+    this._autoClosedStyle = true;
+  };
+
+  TypingEngine.prototype.typeLine = async function(text, indent='') {
+    if (this._autoClosedStyle && text.trim().toLowerCase() === '</style>') {
+      const closeLine = this.editor.lines.findIndex(line => line.trim().toLowerCase() === '</style>');
+      if (closeLine !== -1) {
+        this.editor.setCursor(closeLine, this.editor.lines[closeLine].length);
+        this.editor.render();
+        this._autoClosedStyle = false;
+        return;
+      }
+    }
+    return originalTypeLine.call(this, text, indent);
+  };
+})();
+
 /* ============================================================
    4. AUTOCOMPLETE ENGINE
    IntelliSense-style suggestion popups.
@@ -3997,6 +4033,7 @@ function buildTutorial() {
   E({ type: 'INSERT_BEFORE_LINE_CONTAINING', substring: '    </style>', indent: '        ', text: 'main { padding: 0 16px; }' });
   E({ type: 'INSERT_BEFORE_LINE_CONTAINING', substring: '    </style>', indent: '        ', text: 'ul { flex-direction: column; }' });
   E({ type: 'INSERT_BEFORE_LINE_CONTAINING', substring: '    </style>', indent: '      ', text: '}' });
+  E({ type: 'ENSURE_STYLE_CLOSE' });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE_AND_REFRESH' });
   E({ type: 'SPEAK', text: "And there we go. On a narrow screen, the nav stacks vertically, the skills list goes single-column, the padding tightens up. That is responsive design in a nutshell — the same HTML, different CSS based on screen size." });
@@ -4035,6 +4072,19 @@ function _fixHobbiesClosingTag(editor) {
 /* Patch TimelineEngine._executeEvent to handle the custom hobbies-fix event */
 const _origExecute = TimelineEngine.prototype._executeEvent;
 TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'ENSURE_STYLE_CLOSE') {
+    const lines = this.editor.lines.slice();
+    const existingClose = lines.findIndex(line => line.trim() === '</style>');
+    if (existingClose !== -1) lines.splice(existingClose, 1);
+    const headClose = lines.findIndex(line => line.trim() === '</head>');
+    if (headClose !== -1) {
+      lines.splice(headClose, 0, '    </style>');
+      this.editor.setContent(lines.join('\n'));
+      this.editor.render();
+    }
+    await sleep(250);
+    return;
+  }
   if (ev.type === 'FIX_HOBBIES_CLOSING_TAG') {
     // Highlight the bug first
     let paraLine = -1;
