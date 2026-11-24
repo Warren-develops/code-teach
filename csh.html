@@ -1,0 +1,2538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Live-Coding Tutorial Simulator — C#</title>
+<!-- Prism.js for syntax highlighting (loaded from CDN) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<style>
+/* ============================================================
+   VS CODE DARK+ C# TUTORIAL SIMULATOR
+   Single-file application — Prism.js syntax highlighting
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #1e1e1e; color: #d4d4d4; font-size: 13px;
+  user-select: none; -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --vs-editor: #1e1e1e;
+  --vs-sidebar: #252526;
+  --vs-activity: #333333;
+  --vs-statusbar: #007acc;
+  --vs-tab-active: #1e1e1e;
+  --vs-tab-inactive: #2d2d2d;
+  --vs-border: #3c3c3c;
+  --vs-titlebar: #3c3c3c;
+  --vs-text: #d4d4d4;
+  --vs-muted: #858585;
+  --vs-line-active: rgba(255,255,255,0.06);
+  --vs-line-num: #858585;
+  --vs-line-num-active: #c6c6c6;
+  --vs-cursor: #aeafad;
+  --vs-terminal: #1e1e1e;
+  --sql-accent: #512BD4;
+  --sql-blue: #9B4F96;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--vs-editor); }
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  height: 30px; background: var(--vs-titlebar); display: flex; align-items: center;
+  font-size: 12px; color: #cccccc; flex-shrink: 0;
+}
+.titlebar-left, .titlebar-right { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.titlebar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.tb-menu-item { padding: 4px 8px; border-radius: 3px; cursor: default; }
+.tb-menu-item:hover { background: rgba(255,255,255,0.08); }
+.tb-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.tb-dot.red { background: #ff5f57; }
+.tb-dot.yellow { background: #febc2e; }
+.tb-dot.green { background: #28c840; }
+.tb-title { color: #cccccc; font-size: 12px; }
+
+/* ---------- Main body ---------- */
+.main-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ---------- Activity bar ---------- */
+.activity-bar {
+  width: 48px; background: var(--vs-activity); display: flex; flex-direction: column;
+  align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0;
+}
+.activity-icon {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  color: #858585; cursor: pointer; position: relative; transition: color .15s;
+}
+.activity-icon:hover { color: #fff; }
+.activity-icon.active { color: #fff; }
+.activity-icon.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.activity-icon svg { width: 24px; height: 24px; }
+.activity-spacer { flex: 1; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; background: var(--vs-sidebar); display: flex; flex-direction: column;
+  flex-shrink: 0; transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 0; }
+.sidebar-header {
+  height: 35px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font-size: 11px; letter-spacing: 0.5px; color: #bbbbbb;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.sidebar-header-actions { display: flex; gap: 6px; color: #858585; }
+.sidebar-header-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.sidebar-header-actions svg:hover { color: #fff; }
+.explorer { flex: 1; overflow-y: auto; font-size: 13px; padding-bottom: 12px; }
+.explorer-project { padding: 4px 14px; color: #cccccc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.tree-node {
+  display: flex; align-items: center; height: 22px; padding: 0 8px; cursor: pointer;
+  color: #cccccc; white-space: nowrap; position: relative;
+}
+.tree-node:hover { background: rgba(255,255,255,0.05); }
+.tree-node.active { background: #37373d; }
+.tree-chevron { width: 12px; display: inline-flex; align-items: center; justify-content: center; color: #858585; }
+.tree-chevron svg { width: 10px; height: 10px; transition: transform .15s; }
+.tree-chevron.collapsed svg { transform: rotate(-90deg); }
+.tree-icon { width: 16px; height: 16px; margin-right: 6px; flex-shrink: 0; }
+.tree-label { font-size: 13px; }
+
+/* ---------- Editor + Terminal split ---------- */
+.editor-area {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--vs-editor);
+}
+.tab-bar {
+  height: 35px; background: var(--vs-sidebar); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--vs-border); flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--vs-tab-inactive); color: #969696; border-right: 1px solid #252526;
+  font-size: 13px; cursor: pointer; white-space: nowrap; position: relative; min-width: 120px;
+}
+.tab.active { background: var(--vs-tab-active); color: #fff; }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #fff; }
+.tab-icon { width: 16px; height: 16px; }
+.tab-modified { width: 8px; height: 8px; border-radius: 50%; background: #c5c5c5; margin-left: auto; }
+.tab-modified.hidden { display: none; }
+.tab-close { color: #858585; opacity: 0; transition: opacity .1s; margin-left: 4px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+
+.editor-breadcrumbs {
+  height: 22px; background: var(--vs-editor); display: flex; align-items: center;
+  padding: 0 14px; font-size: 12px; color: #858585; border-bottom: 1px solid #252526; flex-shrink: 0; gap: 4px;
+}
+.editor-breadcrumbs svg { width: 12px; height: 12px; }
+.crumb-sep { color: #5a5a5a; }
+
+/* Editor takes top portion, terminal takes bottom */
+.editor-terminal-split {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.editor-scroll {
+  flex: 1; overflow: auto; position: relative; background: var(--vs-editor);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 14px; line-height: 19px; min-height: 0;
+}
+.editor-content { position: relative; min-width: 100%; min-height: 100%; padding: 8px 0 200px 0; }
+.line {
+  display: flex; align-items: flex-start; height: 19px; white-space: pre; position: relative;
+}
+.line.active-line { background: var(--vs-line-active); }
+.line-num {
+  width: 60px; text-align: right; padding-right: 16px; color: var(--vs-line-num);
+  user-select: none; flex-shrink: 0; font-size: 13px;
+}
+.line.active-line .line-num { color: var(--vs-line-num-active); }
+.line-code { position: relative; white-space: pre; flex: 1; padding-right: 14px; }
+.cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--vs-cursor);
+  vertical-align: text-bottom; margin-left: -1px; animation: blink 1s steps(1) infinite;
+  position: relative; top: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Prism override: token spans inherit our font */
+.line-code code, .line-code pre { background: transparent !important; font-family: inherit !important; font-size: inherit !important; padding: 0 !important; margin: 0 !important; }
+.line-code .token { background: transparent !important; }
+
+/* Autocomplete */
+.autocomplete {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  min-width: 260px; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 50; display: none; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+}
+.autocomplete.visible { display: block; }
+.ac-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; color: #cccccc;
+}
+.ac-item.selected { background: #04395e; }
+.ac-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ac-label { flex: 1; }
+.ac-detail { color: #858585; font-size: 11px; }
+.suggestion-doc {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  padding: 8px 12px; font-size: 12px; color: #cccccc; max-width: 320px; z-index: 60;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.suggestion-doc.visible { display: block; }
+
+/* ---------- Terminal panel ---------- */
+.terminal-panel {
+  height: 220px; min-height: 80px; background: var(--vs-terminal); border-top: 1px solid var(--vs-border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.terminal-header {
+  height: 30px; background: #252526; display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #cccccc;
+  border-bottom: 1px solid #1a1a1a; gap: 14px; flex-shrink: 0;
+}
+.terminal-tab { padding: 3px 8px; border-radius: 3px; cursor: pointer; color: #858585; }
+.terminal-tab.active { color: #fff; background: rgba(255,255,255,0.08); }
+.terminal-tab.active::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #512BD4; margin-right: 6px; vertical-align: middle; }
+.terminal-actions { margin-left: auto; display: flex; gap: 8px; color: #858585; }
+.terminal-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.terminal-actions svg:hover { color: #fff; }
+.terminal-body {
+  flex: 1; overflow-y: auto; padding: 6px 12px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px; line-height: 18px; color: #cccccc;
+}
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-prompt { color: #68a063; }
+.term-prompt-path { color: #9cdcfe; }
+.term-cmd { color: #d4d4d4; }
+.term-output { color: #cccccc; }
+.term-error { color: #f48771; }
+.term-success { color: #6a9955; }
+.term-info { color: #569cd6; }
+.term-cursor {
+  display: inline-block; width: 7px; height: 15px; background: #aeafad; vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite; margin-left: 2px;
+}
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  height: 22px; background: var(--vs-statusbar); display: flex; align-items: center;
+  color: #fff; font-size: 12px; padding: 0 8px; gap: 14px; flex-shrink: 0;
+}
+.statusbar-item { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.statusbar-item svg { width: 14px; height: 14px; }
+.statusbar-spacer { flex: 1; }
+.statusbar-remote { background: #007acc; }
+
+/* ============================================================
+   PREVIEW / RESULTS PANEL (right side, ~40%)
+   Shows SQL query results as HTML tables or messages
+   ============================================================ */
+.preview-area {
+  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  border-left: 1px solid var(--vs-border); flex-shrink: 0;
+}
+.preview-header {
+  height: 35px; background: #ececec; display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  border-bottom: 1px solid #d0d0d0; flex-shrink: 0;
+}
+.preview-title {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #555;
+}
+.preview-title svg { width: 16px; height: 16px; color: var(--sql-blue); }
+.preview-tabs { display: flex; gap: 4px; margin-left: auto; }
+.preview-tab {
+  padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; color: #555; background: transparent; border: 1px solid transparent;
+}
+.preview-tab.active { background: #fff; border-color: #d0d0d0; color: #007acc; font-weight: 600; }
+.preview-viewport {
+  flex: 1; position: relative; background: #fff; overflow: hidden;
+}
+.preview-iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+.preview-loading-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: none;
+  align-items: center; justify-content: center; z-index: 5;
+}
+.preview-loading-overlay.visible { display: flex; }
+.preview-loading-overlay .spinner {
+  width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: var(--sql-blue); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-indicator {
+  font-size: 11px; color: #555; opacity: 0; transition: opacity .3s; padding: 0 6px; display: flex; align-items: center; gap: 4px;
+}
+.run-indicator.visible { opacity: 1; }
+.run-indicator svg { width: 12px; height: 12px; }
+.run-indicator.running svg { animation: spin 0.8s linear infinite; }
+
+/* ============================================================
+   SIMULATED MOUSE CURSOR
+   ============================================================ */
+.fake-cursor {
+  position: fixed; width: 22px; height: 22px; z-index: 9999; pointer-events: none;
+  transform: translate(-2px, -2px); transition: left .25s cubic-bezier(.4,0,.2,1), top .25s cubic-bezier(.4,0,.2,1), opacity .2s; opacity: 0;
+}
+.fake-cursor.visible { opacity: 1; }
+.fake-cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.fake-cursor.clicking { animation: clickPulse .25s ease; }
+@keyframes clickPulse { 0% { transform: translate(-2px,-2px) scale(1); } 50% { transform: translate(-2px,-2px) scale(0.75); } 100% { transform: translate(-2px,-2px) scale(1); } }
+.fake-cursor-ring { position: fixed; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; z-index: 9998; pointer-events: none; opacity: 0; transition: opacity .2s; }
+
+/* ============================================================
+   VISUAL OVERLAYS
+   ============================================================ */
+.overlay-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+.overlay-arrow { position: absolute; pointer-events: none; transition: opacity .3s; }
+.overlay-arrow.fade-out { opacity: 0; }
+.overlay-circle {
+  position: absolute; border: 2px solid #ffcc00; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.4); animation: pulseCircle 1.4s ease-in-out infinite;
+}
+@keyframes pulseCircle { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
+.overlay-highlight {
+  position: absolute; background: rgba(255, 204, 0, 0.18); border: 1px solid rgba(255,204,0,0.7);
+  border-radius: 3px; pointer-events: none; box-shadow: 0 0 14px rgba(255,204,0,0.35); animation: highlightPulse 1.4s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100% { box-shadow: 0 0 14px rgba(255,204,0,0.35); } 50% { box-shadow: 0 0 22px rgba(255,204,0,0.6); } }
+.overlay-label {
+  position: absolute; background: rgba(40,40,40,0.95); color: #ffcc00; padding: 5px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,204,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 260px;
+}
+.pointer-trail { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,204,0,0.6); pointer-events: none; z-index: 8999; }
+
+/* ============================================================
+   FLOATING CARDS
+   ============================================================ */
+.card-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9500; display: none;
+  align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s;
+}
+.card-overlay.visible { display: flex; opacity: 1; }
+.info-card {
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 18px; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); color: #d4d4d4; font-size: 13px; transform: scale(0.92);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.card-overlay.visible .info-card { transform: scale(1); }
+.info-card img, .info-card svg { width: 100%; max-height: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+.info-card h3 { color: #fff; font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+.info-card p { color: #cccccc; line-height: 1.5; }
+.code-card { font-family: "SF Mono", Menlo, monospace; }
+.code-card pre {
+  background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 10px; color: #d4d4d4;
+  font-size: 12px; overflow-x: auto; margin: 6px 0; white-space: pre;
+}
+.code-card .code-caption { color: #9cdcfe; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.code-card .code-output { color: #6a9955; font-size: 11px; font-style: italic; margin-top: 4px; }
+
+/* ============================================================
+   CHAPTER TRANSITION
+   ============================================================ */
+.chapter-transition {
+  position: fixed; inset: 0; background: #fff; z-index: 9700; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .35s;
+}
+.chapter-transition.visible { display: flex; opacity: 1; }
+.chapter-transition .ch-content { text-align: center; color: #000; padding: 40px; }
+.chapter-transition .ch-number { font-size: 18px; letter-spacing: 8px; color: #888; font-weight: 600; margin-bottom: 18px; text-transform: uppercase; }
+.chapter-transition .ch-title { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; text-transform: uppercase; }
+.chapter-transition .ch-bar { width: 60px; height: 4px; background: #000; margin: 24px auto 0; }
+.chapter-transition .ch-sql-logo { margin-bottom: 18px; }
+.chapter-transition .ch-sql-logo svg { width: 80px; height: 80px; }
+
+/* ============================================================
+   CAPTIONS
+   ============================================================ */
+.captions-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.78);
+  color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 16px; max-width: 70%; text-align: center;
+  z-index: 8500; display: none; pointer-events: none; line-height: 1.4;
+}
+.captions-bar.visible { display: block; }
+.captions-bar.hidden { display: none !important; }
+
+/* ============================================================
+   LIKE & SUBSCRIBE
+   ============================================================ */
+.subscribe-overlay {
+  position: fixed; top: 80px; right: 60px; z-index: 9600; display: none; flex-direction: column; gap: 10px;
+  align-items: flex-end; opacity: 0; transition: opacity .3s, transform .3s; transform: translateY(-10px);
+}
+.subscribe-overlay.visible { display: flex; opacity: 1; transform: translateY(0); }
+.sub-btn-row { display: flex; gap: 10px; align-items: center; }
+.yt-like { display: flex; align-items: center; gap: 6px; background: #fff; color: #0f0f0f; border: none; border-radius: 18px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.yt-like svg { width: 20px; height: 20px; }
+.yt-like.clicked { background: #065fd4; color: #fff; animation: btnClick .4s; }
+.yt-subscribe { display: flex; align-items: center; gap: 6px; background: #ff0000; color: #fff; border: none; border-radius: 18px; padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.yt-subscribe.clicked { background: #1c1c1c; animation: btnClick .4s; }
+.yt-subscribe.clicked::after { content: ' \2714'; }
+.yt-bell { background: #fff; color: #0f0f0f; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.yt-bell svg { width: 22px; height: 22px; }
+.yt-bell.clicked { animation: bellRing .6s ease; }
+@keyframes btnClick { 0% { transform: scale(1); } 50% { transform: scale(0.88); } 100% { transform: scale(1); } }
+@keyframes bellRing { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+.control-panel {
+  position: fixed; top: 50px; right: 16px; width: 320px; background: rgba(30,30,30,0.96);
+  border: 1px solid #3c3c3c; border-radius: 8px; z-index: 9800; box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  font-size: 12px; color: #d4d4d4; max-height: calc(100vh - 80px); overflow-y: auto;
+  transition: transform .25s, opacity .25s;
+}
+.control-panel.hidden { transform: translateX(340px); opacity: 0; pointer-events: none; }
+.cp-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  background: #252526; border-bottom: 1px solid #3c3c3c; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 1;
+}
+.cp-title { font-weight: 600; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.cp-title svg { width: 16px; height: 16px; color: var(--sql-blue); }
+.cp-collapse { background: transparent; border: none; color: #858585; cursor: pointer; padding: 2px; border-radius: 3px; }
+.cp-collapse:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cp-collapse svg { width: 14px; height: 14px; }
+.cp-section { padding: 12px 14px; border-bottom: 1px solid #2a2a2a; }
+.cp-section:last-child { border-bottom: none; }
+.cp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #858585; margin-bottom: 8px; font-weight: 600; }
+.cp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cp-row:last-child { margin-bottom: 0; }
+.cp-row label { flex: 1; color: #cccccc; font-size: 12px; }
+.cp-row input[type="range"] { width: 100px; accent-color: #007acc; }
+.cp-row input[type="text"], .cp-row select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; }
+.cp-row input[type="checkbox"] { accent-color: #007acc; width: 14px; height: 14px; }
+.cp-row .val-badge { background: #3c3c3c; color: #d4d4d4; border-radius: 3px; padding: 1px 6px; font-size: 11px; min-width: 32px; text-align: center; }
+.cp-btn { background: #0e639c; color: #fff; border: none; padding: 6px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.cp-btn:hover { background: #1177bb; }
+.cp-btn.secondary { background: #3a3d41; }
+.cp-btn.secondary:hover { background: #45494e; }
+.cp-btn.danger { background: #5a1d1d; }
+.cp-btn.danger:hover { background: #6e2424; }
+.cp-btn svg { width: 12px; height: 12px; }
+.cp-btn-row { display: flex; gap: 6px; }
+.cp-btn-row .cp-btn { flex: 1; }
+.cp-progress-section { padding: 10px 14px; background: #252526; }
+.cp-progress-bar { height: 6px; background: #3c3c3c; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.cp-progress-fill { height: 100%; background: linear-gradient(90deg, #336791, #f29111); width: 0%; transition: width .3s; }
+.cp-time-display { display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-top: 4px; }
+.cp-chapter-display { font-size: 11px; color: #9cdcfe; margin-top: 4px; }
+.cp-rec-indicator { display: inline-flex; align-items: center; gap: 4px; color: #ff5252; font-size: 11px; font-weight: 600; }
+.cp-rec-indicator .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5252; animation: recBlink 1.2s infinite; }
+@keyframes recBlink { 50% { opacity: 0.3; } }
+
+.show-controls-btn {
+  position: fixed; top: 50px; right: 16px; width: 36px; height: 36px; background: rgba(30,30,30,0.95);
+  border: 1px solid #3c3c3c; border-radius: 50%; color: #fff; z-index: 9800; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.show-controls-btn.visible { display: flex; }
+.show-controls-btn:hover { background: #3a3d41; }
+.show-controls-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-screen {
+  position: fixed; inset: 0; background: #1e1e1e; z-index: 9990; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 30px; transition: opacity .4s;
+}
+.start-screen.hidden { opacity: 0; pointer-events: none; }
+.start-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 40px;
+  max-width: 640px; width: 100%; box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+}
+.start-card h1 {
+  color: #fff; font-size: 26px; margin-bottom: 6px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.start-card h1 .sql-badge { background: #336791; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.start-card .subtitle { color: #858585; margin-bottom: 24px; font-size: 13px; }
+.start-card .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 24px; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 11px; color: #858585; text-transform: uppercase; letter-spacing: .5px; }
+.config-field input, .config-field select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 3px; font-size: 13px; outline: none; }
+.config-field input:focus, .config-field select:focus { border-color: #336791; }
+.config-field.full { grid-column: 1 / -1; }
+.start-btn {
+  width: 100%; background: #336791; color: #fff; border: none; padding: 14px; border-radius: 6px;
+  font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 10px; transition: background .15s;
+}
+.start-btn:hover { background: #3d77a3; }
+.start-btn svg { width: 20px; height: 20px; }
+.start-hint { color: #858585; font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+.start-hint kbd { background: #3c3c3c; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 11px; color: #d4d4d4; font-family: inherit; }
+
+/* ============================================================
+   FINISH SCREEN
+   ============================================================ */
+.finish-screen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9850; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .4s;
+}
+.finish-screen.visible { display: flex; opacity: 1; }
+.finish-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 44px;
+  max-width: 460px; text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.finish-card .check-circle { width: 64px; height: 64px; background: #107c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.finish-card .check-circle svg { width: 36px; height: 36px; color: #fff; }
+.finish-card h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+.finish-card p { color: #cccccc; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.finish-card .stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.finish-card .stat { text-align: center; }
+.finish-card .stat-val { color: #336791; font-size: 22px; font-weight: 700; }
+.finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="tb-dot red"></span><span class="tb-dot yellow"></span><span class="tb-dot green"></span>
+    </div>
+    <div class="titlebar-center">
+      <span class="tb-menu-item">File</span><span class="tb-menu-item">Edit</span><span class="tb-menu-item">Selection</span>
+      <span class="tb-menu-item">View</span><span class="tb-menu-item">Go</span><span class="tb-menu-item">Run</span>
+      <span class="tb-menu-item">Terminal</span><span class="tb-menu-item">Help</span>
+    </div>
+    <div class="titlebar-right"><span class="tb-title">csharp-tutorial — Visual Studio Code</span></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="main-body">
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></div>
+      <div class="activity-icon" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="activity-icon" title="Source Control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0.5"/></svg></div>
+      <div class="activity-icon" title="Extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 3l3 3-3 3M11 21l-3-3 3-3M3 11h7M21 13h-7M7 7l3 3M17 17l-3-3"/></svg></div>
+      <div class="activity-spacer"></div>
+      <div class="activity-icon" title="Database"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+      <div class="activity-icon" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <div class="sidebar-header-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="explorer-project">CSharp-Tutorial</div>
+        <div class="file-tree" id="file-tree">
+          <div class="tree-node" data-folder="bin">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">bin</span>
+          </div>
+          <div class="tree-node" data-folder="obj">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">obj</span>
+          </div>
+          <div class="tree-node" data-folder="Models">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">Models</span>
+          </div>
+          <div class="tree-node active" data-file="Program.cs">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#512BD4" stroke-width="1.4"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke-width="1"/></svg></span>
+            <span class="tree-label">Program.cs</span>
+          </div>
+          <div class="tree-node" data-file="Models/Player.cs">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#512BD4" stroke-width="1.4"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke-width="1"/></svg></span>
+            <span class="tree-label">Player.cs</span>
+          </div>
+          <div class="tree-node" data-file="CSharpTutorial.csproj">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#854cc0" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">CSharpTutorial.csproj</span>
+          </div>
+          <div class="tree-node" data-file="README.md">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">README.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor + Terminal -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="Program.cs">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#512BD4" stroke-width="1.4"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke-width="1"/></svg></span>
+          <span>Program.cs</span>
+          <span class="tab-modified hidden" id="tab-modified"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+        <div class="tab" data-tab="Models/Player.cs">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#512BD4" stroke-width="1.4"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke-width="1"/></svg></span>
+          <span>Player.cs</span>
+          <span class="tab-modified hidden"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+      </div>
+      <div class="editor-breadcrumbs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg>
+        <span>CSharp-Tutorial</span><span class="crumb-sep">›</span><span>Program.cs</span>
+      </div>
+      <div class="editor-terminal-split">
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="editor-content" id="editor-content"></div>
+          <div class="autocomplete" id="autocomplete"></div>
+          <div class="suggestion-doc" id="suggestion-doc"></div>
+        </div>
+        <!-- Terminal -->
+        <div class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <span class="terminal-tab active">TERMINAL</span>
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <div class="terminal-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Results panel -->
+    <div class="preview-area">
+      <div class="preview-header">
+        <div class="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke-width="1"/></svg>
+          <span>Program Output</span>
+        </div>
+        <div class="preview-tabs">
+          <div class="preview-tab active" data-ptab="output">Output</div>
+          <div class="preview-tab" data-ptab="docs">Docs</div>
+        </div>
+        <div class="run-indicator" id="run-indicator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+          Building
+        </div>
+      </div>
+      <div class="preview-viewport">
+        <iframe class="preview-iframe" id="preview-iframe" sandbox="allow-same-origin" title="C# program output"></iframe>
+        <div class="preview-loading-overlay" id="preview-loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div class="statusbar-item statusbar-remote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3L4 7l4 4M16 3l4 4-4 4M14 4l-4 16"/></svg><span>Live Share</span></div>
+    <div class="statusbar-item" id="sb-cursor-pos">Ln 1, Col 1</div>
+    <div class="statusbar-item">Spaces: 4</div>
+    <div class="statusbar-item">UTF-8</div>
+    <div class="statusbar-item">C#</div>
+    <div class="statusbar-item">LF</div>
+    <div class="statusbar-spacer"></div>
+    <div class="statusbar-item" id="sb-line-count">0 lines</div>
+    <div class="statusbar-item">.NET 8.0</div>
+    <div class="statusbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+</div>
+
+<!-- Simulated cursor -->
+<div class="fake-cursor" id="fake-cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M5 3l14 8-6 1 4 7-3 1-4-7-5 4z"/></svg></div>
+<div class="fake-cursor-ring" id="fake-cursor-ring"></div>
+
+<!-- Overlays -->
+<div class="overlay-layer" id="overlay-layer"></div>
+<div class="card-overlay" id="card-overlay"><div class="info-card" id="info-card"></div></div>
+<div class="chapter-transition" id="chapter-transition"><div class="ch-content"><div class="ch-sql-logo" id="ch-csharp-logo"></div><div class="ch-number" id="ch-number">CHAPTER 01</div><div class="ch-title" id="ch-title">INTRODUCTION</div><div class="ch-bar"></div></div></div>
+<div class="captions-bar hidden" id="captions-bar"></div>
+<div class="subscribe-overlay" id="subscribe-overlay">
+  <div class="sub-btn-row">
+    <button class="yt-like" id="yt-like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11v9H4V11h3zm14-1l-1 8a2 2 0 0 1-2 2H9V11l4-7c.6 0 1 .4 1 1v4h6a1 1 0 0 1 1 1z"/></svg>Like</button>
+    <button class="yt-subscribe" id="yt-subscribe">Subscribe</button>
+    <button class="yt-bell" id="yt-bell" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0"/></svg></button>
+  </div>
+</div>
+
+<!-- Control panel -->
+<div class="control-panel" id="control-panel">
+  <div class="cp-header">
+    <div class="cp-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><span>Recording Controls</span></div>
+    <button class="cp-collapse" id="cp-collapse" title="Hide (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="cp-progress-section">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="cp-rec-indicator" id="cp-rec"><span class="rec-dot"></span> STANDBY</span>
+      <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
+    </div>
+    <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Playback</div>
+    <div class="cp-btn-row" style="margin-bottom:6px;">
+      <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
+      <button class="cp-btn secondary" id="btn-pause" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>Pause</button>
+    </div>
+    <div class="cp-btn-row">
+      <button class="cp-btn secondary" id="btn-resume" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+      <button class="cp-btn danger" id="btn-restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 4v4h4"/></svg>Restart</button>
+    </div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Voice &amp; Narration</div>
+    <div class="cp-row"><label>Voice</label></div>
+    <div class="cp-row"><select id="cp-voice" style="flex:1;"></select></div>
+    <div class="cp-row"><label>Speed</label><input type="range" id="cp-rate" min="0.7" max="1.4" step="0.05" value="1.0"><span class="val-badge" id="cp-rate-val">1.0x</span></div>
+    <div class="cp-row"><label>Mute narration</label><input type="checkbox" id="cp-mute"></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-test-voice" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>Test Voice</button></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Typing</div>
+    <div class="cp-row"><label>Typing speed</label><input type="range" id="cp-typing" min="0.4" max="2.5" step="0.1" value="1.0"><span class="val-badge" id="cp-typing-val">1.0x</span></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Background Music (YouTube)</div>
+    <div class="cp-row"><input type="text" id="cp-music-url" placeholder="https://youtube.com/watch?v=..."></div>
+    <div class="cp-row"><label>Volume</label><input type="range" id="cp-music-vol" min="0" max="100" step="5" value="35"><span class="val-badge" id="cp-music-vol-val">35%</span></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-music-test" style="flex:1;">Test Music</button><button class="cp-btn secondary" id="btn-music-mute" style="flex:1;">Mute</button></div>
+    <div style="font-size:10px; color:#858585; margin-top:4px; line-height:1.4;" id="music-status">No music configured. Tutorial will run without background music.</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Display</div>
+    <div class="cp-row"><label>Captions</label><input type="checkbox" id="cp-captions" checked></div>
+    <div class="cp-row"><label>Visual effects</label><input type="checkbox" id="cp-effects" checked></div>
+    <div class="cp-row"><label>Simulated cursor</label><input type="checkbox" id="cp-cursor" checked></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Navigation</div>
+    <div class="cp-row"><label>Jump to chapter</label></div>
+    <div class="cp-row"><select id="cp-jump" style="flex:1;">
+      <option value="0">Ch 1 — Intro &amp; C# Basics</option>
+      <option value="1">Ch 2 — Variables &amp; Methods</option>
+      <option value="2">Ch 3 — Classes &amp; Objects</option>
+      <option value="3">Ch 4 — Collections &amp; LINQ</option>
+      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
+      <option value="5">Ch 6 — Final Project &amp; Walkthrough</option>
+    </select></div>
+    <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
+  </div>
+</div>
+
+<button class="show-controls-btn" id="show-controls-btn" title="Show controls (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+
+<!-- Finish screen -->
+<div class="finish-screen" id="finish-screen">
+  <div class="finish-card">
+    <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Tutorial Complete!</h2>
+    <p>Your C# program is written, debugged, and running. You learned variables, methods, classes, inheritance, collections, LINQ, and fixed three real C# errors.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
+      <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+    </div>
+    <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
+  </div>
+</div>
+
+<!-- Start screen -->
+<div class="start-screen" id="start-screen">
+  <div class="start-card">
+    <h1>
+      <svg viewBox="0 0 24 24" width="32" height="32"><path d="M12 2l8 4v12l-8 4-8-4V6l8-4z" fill="#512BD4"/><path d="M12 2v20M4 6l8 4 8-4M4 18l8-4 8 4" stroke="#fff" stroke-width="1" fill="none"/><text x="12" y="16" text-anchor="middle" fill="#fff" font-size="8" font-weight="bold" font-family="Arial">C#</text></svg>
+      VS Code C# Simulator
+      <span class="sql-badge">.NET 8</span>
+    </h1>
+    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live C# coding session. Covers variables, methods, classes, inheritance, collections, LINQ, and three debugging demos.</p>
+    <div class="config-grid">
+      <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
+      <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
+      <div class="config-field"><label>Typing speed</label><select id="ss-typing"><option value="0.6">Calm</option><option value="1.0" selected>Normal</option><option value="1.6">Quick</option><option value="2.2">Rapid</option></select></div>
+      <div class="config-field"><label>Captions</label><select id="ss-captions"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+      <div class="config-field full"><label>Background music (optional YouTube URL)</label><input type="text" id="ss-music" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div class="config-field"><label>Music volume</label><input type="range" id="ss-music-vol" min="0" max="100" value="35" style="width:100%;"></div>
+      <div class="config-field"><label>Visual effects</label><select id="ss-effects"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+    </div>
+    <button class="start-btn" id="btn-start-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="#ff5252" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>START RECORDING</button>
+    <div class="start-hint">Tip: press <kbd>H</kbd> during the tutorial to hide or restore the control panel.<br>Voices load from your browser's Web Speech API. Pick a Google / Microsoft neural voice for best results.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   C# TUTORIAL SIMULATOR — JavaScript
+   Modules: EditorSimulator, PrismHighlighter, TypingEngine,
+   AutoCompleteEngine, SpeechController, AudioController,
+   TerminalController, PreviewController, VisualEffectsController,
+   TimelineEngine, RecordingControls
+   ============================================================ */
+'use strict';
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+function el(tag, props={}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') node.className = props[k];
+    else if (k === 'style') node.setAttribute('style', props[k]);
+    else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
+    else node[k] = props[k];
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+const STATE = {
+  started: false, paused: false, finished: false,
+  currentChapter: 0, eventIndex: 0, charIndex: 0, elapsedMs: 0,
+  typingSpeedMul: 1.0, speechRate: 1.0, captionsOn: true, effectsOn: true,
+  cursorOn: true, muteNarration: false, musicMuted: false, musicVolume: 0.35,
+};
+
+/* ============================================================
+   1. EDITOR SIMULATOR
+   ============================================================ */
+class EditorSimulator {
+  constructor() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.contentEl = $('#editor-content');
+    this.scrollEl = $('#editor-scroll');
+    this.autocompleteEl = $('#autocomplete');
+    this.suggestionDocEl = $('#suggestion-doc');
+    this.tabModified = $('#tab-modified');
+    this.sbCursor = $('#sb-cursor-pos');
+    this.sbLineCount = $('#sb-line-count');
+    this.modified = false;
+    this.highlighter = new PrismHighlighter();
+    this.render();
+  }
+
+  reset() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.modified = false;
+    this.setModified(false);
+    this.render();
+  }
+
+  setModified(m) {
+    this.modified = m;
+    if (m) this.tabModified.classList.remove('hidden');
+    else this.tabModified.classList.add('hidden');
+  }
+
+  getText() { return this.lines.join('\n'); }
+
+  insertText(text) {
+    for (const ch of text) {
+      const line = this.lines[this.cursorLine] || '';
+      if (ch === '\n') {
+        const before = line.slice(0, this.cursorCol);
+        const after = line.slice(this.cursorCol);
+        this.lines[this.cursorLine] = before;
+        this.lines.splice(this.cursorLine + 1, 0, after);
+        this.cursorLine++;
+        this.cursorCol = 0;
+      } else {
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol) + ch + line.slice(this.cursorCol);
+        this.cursorCol++;
+      }
+    }
+    this.setModified(true);
+  }
+
+  backspace(count=1) {
+    for (let i = 0; i < count; i++) {
+      if (this.cursorCol > 0) {
+        const line = this.lines[this.cursorLine];
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol - 1) + line.slice(this.cursorCol);
+        this.cursorCol--;
+      } else if (this.cursorLine > 0) {
+        const prev = this.lines[this.cursorLine - 1];
+        this.cursorCol = prev.length;
+        this.lines[this.cursorLine - 1] = prev + this.lines[this.cursorLine];
+        this.lines.splice(this.cursorLine, 1);
+        this.cursorLine--;
+      }
+    }
+    this.setModified(true);
+  }
+
+  setCursor(line, col) {
+    this.cursorLine = Math.max(0, Math.min(line, this.lines.length - 1));
+    const ll = this.lines[this.cursorLine] || '';
+    this.cursorCol = Math.max(0, Math.min(col, ll.length));
+  }
+
+  setContent(text) {
+    this.lines = text.split('\n');
+    if (this.lines.length === 0) this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.setModified(false);
+  }
+
+  render() {
+    const frag = document.createDocumentFragment();
+    const total = this.lines.length;
+    for (let i = 0; i < total; i++) {
+      const lineDiv = el('div', { class: 'line' + (i === this.cursorLine ? ' active-line' : '') });
+      const num = el('span', { class: 'line-num' }, String(i + 1));
+      const code = el('span', { class: 'line-code' });
+      if (i === this.cursorLine) {
+        code.innerHTML = this._insertCursorHtml(this.lines[i] || '');
+      } else {
+        code.innerHTML = this.highlighter.highlight(this.lines[i] || '');
+      }
+      lineDiv.appendChild(num);
+      lineDiv.appendChild(code);
+      frag.appendChild(lineDiv);
+    }
+    this.contentEl.innerHTML = '';
+    this.contentEl.appendChild(frag);
+    this.sbCursor.textContent = `Ln ${this.cursorLine + 1}, Col ${this.cursorCol + 1}`;
+    this.sbLineCount.textContent = `${total} lines`;
+    this._scrollToCursor();
+  }
+
+  _insertCursorHtml(line) {
+    const before = line.slice(0, this.cursorCol);
+    const after = line.slice(this.cursorCol);
+    const beforeHtml = this.highlighter.highlight(before);
+    const afterHtml = this.highlighter.highlight(after);
+    return beforeHtml + '<span class="cursor"></span>' + afterHtml;
+  }
+
+  _scrollToCursor() {
+    const lineHeight = 19;
+    const targetTop = this.cursorLine * lineHeight;
+    const viewH = this.scrollEl.clientHeight;
+    if (targetTop < this.scrollEl.scrollTop + 40) {
+      this.scrollEl.scrollTop = Math.max(0, targetTop - 40);
+    } else if (targetTop > this.scrollEl.scrollTop + viewH - 80) {
+      this.scrollEl.scrollTop = targetTop - viewH + 80;
+    }
+  }
+
+  getLineRect(line) {
+    const lineDivs = this.contentEl.querySelectorAll('.line');
+    const lineDiv = lineDivs[line];
+    if (!lineDiv) return null;
+    return lineDiv.getBoundingClientRect();
+  }
+
+  getTokenRect(line, startCol, endCol) {
+    const lineRect = this.getLineRect(line);
+    if (!lineRect) return null;
+    const charWidth = 7.8;
+    return {
+      left: lineRect.left + 60 + startCol * charWidth,
+      top: lineRect.top,
+      right: lineRect.left + 60 + endCol * charWidth,
+      bottom: lineRect.bottom,
+      width: (endCol - startCol) * charWidth,
+      height: lineRect.height,
+    };
+  }
+}
+
+/* ============================================================
+   2. PRISM HIGHLIGHTER (C#)
+   ============================================================ */
+class PrismHighlighter {
+  constructor() {
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages.csharp) || null;
+    this.ready = !!(window.Prism && this.grammar);
+  }
+  highlight(line) {
+    if (!line) return '';
+    if (!this.ready) return this._escape(line);
+    try { return window.Prism.highlight(line, this.grammar, 'csharp'); }
+    catch (e) { return this._escape(line); }
+  }
+  _escape(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+}
+
+/* ============================================================
+   3. TYPING ENGINE
+   ============================================================ */
+class TypingEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.paused = false;
+    this.cancelled = false;
+    this._pauseResolve = null;
+  }
+  reset() { this.cancelled = true; this._breakPause(); }
+  pause() { this.paused = true; }
+  resume() { this.paused = false; this._breakPause(); }
+  _breakPause() { if (this._pauseResolve) { const r = this._pauseResolve; this._pauseResolve = null; r(); } }
+
+  async _wait(ms) {
+    const slice = 30;
+    let remaining = ms;
+    while (remaining > 0 && !this.cancelled) {
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const step = Math.min(slice, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+  _charDelay(ch, prevCh) {
+    const mul = 1 / STATE.typingSpeedMul;
+    let base = rand(40, 90);
+    if (prevCh === ',' || prevCh === ';' || prevCh === '(' || prevCh === ')' || prevCh === '=') base += rand(30, 70);
+    if (ch === '\n') base = rand(120, 220);
+    return Math.max(20, base * mul);
+  }
+  async type(text) {
+    this.cancelled = false;
+    for (let i = 0; i < text.length; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const ch = text[i];
+      const prevCh = i > 0 ? text[i-1] : '';
+      this.editor.insertText(ch);
+      this.editor.render();
+      await this._wait(this._charDelay(ch, prevCh));
+    }
+  }
+  async typeLine(text, indent='') { await this.type('\n' + indent + text); }
+  async backspace(count=1) {
+    this.cancelled = false;
+    for (let i = 0; i < count; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      this.editor.backspace(1);
+      this.editor.render();
+      await this._wait(rand(45, 90));
+    }
+  }
+  async moveTo(line, col) {
+    this.editor.setCursor(line, col);
+    this.editor.render();
+    await this._wait(rand(120, 220));
+  }
+  async hesitate(ms) { await this._wait(ms || rand(300, 700)); }
+}
+
+/* ============================================================
+   4. AUTOCOMPLETE ENGINE (C# keywords, types & methods)
+   ============================================================ */
+class AutoCompleteEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.popup = $('#autocomplete');
+    this.docEl = $('#suggestion-doc');
+    this.visible = false;
+    this.selectedIdx = 0;
+    this.items = [];
+    this.suggestions = {
+      keywords: [
+        { label: 'public', detail: 'modifier', icon: 'kw' },
+        { label: 'private', detail: 'modifier', icon: 'kw' },
+        { label: 'protected', detail: 'modifier', icon: 'kw' },
+        { label: 'static', detail: 'modifier', icon: 'kw' },
+        { label: 'void', detail: 'keyword', icon: 'kw' },
+        { label: 'class', detail: 'keyword', icon: 'kw' },
+        { label: 'interface', detail: 'keyword', icon: 'kw' },
+        { label: 'struct', detail: 'keyword', icon: 'kw' },
+        { label: 'enum', detail: 'keyword', icon: 'kw' },
+        { label: 'namespace', detail: 'keyword', icon: 'kw' },
+        { label: 'using', detail: 'keyword', icon: 'kw' },
+        { label: 'return', detail: 'keyword', icon: 'kw' },
+        { label: 'if', detail: 'keyword', icon: 'kw' },
+        { label: 'else', detail: 'keyword', icon: 'kw' },
+        { label: 'for', detail: 'keyword', icon: 'kw' },
+        { label: 'foreach', detail: 'keyword', icon: 'kw' },
+        { label: 'while', detail: 'keyword', icon: 'kw' },
+        { label: 'switch', detail: 'keyword', icon: 'kw' },
+        { label: 'case', detail: 'keyword', icon: 'kw' },
+        { label: 'break', detail: 'keyword', icon: 'kw' },
+        { label: 'continue', detail: 'keyword', icon: 'kw' },
+        { label: 'new', detail: 'keyword', icon: 'kw' },
+        { label: 'this', detail: 'keyword', icon: 'kw' },
+        { label: 'base', detail: 'keyword', icon: 'kw' },
+        { label: 'var', detail: 'keyword', icon: 'kw' },
+        { label: 'get', detail: 'keyword', icon: 'kw' },
+        { label: 'set', detail: 'keyword', icon: 'kw' },
+        { label: 'override', detail: 'keyword', icon: 'kw' },
+        { label: 'virtual', detail: 'keyword', icon: 'kw' },
+        { label: 'abstract', detail: 'keyword', icon: 'kw' },
+        { label: 'try', detail: 'keyword', icon: 'kw' },
+        { label: 'catch', detail: 'keyword', icon: 'kw' },
+        { label: 'finally', detail: 'keyword', icon: 'kw' },
+        { label: 'throw', detail: 'keyword', icon: 'kw' },
+        { label: 'async', detail: 'keyword', icon: 'kw' },
+        { label: 'await', detail: 'keyword', icon: 'kw' },
+      ],
+      types: [
+        { label: 'int', detail: 'type', icon: 'type' },
+        { label: 'string', detail: 'type', icon: 'type' },
+        { label: 'bool', detail: 'type', icon: 'type' },
+        { label: 'double', detail: 'type', icon: 'type' },
+        { label: 'float', detail: 'type', icon: 'type' },
+        { label: 'decimal', detail: 'type', icon: 'type' },
+        { label: 'char', detail: 'type', icon: 'type' },
+        { label: 'long', detail: 'type', icon: 'type' },
+        { label: 'object', detail: 'type', icon: 'type' },
+        { label: 'List', detail: 'generic type', icon: 'class' },
+        { label: 'Dictionary', detail: 'generic type', icon: 'class' },
+        { label: 'Array', detail: 'type', icon: 'class' },
+        { label: 'IEnumerable', detail: 'interface', icon: 'interface' },
+        { label: 'Task', detail: 'type', icon: 'class' },
+        { label: 'DateTime', detail: 'type', icon: 'class' },
+        { label: 'Console', detail: 'static class', icon: 'class' },
+        { label: 'Math', detail: 'static class', icon: 'class' },
+        { label: 'Convert', detail: 'static class', icon: 'class' },
+        { label: 'String', detail: 'static class', icon: 'class' },
+      ],
+      methods: [
+        { label: 'WriteLine', detail: 'Console method', icon: 'fn' },
+        { label: 'Write', detail: 'Console method', icon: 'fn' },
+        { label: 'ReadLine', detail: 'Console method', icon: 'fn' },
+        { label: 'Add', detail: 'List method', icon: 'fn' },
+        { label: 'Remove', detail: 'List method', icon: 'fn' },
+        { label: 'Count', detail: 'List property', icon: 'prop' },
+        { label: 'Where', detail: 'LINQ method', icon: 'fn' },
+        { label: 'Select', detail: 'LINQ method', icon: 'fn' },
+        { label: 'OrderBy', detail: 'LINQ method', icon: 'fn' },
+        { label: 'FirstOrDefault', detail: 'LINQ method', icon: 'fn' },
+        { label: 'ToList', detail: 'LINQ method', icon: 'fn' },
+        { label: 'Sum', detail: 'LINQ method', icon: 'fn' },
+        { label: 'Contains', detail: 'method', icon: 'fn' },
+        { label: 'ToString', detail: 'Object method', icon: 'fn' },
+        { label: 'Equals', detail: 'Object method', icon: 'fn' },
+        { label: 'Parse', detail: 'Convert method', icon: 'fn' },
+        { label: 'Length', detail: 'string property', icon: 'prop' },
+        { label: 'Substring', detail: 'string method', icon: 'fn' },
+        { label: 'Split', detail: 'string method', icon: 'fn' },
+        { label: 'Trim', detail: 'string method', icon: 'fn' },
+      ],
+    };
+  }
+  _iconSvg(type) {
+    const colors = { fn: '#dcdcaa', kw: '#569cd6', mod: '#4ec9b0', class: '#4ec9b0', interface: '#b8d7a3', type: '#4ec9b0', prop: '#9cdcfe', const: '#4fc1ff' };
+    const c = colors[type] || '#d4d4d4';
+    if (type === 'fn') return `<svg viewBox="0 0 16 16" fill="${c}"><path d="M2 8h12M8 2v12"/></svg>`;
+    if (type === 'kw') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>`;
+    if (type === 'class' || type === 'type' || type === 'interface' || type === 'mod') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>`;
+    if (type === 'prop') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>`;
+    if (type === 'const') return `<svg viewBox="0 0 16 16" fill="${c}"><circle cx="8" cy="8" r="4"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10"/></svg>`;
+  }
+  async show(listType='keywords', filter='', selectLabel=null) {
+    let list = this.suggestions[listType] || this.suggestions.keywords;
+    if (filter) list = list.filter(it => it.label.toLowerCase().startsWith(filter.toLowerCase()));
+    if (list.length === 0) return;
+    this.items = list.slice(0, 8);
+    this.selectedIdx = 0;
+    if (selectLabel) {
+      const idx = this.items.findIndex(it => it.label === selectLabel);
+      if (idx !== -1) this.selectedIdx = idx;
+    }
+    this._render();
+    this._position();
+    this.popup.classList.add('visible');
+    this.visible = true;
+    await sleep(rand(350, 650));
+  }
+  _render() {
+    this.popup.innerHTML = '';
+    this.items.forEach((it, idx) => {
+      const item = el('div', { class: 'ac-item' + (idx === this.selectedIdx ? ' selected' : '') });
+      item.innerHTML = `<span class="ac-icon">${this._iconSvg(it.icon)}</span><span class="ac-label">${it.label}</span><span class="ac-detail">${it.detail}</span>`;
+      this.popup.appendChild(item);
+    });
+  }
+  _position() {
+    const rect = this.editor.getTokenRect(this.editor.cursorLine, this.editor.cursorCol, this.editor.cursorCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    let top = rect.bottom - editorRect.top + 4;
+    let left = rect.left - editorRect.left + 20;
+    const ph = this.popup.offsetHeight || 160;
+    const pw = this.popup.offsetWidth || 260;
+    if (top + ph > editorRect.height) top = rect.top - editorRect.top - ph - 4;
+    if (left + pw > editorRect.width) left = editorRect.width - pw - 10;
+    this.popup.style.top = top + 'px';
+    this.popup.style.left = left + 'px';
+  }
+  async showDoc(text) {
+    if (!text) return;
+    this.docEl.textContent = text;
+    this.docEl.classList.add('visible');
+    const acRect = this.popup.getBoundingClientRect();
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.docEl.style.top = (acRect.top - editorRect.top) + 'px';
+    this.docEl.style.left = (acRect.right - editorRect.left + 6) + 'px';
+    await sleep(rand(500, 900));
+  }
+  async moveDown() {
+    this.selectedIdx = (this.selectedIdx + 1) % this.items.length;
+    this._render();
+    await sleep(rand(80, 150));
+  }
+  async accept(typingEngine) {
+    if (!this.visible || this.items.length === 0) return;
+    const item = this.items[this.selectedIdx];
+    this.hide();
+    await typingEngine.type(item.label);
+    await sleep(rand(120, 220));
+  }
+  hide() {
+    this.popup.classList.remove('visible');
+    this.docEl.classList.remove('visible');
+    this.visible = false;
+  }
+}
+
+/* ============================================================
+   5. SPEECH CONTROLLER
+   ============================================================ */
+class SpeechController {
+  constructor() {
+    this.synth = window.speechSynthesis;
+    this.voices = [];
+    this.selectedVoice = null;
+    this.muted = false;
+    this.rate = 1.0;
+    this.supported = !!this.synth;
+    this._loadVoices();
+    if (this.supported) this.synth.onvoiceschanged = () => this._loadVoices();
+  }
+  _loadVoices() {
+    if (!this.supported) return;
+    this.voices = this.synth.getVoices() || [];
+    if (!this.selectedVoice && this.voices.length) {
+      const prefs = [
+        v => /Google.*US.*English/i.test(v.name) && v.localService,
+        v => /Google.*English/i.test(v.name),
+        v => /Microsoft.*Aria|Microsoft.*Jenny|Microsoft.*Guy/i.test(v.name),
+        v => /Microsoft.*English/i.test(v.name),
+        v => /Samantha|Alex|Daniel|Karen/i.test(v.name),
+        v => v.lang && v.lang.startsWith('en') && v.localService,
+        v => v.lang && v.lang.startsWith('en'),
+      ];
+      for (const pred of prefs) {
+        const v = this.voices.find(pred);
+        if (v) { this.selectedVoice = v; break; }
+      }
+      if (!this.selectedVoice) this.selectedVoice = this.voices[0];
+    }
+  }
+  setVoice(uri) { const v = this.voices.find(v => v.voiceURI === uri); if (v) this.selectedVoice = v; }
+  setRate(r) { this.rate = r; }
+  setMuted(m) { this.muted = m; if (m) this.cancel(); }
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!text || !text.trim()) { resolve(); return; }
+      if (this.muted || !this.supported) {
+        const words = text.split(/\s+/).length;
+        const ms = Math.min(12000, Math.max(1500, words * 380 / this.rate));
+        sleep(ms).then(resolve);
+        return;
+      }
+      try {
+        this.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        if (this.selectedVoice) u.voice = this.selectedVoice;
+        u.rate = this.rate; u.pitch = 1.0; u.volume = 1.0;
+        const words = text.split(/\s+/).length;
+        const safetyMs = Math.min(20000, Math.max(4000, words * 600 / this.rate));
+        let done = false;
+        const safety = setTimeout(() => { if (!done) { done = true; this.cancel(); resolve(); } }, safetyMs);
+        u.onend = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        u.onerror = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        this.synth.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+  cancel() { if (this.supported) { try { this.synth.cancel(); } catch (e) {} } }
+  test() { this.speak("Hey there! This is your friendly C-sharp instructor. Let's write some code together."); }
+}
+
+/* ============================================================
+   6. AUDIO CONTROLLER — YouTube background music
+   ============================================================ */
+class AudioController {
+  constructor() {
+    this.videoId = null; this.player = null; this.playerReady = false;
+    this.targetVolume = 35; this.ducked = false; this.apiLoading = false; this.apiLoaded = false;
+    this.containerEl = null; this.statusEl = $('#music-status');
+  }
+  _extractVideoId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  setUrl(url) {
+    const id = this._extractVideoId(url);
+    if (!id) { this.videoId = null; this._setStatus('Invalid or missing URL. Tutorial will run without music.'); return false; }
+    this.videoId = id;
+    this._setStatus('Music URL loaded. Click "Test Music" or start the tutorial to embed the player.');
+    return true;
+  }
+  setVolume(v) {
+    this.targetVolume = v;
+    if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.ducked ? Math.floor(v * 0.25) : v);
+  }
+  _setStatus(msg) { if (this.statusEl) this.statusEl.textContent = msg; }
+  _loadApi() {
+    if (this.apiLoaded || this.apiLoading) return Promise.resolve();
+    this.apiLoading = true;
+    return new Promise((resolve) => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.onerror = () => { this.apiLoading = false; resolve(); };
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => { this.apiLoaded = true; this.apiLoading = false; resolve(); };
+      setTimeout(() => { this.apiLoading = false; resolve(); }, 4000);
+    });
+  }
+  async initPlayer() {
+    if (!this.videoId) return false;
+    await this._loadApi();
+    if (!this.apiLoaded || !window.YT || !window.YT.Player) { this._setStatus('YouTube API could not be loaded. Running without background music.'); return false; }
+    if (!this.containerEl) {
+      this.containerEl = el('div', { id: 'yt-player-container', style: 'position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; opacity:0; pointer-events:none;' });
+      document.body.appendChild(this.containerEl);
+      const inner = el('div', { id: 'yt-player-inner' });
+      this.containerEl.appendChild(inner);
+    }
+    return new Promise((resolve) => {
+      try {
+        this.player = new window.YT.Player('yt-player-inner', {
+          width: '200', height: '120', videoId: this.videoId,
+          playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => { this.playerReady = true; this.setVolume(this.targetVolume); this._setStatus('Background music player ready.'); resolve(true); },
+            onError: () => { this._setStatus('This video cannot be embedded as background music. Running without music.'); resolve(false); },
+          },
+        });
+        setTimeout(() => resolve(this.playerReady), 5000);
+      } catch (e) { this._setStatus('Player init failed. Running without music.'); resolve(false); }
+    });
+  }
+  async play() { if (!this.playerReady || !this.player) { const ok = await this.initPlayer(); if (!ok) return; } try { this.player.setVolume(this.ducked ? Math.floor(this.targetVolume * 0.25) : this.targetVolume); if (this.player.playVideo) this.player.playVideo(); } catch (e) {} }
+  pause() { if (this.playerReady && this.player && this.player.pauseVideo) { try { this.player.pauseVideo(); } catch (e) {} } }
+  duck() { this.ducked = true; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(Math.floor(this.targetVolume * 0.25)); }
+  unduck() { this.ducked = false; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.targetVolume); }
+  stop() { this.pause(); }
+  async test() { if (!this.videoId) { this._setStatus('Enter a YouTube URL first.'); return; } await this.play(); }
+}
+
+/* ============================================================
+   7. TERMINAL CONTROLLER (dotnet CLI / shell)
+   ============================================================ */
+class TerminalController {
+  constructor() {
+    this.body = $('#terminal-body');
+    this.indicator = $('#run-indicator');
+  }
+  reset() { this.body.innerHTML = ''; this._printPrompt(); }
+  _printPrompt(path='~/csharp-tutorial') {
+    const line = el('div', { class: 'term-line' });
+    line.innerHTML = `<span class="term-prompt-path">${path}</span> <span class="term-prompt">$</span> `;
+    this.body.appendChild(line);
+    this._scroll();
+    return line;
+  }
+  _scroll() { this.body.scrollTop = this.body.scrollHeight; }
+  async typeCommand(cmd) {
+    const line = this._printPrompt();
+    const cmdSpan = el('span', { class: 'term-cmd' });
+    line.appendChild(cmdSpan);
+    for (const ch of cmd) {
+      cmdSpan.textContent += ch;
+      this._scroll();
+      await sleep(rand(30, 70));
+    }
+    await sleep(rand(200, 400));
+  }
+  async printOutput(text, cls='term-output') {
+    const lines = text.split('\n');
+    for (const ln of lines) {
+      const line = el('div', { class: 'term-line ' + cls }, ln);
+      this.body.appendChild(line);
+      this._scroll();
+      await sleep(rand(20, 50));
+    }
+  }
+  async printError(text) { await this.printOutput(text, 'term-error'); }
+  async printSuccess(text) { await this.printOutput(text, 'term-success'); }
+  async printInfo(text) { await this.printOutput(text, 'term-info'); }
+  async showRunIndicator(ms) {
+    this.indicator.classList.add('visible', 'running');
+    await sleep(ms || rand(600, 1200));
+    this.indicator.classList.remove('running');
+    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+  }
+  async newPrompt() { await sleep(rand(150, 300)); this._printPrompt(); }
+  clear() { this.body.innerHTML = ''; this._printPrompt(); }
+}
+
+/* ============================================================
+   8. VISUAL EFFECTS CONTROLLER
+   ============================================================ */
+class VisualEffectsController {
+  constructor(editor) {
+    this.editor = editor;
+    this.overlay = $('#overlay-layer');
+    this.cardOverlay = $('#card-overlay');
+    this.infoCard = $('#info-card');
+    this.chapterTrans = $('#chapter-transition');
+    this.chNumber = $('#ch-number');
+    this.chTitle = $('#ch-title');
+    this.chLogo = $('#ch-csharp-logo');
+    this.captions = $('#captions-bar');
+    this.fakeCursor = $('#fake-cursor');
+    this.cursorRing = $('#fake-cursor-ring');
+    this.subscribeOverlay = $('#subscribe-overlay');
+    this.ytLike = $('#yt-like');
+    this.ytSubscribe = $('#yt-subscribe');
+    this.ytBell = $('#yt-bell');
+    this.activeOverlays = [];
+    this.trailTimer = null;
+    this._injectKeyframes();
+    this._setCsharpLogo();
+  }
+  _setCsharpLogo() {
+    this.chLogo.innerHTML = `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 16l96 56v112l-96 56-96-56V72l96-56z" fill="#512BD4"/>
+      <text x="128" y="156" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="84" font-weight="900" fill="#fff">C#</text>
+    </svg>`;
+  }
+  _injectKeyframes() {
+    if (document.getElementById('csharpSimKF')) return;
+    const st = el('style', { id: 'csharpSimKF' });
+    st.textContent = '@keyframes dashMove { to { stroke-dashoffset: -20; } }';
+    document.head.appendChild(st);
+  }
+  reset() {
+    this.clearOverlays(); this.hideCard(); this.hideChapter();
+    this.hideCaptions(); this.hideCursor(); this.hideSubscribe();
+  }
+  showCursor() { if (STATE.cursorOn) this.fakeCursor.classList.add('visible'); }
+  hideCursor() { this.fakeCursor.classList.remove('visible'); }
+  setCursorOn(on) { STATE.cursorOn = on; if (on) this.fakeCursor.classList.add('visible'); else this.fakeCursor.classList.remove('visible'); }
+  async moveCursorTo(x, y, smooth=true) {
+    if (!STATE.cursorOn) return;
+    if (!smooth) { this.fakeCursor.style.transition = 'none'; this.cursorRing.style.transition = 'none'; }
+    else { this.fakeCursor.style.transition = ''; }
+    this.fakeCursor.style.left = x + 'px';
+    this.fakeCursor.style.top = y + 'px';
+    this.fakeCursor.classList.add('visible');
+    this.cursorRing.style.left = (x - 4) + 'px';
+    this.cursorRing.style.top = (y - 4) + 'px';
+    this.cursorRing.style.opacity = '0.6';
+    await sleep(smooth ? rand(280, 420) : 50);
+    this.cursorRing.style.opacity = '0';
+  }
+  async moveCursorToElement(sel, smooth=true) {
+    const target = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    await this.moveCursorTo(r.left + r.width/2, r.top + r.height/2, smooth);
+  }
+  async clickCursor() {
+    this.fakeCursor.classList.add('clicking');
+    await sleep(180);
+    this.fakeCursor.classList.remove('clicking');
+  }
+  highlightRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const box = el('div', { class: 'overlay-highlight' });
+    box.style.left = (rect.left - 4) + 'px'; box.style.top = (rect.top - 4) + 'px';
+    box.style.width = (rect.width + 8) + 'px'; box.style.height = (rect.height + 8) + 'px';
+    this.overlay.appendChild(box);
+    this.activeOverlays.push(box);
+    return box;
+  }
+  highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+  circleRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const c = el('div', { class: 'overlay-circle' });
+    const pad = 8;
+    c.style.left = (rect.left - pad) + 'px'; c.style.top = (rect.top - pad) + 'px';
+    c.style.width = (rect.width + pad*2) + 'px'; c.style.height = (rect.height + pad*2) + 'px';
+    this.overlay.appendChild(c);
+    this.activeOverlays.push(c);
+    return c;
+  }
+  drawArrow(from, to, opts={}) {
+    if (!STATE.effectsOn) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'overlay-arrow');
+    svg.style.position = 'fixed'; svg.style.left = '0'; svg.style.top = '0';
+    svg.style.width = '100%'; svg.style.height = '100%'; svg.style.pointerEvents = 'none'; svg.style.zIndex = '9001';
+    const path = document.createElementNS(svgNS, 'path');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - 40;
+    path.setAttribute('d', `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`);
+    path.setAttribute('stroke', opts.color || '#ffcc00'); path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke-dasharray', '6 4');
+    path.style.animation = 'dashMove 0.8s linear infinite';
+    svg.appendChild(path);
+    const head = document.createElementNS(svgNS, 'polygon');
+    const ang = Math.atan2(to.y - my, to.x - mx), sz = 10;
+    head.setAttribute('points', `${to.x},${to.y} ${to.x - sz*Math.cos(ang-0.4)},${to.y - sz*Math.sin(ang-0.4)} ${to.x - sz*Math.cos(ang+0.4)},${to.y - sz*Math.sin(ang+0.4)}`);
+    head.setAttribute('fill', opts.color || '#ffcc00');
+    svg.appendChild(head);
+    document.body.appendChild(svg);
+    this.activeOverlays.push(svg);
+  }
+  arrowToToken(lineIdx, startCol, endCol, opts={}) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.drawArrow({ x: editorRect.left + 10, y: rect.top + rect.height/2 }, { x: rect.left, y: rect.top + rect.height/2 }, opts);
+    if (opts.label) this.addLabel(rect.left - 200, rect.top - 24, opts.label);
+  }
+  addLabel(x, y, text) {
+    if (!STATE.effectsOn) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = x + 'px'; lbl.style.top = y + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+  labelToken(lineIdx, startCol, endCol, text) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = (rect.left + rect.width/2 - 80) + 'px';
+    lbl.style.top = (rect.top - 28) + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+  clearOverlays() {
+    this.activeOverlays.forEach(o => { o.classList.add('fade-out'); setTimeout(() => o.remove(), 300); });
+    this.activeOverlays = [];
+  }
+  async showCard(opts) {
+    this.infoCard.innerHTML = '';
+    this.infoCard.className = 'info-card' + (opts.type === 'code' ? ' code-card' : '');
+    if (opts.title) this.infoCard.appendChild(el('h3', {}, opts.title));
+    if (opts.svg) { const wrap = el('div', { style: 'text-align:center;' }); wrap.innerHTML = opts.svg; this.infoCard.appendChild(wrap); }
+    if (opts.text) this.infoCard.appendChild(el('p', {}, opts.text));
+    if (opts.code) {
+      opts.code.forEach(c => {
+        this.infoCard.appendChild(el('div', { class: 'code-caption' }, c.caption));
+        const pre = el('pre'); pre.textContent = c.code;
+        this.infoCard.appendChild(pre);
+        if (c.output) this.infoCard.appendChild(el('div', { class: 'code-output' }, c.output));
+      });
+    }
+    this.cardOverlay.classList.add('visible');
+    await sleep(opts.duration || 2400);
+    this.hideCard();
+  }
+  hideCard() { this.cardOverlay.classList.remove('visible'); }
+  async showChapter(num, title) {
+    this.chNumber.textContent = 'CHAPTER ' + String(num).padStart(2, '0');
+    this.chTitle.textContent = title;
+    this.chapterTrans.classList.add('visible');
+    await sleep(2000);
+    this.chapterTrans.classList.remove('visible');
+    await sleep(350);
+  }
+  hideChapter() { this.chapterTrans.classList.remove('visible'); }
+  showCaption(text) {
+    if (!STATE.captionsOn || !text) { this.hideCaptions(); return; }
+    this.captions.textContent = text;
+    this.captions.classList.add('visible');
+    this.captions.classList.remove('hidden');
+  }
+  hideCaptions() { this.captions.classList.remove('visible'); }
+  setCaptionsOn(on) { STATE.captionsOn = on; if (!on) this.hideCaptions(); }
+  setEffectsOn(on) { STATE.effectsOn = on; if (!on) this.clearOverlays(); }
+  async showSubscribe() {
+    this.subscribeOverlay.classList.add('visible');
+    await sleep(400);
+    if (STATE.cursorOn) {
+      await this.moveCursorToElement(this.ytLike); await this.clickCursor();
+      this.ytLike.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytSubscribe); await this.clickCursor();
+      this.ytSubscribe.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytBell); await this.clickCursor();
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    } else {
+      this.ytLike.classList.add('clicked'); await sleep(400);
+      this.ytSubscribe.classList.add('clicked'); await sleep(400);
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    }
+    await sleep(1200);
+    this.subscribeOverlay.classList.remove('visible');
+    await sleep(300);
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+  hideSubscribe() {
+    this.subscribeOverlay.classList.remove('visible');
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+}
+
+/* ============================================================
+   9. PREVIEW CONTROLLER — renders JS console output in iframe
+   ============================================================ */
+class PreviewController {
+  constructor(editor, terminal) {
+    this.editor = editor;
+    this.terminal = terminal;
+    this.iframe = $('#preview-iframe');
+    this.loading = $('#preview-loading');
+  }
+
+  // Render console output lines. result = { lines: [{text, type}], title }
+  // types: 'log', 'error', 'warn', 'info', 'result'
+  async renderOutput(result, title='Console Output') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 600));
+    const lines = result.lines || [];
+    const lineCount = lines.length;
+    const bodyHtml = lines.map(l => {
+      const cls = l.type || 'log';
+      const prefix = cls === 'error' ? '✗ ' : (cls === 'warn' ? '⚠ ' : (cls === 'info' ? 'ℹ ' : (cls === 'result' ? '→ ' : '')));
+      return `<div class="console-line ${cls}">${this._esc(prefix + l.text)}</div>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#1e1e1e; color:#d4d4d4; font-family:"SF Mono",Menlo,Monaco,Consolas,monospace; font-size:13px; line-height:1.6; }
+        .console-header { background:#512BD4; color:#fff; padding:8px 12px; font-size:12px; font-weight:600; display:flex; justify-content:space-between; }
+        .console-meta { font-size:11px; opacity:0.9; font-weight:400; }
+        .console-body { padding:10px 12px; }
+        .console-line { padding:2px 0; white-space:pre-wrap; word-break:break-word; }
+        .console-line.log { color:#d4d4d4; }
+        .console-line.error { color:#f48771; }
+        .console-line.warn { color:#dcdcaa; }
+        .console-line.info { color:#569cd6; }
+        .console-line.result { color:#6a9955; }
+        .console-line.system { color:#858585; font-style:italic; }
+      </style></head><body>
+      <div class="console-header"><span>${this._esc(title)}</span><span class="console-meta">${lineCount} line${lineCount !== 1 ? 's' : ''}</span></div>
+      <div class="console-body">${bodyHtml || '<div class="console-line system">(no output)</div>'}</div>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  // Render an HTML preview (for DOM manipulation demos) — shows actual HTML output
+  async renderHtml(htmlContent, title='Rendered Output') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 500));
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; padding:16px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:14px; color:#222; }
+        .render-header { background:#512BD4; color:#fff; padding:8px 12px; margin:-16px -16px 16px -16px; font-size:12px; font-weight:600; }
+        .render-body { line-height:1.6; }
+        .render-body button { padding:8px 16px; background:#512BD4; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:14px; }
+        .render-body #counter { font-size:48px; font-weight:bold; color:#512BD4; margin:16px 0; }
+      </style></head><body>
+      <div class="render-header">${this._esc(title)}</div>
+      <div class="render-body">${htmlContent}</div>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) {}
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+}
+
+/* ============================================================
+   10. TIMELINE ENGINE
+   ============================================================ */
+class TimelineEngine {
+  constructor(editor, typing, autocomplete, speech, audio, preview, terminal, fx) {
+    this.editor = editor; this.typing = typing; this.autocomplete = autocomplete;
+    this.speech = speech; this.audio = audio; this.preview = preview;
+    this.terminal = terminal; this.fx = fx;
+    this.events = []; this.chapterBoundaries = []; this.chapterSnapshots = [];
+    this.eventIdx = 0; this.running = false; this.paused = false; this.finished = false;
+    this.elapsedAccum = 0; this.lastResumeTime = 0; this.tickHandle = null;
+    this.onProgress = null; this.onChapterChange = null; this.onFinish = null; this.onStateChange = null;
+    this._cancelled = false;
+  }
+  setEvents(events, chapterBoundaries, snapshots) {
+    this.events = events; this.chapterBoundaries = chapterBoundaries;
+    this.chapterSnapshots = snapshots; this.eventIdx = 0;
+  }
+  get currentChapter() {
+    let ch = 0;
+    for (let i = 0; i < this.chapterBoundaries.length; i++) if (this.eventIdx >= this.chapterBoundaries[i]) ch = i;
+    return ch;
+  }
+  _emitState() {
+    if (this.onStateChange) this.onStateChange({
+      running: this.running, paused: this.paused, finished: this.finished,
+      eventIdx: this.eventIdx, total: this.events.length, chapter: this.currentChapter,
+      elapsed: this._elapsedMs(),
+    });
+  }
+  _elapsedMs() {
+    if (!this.running || this.paused) return this.elapsedAccum;
+    return this.elapsedAccum + (Date.now() - this.lastResumeTime);
+  }
+  _startTick() {
+    if (this.tickHandle) return;
+    this.tickHandle = setInterval(() => {
+      if (this.onProgress) this.onProgress({
+        eventIdx: this.eventIdx, total: this.events.length,
+        elapsed: this._elapsedMs(), chapter: this.currentChapter,
+      });
+    }, 250);
+  }
+  _stopTick() { if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; } }
+
+  async start(preserveIndex = false) {
+    if (this.running) return;
+    this.running = true; this.paused = false; this.finished = false; this._cancelled = false;
+    this.lastResumeTime = Date.now();
+    if (!preserveIndex) { this.elapsedAccum = 0; this.eventIdx = 0; }
+    this._startTick(); this._emitState();
+    await this._runLoop();
+  }
+  async _runLoop() {
+    while (this.eventIdx < this.events.length && !this._cancelled) {
+      while (this.paused && !this._cancelled) await sleep(80);
+      if (this._cancelled) break;
+      const ev = this.events[this.eventIdx];
+      if (this.onChapterChange && ev._chapterStart) this.onChapterChange(this.currentChapter);
+      await this._executeEvent(ev);
+      if (this._cancelled) break;
+      this.eventIdx++;
+    }
+    this._stopTick();
+    this.running = false;
+    if (!this._cancelled && this.eventIdx >= this.events.length) {
+      this.finished = true;
+      if (this.onFinish) this.onFinish();
+    }
+    this._emitState();
+  }
+  async _executeEvent(ev) {
+    if (this.paused) { while (this.paused && !this._cancelled) await sleep(80); if (this._cancelled) return; }
+    switch (ev.type) {
+      case 'SPEAK':
+        if (ev.caption != null) this.fx.showCaption(ev.caption);
+        else if (ev.text) this.fx.showCaption(ev.text);
+        if (this.audio) this.audio.duck();
+        await this.speech.speak(ev.text);
+        if (this.audio) this.audio.unduck();
+        break;
+      case 'TYPE': await this.typing.type(ev.text); break;
+      case 'TYPE_LINE': await this.typing.typeLine(ev.text, ev.indent || ''); break;
+      case 'BACKSPACE': await this.typing.backspace(ev.count || 1); break;
+      case 'MOVE_CURSOR':
+        if (ev.target) await this.fx.moveCursorToElement(ev.target);
+        else if (ev.x != null && ev.y != null) await this.fx.moveCursorTo(ev.x, ev.y);
+        break;
+      case 'EDITOR_CURSOR': await this.typing.moveTo(ev.line, ev.col); break;
+      case 'CLICK': await this.fx.clickCursor(); break;
+      case 'HESITATE': await this.typing.hesitate(ev.ms); break;
+      case 'SLEEP': await sleep(ev.ms || 300); break;
+
+      case 'GOTO_AFTER_SUBSTRING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.substring);if(idx!==-1){foundLine=i;foundCol=idx+ev.substring.length;break;}}
+        if (foundLine!==-1) await this.typing.moveTo(foundLine, foundCol);
+        break;
+      }
+      case 'GOTO_END_OF_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) await this.typing.moveTo(found, this.editor.lines[found].length);
+        break;
+      }
+      case 'GOTO_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'FIX_TOKEN': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.from);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1) {
+          this.fx.highlightLine(foundLine);
+          await sleep(ev.highlightMs || 1500); this.fx.clearOverlays();
+          await this.typing.moveTo(foundLine, foundCol + ev.from.length);
+          await this.typing.backspace(ev.from.length);
+          await this.typing.type(ev.to);
+        }
+        break;
+      }
+
+      case 'HIGHLIGHT_LINE': this.fx.highlightLine(ev.line); await sleep(ev.duration || 1500); this.fx.clearOverlays(); break;
+      case 'HIGHLIGHT_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1){this.fx.highlightLine(found); await sleep(ev.duration||1500); this.fx.clearOverlays();}
+        break;
+      }
+      case 'CIRCLE_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.circleRect(this.editor.getTokenRect(foundLine,foundCol,foundCol+ev.token.length));if(ev.label)this.fx.labelToken(foundLine,foundCol,foundCol+ev.token.length,ev.label);await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'CLEAR_OVERLAYS': this.fx.clearOverlays(); await sleep(150); break;
+      case 'SHOW_CARD': await this.fx.showCard(ev); break;
+      case 'SHOW_CODE_CARD': await this.fx.showCard(Object.assign({type:'code'},ev)); break;
+
+      case 'AUTOCOMPLETE':
+        await this.autocomplete.show(ev.listType||'keywords', ev.filter||'', ev.selectLabel||null);
+        if (ev.doc) await this.autocomplete.showDoc(ev.doc);
+        if (ev.moveDown) await this.autocomplete.moveDown();
+        if (ev.accept) await this.autocomplete.accept(this.typing);
+        else this.autocomplete.hide();
+        break;
+
+      case 'TERM_TYPE': await this.terminal.typeCommand(ev.cmd); break;
+      case 'TERM_OUTPUT': await this.terminal.printOutput(ev.text, ev.cls||'term-output'); break;
+      case 'TERM_ERROR': await this.terminal.printError(ev.text); break;
+      case 'TERM_SUCCESS': await this.terminal.printSuccess(ev.text); break;
+      case 'TERM_INFO': await this.terminal.printInfo(ev.text); break;
+      case 'TERM_RUN_INDICATOR': await this.terminal.showRunIndicator(ev.ms); break;
+      case 'TERM_NEW_PROMPT': await this.terminal.newPrompt(); break;
+      case 'TERM_CLEAR': this.terminal.clear(); break;
+
+      case 'RENDER_OUTPUT': await this.preview.renderOutput(ev.result, ev.title||'Console Output'); break;
+      case 'RENDER_HTML': await this.preview.renderHtml(ev.html, ev.title||'Rendered Output'); break;
+      case 'SAVE': this.editor.setModified(false); await sleep(400); break;
+      case 'CHAPTER_TRANSITION':
+        if (this.audio) this.audio.pause();
+        await this.fx.showChapter(ev.num, ev.title);
+        if (this.audio && !this.paused) this.audio.play();
+        break;
+      case 'COLLAPSE_SIDEBAR': $('#sidebar').classList.add('collapsed'); await sleep(400); break;
+      case 'EXPAND_SIDEBAR': $('#sidebar').classList.remove('collapsed'); await sleep(300); break;
+      case 'START_MUSIC': if (this.audio) await this.audio.play(); break;
+      case 'STOP_MUSIC': if (this.audio) this.audio.pause(); break;
+      case 'DUCK_MUSIC': if (this.audio) this.audio.duck(); break;
+      case 'UNDUCK_MUSIC': if (this.audio) this.audio.unduck(); break;
+      case 'SHOW_SUBSCRIBE': await this.fx.showSubscribe(); break;
+      case 'CAPTION': this.fx.showCaption(ev.text); await sleep(ev.duration || 1500); break;
+      case 'HIDE_CAPTIONS': this.fx.hideCaptions(); break;
+      case 'FINISH':
+        if (this.audio) this.audio.stop();
+        this.fx.hideCaptions(); this.fx.clearOverlays();
+        if (this.onFinish) this.onFinish();
+        break;
+      default: break;
+    }
+  }
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    this.elapsedAccum += Date.now() - this.lastResumeTime;
+    this.typing.pause();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this._emitState();
+  }
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastResumeTime = Date.now();
+    this.typing.resume();
+    if (this.audio) this.audio.play();
+    this._emitState();
+  }
+  async restart() {
+    this._cancelled = true; this._stopTick();
+    await sleep(150);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.editor.reset();
+    this.autocomplete.hide();
+    this.terminal.reset();
+    this.preview.renderOutput({lines:[{text:'Ready. Run your program to see output.', type:'system'}]}, 'Program Output');
+    this.eventIdx = 0; this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start();
+  }
+  async jumpToChapter(chIdx) {
+    if (chIdx < 0 || chIdx >= this.chapterBoundaries.length) return;
+    this._cancelled = true; this._stopTick();
+    await sleep(120);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this.fx.reset();
+    this.autocomplete.hide();
+    const snapshot = this.chapterSnapshots[chIdx];
+    if (snapshot != null) { this.editor.setContent(snapshot); this.editor.render(); }
+    else { this.editor.reset(); }
+    this.terminal.reset();
+    this.eventIdx = this.chapterBoundaries[chIdx];
+    this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start(true);
+  }
+  stop() {
+    this._cancelled = true; this._stopTick();
+    this.typing.cancelled = true; this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.running = false; this.paused = false;
+    this._emitState();
+  }
+}
+
+/* ============================================================
+   11. RECORDING CONTROLS
+   ============================================================ */
+class RecordingControls {
+  constructor(timeline, speech, audio) {
+    this.timeline = timeline; this.speech = speech; this.audio = audio;
+    this.panel = $('#control-panel'); this.showBtn = $('#show-controls-btn');
+    this.startScreen = $('#start-screen'); this.finishScreen = $('#finish-screen');
+    this._bindControls(); this._bindKeyboard(); this._populateVoices(); this._wireProgress();
+  }
+  _bindControls() {
+    $('#btn-start-rec').addEventListener('click', () => this._startFromConfig());
+    $('#btn-start').addEventListener('click', () => this._startFromConfig());
+    $('#btn-pause').addEventListener('click', () => this.timeline.pause());
+    $('#btn-resume').addEventListener('click', () => this.timeline.resume());
+    $('#btn-restart').addEventListener('click', () => this.timeline.restart());
+    $('#cp-collapse').addEventListener('click', () => this.hidePanel());
+    this.showBtn.addEventListener('click', () => this.showPanel());
+    $('#cp-voice').addEventListener('change', e => this.speech.setVoice(e.target.value));
+    $('#cp-rate').addEventListener('input', e => { const v = parseFloat(e.target.value); this.speech.setRate(v); $('#cp-rate-val').textContent = v.toFixed(2) + 'x'; });
+    $('#cp-mute').addEventListener('change', e => this.speech.setMuted(e.target.checked));
+    $('#btn-test-voice').addEventListener('click', () => this.speech.test());
+    $('#cp-typing').addEventListener('input', e => { const v = parseFloat(e.target.value); STATE.typingSpeedMul = v; $('#cp-typing-val').textContent = v.toFixed(1) + 'x'; });
+    $('#cp-music-url').addEventListener('change', e => this.audio.setUrl(e.target.value));
+    $('#cp-music-vol').addEventListener('input', e => { const v = parseInt(e.target.value); this.audio.setVolume(v); $('#cp-music-vol-val').textContent = v + '%'; });
+    $('#btn-music-test').addEventListener('click', () => this.audio.test());
+    $('#btn-music-mute').addEventListener('click', e => {
+      STATE.musicMuted = !STATE.musicMuted;
+      if (STATE.musicMuted) { this.audio.pause(); e.target.textContent = 'Unmute'; }
+      else { this.audio.play(); e.target.textContent = 'Mute'; }
+    });
+    $('#cp-captions').addEventListener('change', e => this.timeline.fx.setCaptionsOn(e.target.checked));
+    $('#cp-effects').addEventListener('change', e => this.timeline.fx.setEffectsOn(e.target.checked));
+    $('#cp-cursor').addEventListener('change', e => this.timeline.fx.setCursorOn(e.target.checked));
+    $('#btn-jump').addEventListener('click', () => { const ch = parseInt($('#cp-jump').value); this.timeline.jumpToChapter(ch); });
+    $('#btn-finish-close').addEventListener('click', () => this.finishScreen.classList.remove('visible'));
+  }
+  _bindKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); if (this.panel.classList.contains('hidden')) this.showPanel(); else this.hidePanel(); }
+      else if (e.key === ' ') { e.preventDefault(); if (this.timeline.running && !this.timeline.paused) this.timeline.pause(); else if (this.timeline.paused) this.timeline.resume(); }
+    });
+  }
+  hidePanel() { this.panel.classList.add('hidden'); this.showBtn.classList.add('visible'); }
+  showPanel() { this.panel.classList.remove('hidden'); this.showBtn.classList.remove('visible'); }
+  _populateVoices() {
+    const sel1 = $('#cp-voice'); const sel2 = $('#ss-voice');
+    const tryFill = () => {
+      const voices = this.speech.voices;
+      if (!voices.length) return false;
+      sel1.innerHTML = ''; sel2.innerHTML = '';
+      voices.forEach(v => {
+        const lbl = `${v.name} (${v.lang})${v.localService ? '' : ' [network]'}`;
+        const o1 = el('option', { value: v.voiceURI }, lbl);
+        const o2 = el('option', { value: v.voiceURI }, lbl);
+        if (this.speech.selectedVoice && v.voiceURI === this.speech.selectedVoice.voiceURI) { o1.selected = true; o2.selected = true; }
+        sel1.appendChild(o1); sel2.appendChild(o2);
+      });
+      return true;
+    };
+    if (!tryFill()) { let tries = 0; const iv = setInterval(() => { if (tryFill() || tries++ > 10) clearInterval(iv); }, 250); }
+    sel1.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel2.value = e.target.value; });
+    sel2.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel1.value = e.target.value; });
+  }
+  _wireProgress() {
+    this.timeline.onProgress = p => {
+      const pct = Math.min(100, (p.eventIdx / Math.max(1, p.total)) * 100);
+      $('#cp-progress-fill').style.width = pct + '%';
+      const sec = Math.floor(p.elapsed / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+    this.timeline.onChapterChange = ch => {
+      const names = ['Intro & C# Basics','Variables & Methods','Classes & Objects','Collections & LINQ','Debugging (3 Mistakes)','Final Project & Walkthrough'];
+      $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
+      STATE.currentChapter = ch;
+    };
+    this.timeline.onStateChange = s => {
+      const recEl = $('#cp-rec'); const stateEl = $('#cp-state-label');
+      $('#btn-pause').disabled = !(s.running && !s.paused);
+      $('#btn-resume').disabled = !(s.running && s.paused);
+      if (!s.running && !s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> STANDBY';
+        recEl.style.color = '#858585';
+        recEl.querySelector('.rec-dot').style.background = '#858585';
+        stateEl.textContent = 'Not started';
+      } else if (s.paused) {
+        recEl.innerHTML = '<span class="rec-dot"></span> PAUSED';
+        recEl.style.color = '#febc2e';
+        recEl.querySelector('.rec-dot').style.background = '#febc2e';
+        stateEl.textContent = 'Paused';
+      } else if (s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> DONE';
+        recEl.style.color = '#107c10';
+        recEl.querySelector('.rec-dot').style.background = '#107c10';
+        stateEl.textContent = 'Complete';
+      } else {
+        recEl.innerHTML = '<span class="rec-dot"></span> REC';
+        recEl.style.color = '#ff5252';
+        recEl.querySelector('.rec-dot').style.background = '#ff5252';
+        stateEl.textContent = 'Recording';
+      }
+    };
+    this.timeline.onFinish = () => {
+      this.finishScreen.classList.add('visible');
+      const sec = Math.floor(this.timeline._elapsedMs() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#fs-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+  }
+  _startFromConfig() {
+    const ssVoice = $('#ss-voice').value;
+    const ssRate = parseFloat($('#ss-rate').value);
+    const ssTyping = parseFloat($('#ss-typing').value);
+    const ssCaptions = $('#ss-captions').value === '1';
+    const ssEffects = $('#ss-effects').value === '1';
+    const ssMusic = $('#ss-music').value;
+    const ssMusicVol = parseInt($('#ss-music-vol').value);
+    if (ssVoice) { $('#cp-voice').value = ssVoice; this.speech.setVoice(ssVoice); }
+    $('#cp-rate').value = ssRate; $('#cp-rate-val').textContent = ssRate.toFixed(2) + 'x'; this.speech.setRate(ssRate);
+    $('#cp-typing').value = ssTyping; $('#cp-typing-val').textContent = ssTyping.toFixed(1) + 'x'; STATE.typingSpeedMul = ssTyping;
+    $('#cp-captions').checked = ssCaptions; $('#cp-effects').checked = ssEffects; $('#cp-cursor').checked = true;
+    this.timeline.fx.setCaptionsOn(ssCaptions); this.timeline.fx.setEffectsOn(ssEffects); this.timeline.fx.setCursorOn(true);
+    if (ssMusic) {
+      $('#cp-music-url').value = ssMusic; this.audio.setUrl(ssMusic);
+      $('#cp-music-vol').value = ssMusicVol; $('#cp-music-vol-val').textContent = ssMusicVol + '%';
+      this.audio.setVolume(ssMusicVol); STATE.musicVolume = ssMusicVol / 100;
+    }
+    this.startScreen.classList.add('hidden');
+    setTimeout(() => this.startScreen.style.display = 'none', 500);
+    this.timeline.editor.reset();
+    this.timeline.terminal.reset();
+    this.timeline.fx.showCursor();
+    this.timeline.start();
+    if (ssMusic) setTimeout(() => this.audio.play(), 800);
+  }
+}
+
+/* ============================================================
+/* ============================================================
+   C# TUTORIAL TIMELINE DATA
+   6 chapters, ~10 minutes. Builds a small player-inventory app:
+   Player class, List<T>, LINQ queries. Covers variables, methods,
+   classes, inheritance, collections, LINQ. 3 deliberate C# errors
+   with fixes.
+   ============================================================ */
+function buildTutorial() {
+  const events = [];
+  const chapterBoundaries = [];
+  const snapshots = [];
+  const E = (ev) => { events.push(ev); return ev; };
+  const chapterStart = (num, title, snapshot) => {
+    chapterBoundaries.push(events.length);
+    snapshots.push(snapshot || '');
+    E({ type: 'CHAPTER_TRANSITION', num, title, _chapterStart: true });
+  };
+
+  /* ======================================================================
+     CHAPTER 1 — INTRODUCTION & C# BASICS  (0:00–1:30)
+     ====================================================================== */
+  chapterStart(1, 'Introduction & C# Basics', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to learn C# — Microsoft's flagship language for the .NET platform. C# is a modern, strongly-typed, object-oriented language. It runs on Windows, Linux, and macOS, and it powers everything from desktop apps to web backends to Unity games." });
+  E({ type: 'SHOW_CARD', title: 'What is C#?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="M128 16l96 56v112l-96 56-96-56V72l96-56z" fill="#512BD4"/><text x="128" y="156" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="84" font-weight="900" fill="#fff">C#</text></svg>`, text: 'C# was designed by Anders Hejlsberg at Microsoft and released in 2002. The name comes from the musical sharp symbol — it is C sharp, a step above C. It is fully object-oriented: every piece of code lives inside a class. The .NET runtime handles memory management and garbage collection for you.', duration: 2600 });
+  E({ type: 'SPEAK', text: "So this is VS Code with the .NET SDK set up. On the left is the Solution Explorer with our C# project, the middle is the editor where we write C#, the bottom is the terminal where we build and run with the dotnet command, and on the right is the program output preview." });
+  E({ type: 'MOVE_CURSOR', target: '.sidebar' });
+  E({ type: 'CLICK' });
+  E({ type: 'SPEAK', text: "Let me collapse the sidebar to give us more room." });
+  E({ type: 'COLLAPSE_SIDEBAR' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-area' });
+  E({ type: 'SPEAK', text: "Let's write our very first C# program. The classic — Console.WriteLine, which prints a line to the console. But first, every C# program needs a using statement, a namespace, a class, and a Main method. That's the boilerplate." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'CLICK' });
+  E({ type: 'TYPE', text: '// My first C# program' });
+  E({ type: 'TYPE_LINE', text: 'using System;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'namespace CSharpTutorial', indent: '' });
+  E({ type: 'TYPE_LINE', text: '{', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    class Program', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        static void Main(string[] args)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Console.WriteLine("Hello, C#!");', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'SPEAK', text: "So using System brings in the standard library. Then namespace CSharpTutorial groups our code. Inside, a class called Program. Inside that, the Main method — that's the entry point, where execution begins. Main is static, which means it belongs to the class itself, not an instance. And it takes a string array of command-line arguments. Finally, Console.WriteLine prints our greeting." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'Console.WriteLine', label: 'print a line to the console', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'static void Main', label: 'program entry point', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'SPEAK', text: "Let me run it. I'll use the dotnet run command in the terminal." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, C#!' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, C#!', type: 'log' }] }, title: 'dotnet run' });
+  E({ type: 'SPEAK', text: "And there it is. Hello, C-sharp! printed to both the terminal and the output preview. You're officially writing C# now. The boilerplate looks heavy compared to Python or JavaScript, but it gives you structure and type safety from day one." });
+
+  /* ======================================================================
+     CHAPTER 2 — VARIABLES & METHODS  (1:30–3:30)
+     ====================================================================== */
+  const snapshot2 = '// My first C# program\nusing System;\n\nnamespace CSharpTutorial\n{\n    class Program\n    {\n        static void Main(string[] args)\n        {\n            Console.WriteLine("Hello, C#!");\n        }\n    }\n}\n';
+  chapterStart(2, 'Variables & Methods', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two. Variables and methods. C# is statically typed — you declare the type of every variable, and the compiler checks it before the program ever runs. That catches bugs early. You can use explicit types like int or string, or the var keyword to let the compiler infer the type." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Explicit types vs var', code: [
+    { caption: 'Explicit type — you name the type', code: 'int age = 28;\nstring name = "Maya";' },
+    { caption: 'var — compiler infers the type', code: 'var age = 28;       // int\nvar name = "Maya";   // string' },
+  ], text: 'Both compile to identical code. var is not dynamic typing — the variable still has a fixed type, decided at compile time. Use var when the type is obvious from the right side, explicit types when it adds clarity.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Let me add some variables inside Main. I'll declare a few with explicit types and show off string interpolation with the dollar sign." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Console.WriteLine("Hello, C#!");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '// Variables are statically typed', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'string name = "Maya";', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'int age = 28;', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'double height = 1.68;', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'bool isStudent = false;', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '// String interpolation with $ prefix', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"{name} is {age} years old.");', indent: '            ' });
+  E({ type: 'SPEAK', text: "So string name equals Maya, int age equals 28, double height for decimals, bool for true or false. Then the dollar sign before the string enables interpolation — curly braces drop variables in. Same idea as f-strings in Python or template literals in JavaScript." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'string name', label: 'type + name (statically typed)', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '$"', label: 'string interpolation', duration: 1800 });
+  E({ type: 'SPEAK', text: "Now methods. A method is a function that belongs to a class. Let me add a Greet method to our Program class and call it from Main." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Console.WriteLine($"{name} is {age} years old.");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Greet(name);', indent: '            ' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '    }' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        // A method: reusable code inside a class', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        static void Greet(string person)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Console.WriteLine($"Hello, {person}!");', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        }', indent: '' });
+  E({ type: 'SPEAK', text: "So static void Greet takes a string parameter called person. Static means it's called on the class, not an instance — we'll cover instances next chapter. Void means it returns nothing. Inside, it prints a greeting using interpolation. Then in Main we call Greet and pass in name. Methods organize code into reusable, named blocks." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'static void Greet', label: 'a method: belongs to the class', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, C#!\nMaya is 28 years old.\nHello, Maya!' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, C#!', type: 'log' }, { text: 'Maya is 28 years old.', type: 'log' }, { text: 'Hello, Maya!', type: 'log' }] }, title: 'dotnet run' });
+  E({ type: 'SPEAK', text: "Three lines of output. The variables printed with interpolation, and the Greet method produced its own greeting. That's C# methods — declare them in a class, call them by name, pass arguments in parentheses." });
+
+  /* ======================================================================
+     CHAPTER 3 — CLASSES & OBJECTS  (3:30–5:00)
+     ====================================================================== */
+  const snapshot3 = snapshot2.replace('Console.WriteLine("Hello, C#!");\n', 'Console.WriteLine("Hello, C#!");\n            // Variables are statically typed\n            string name = "Maya";\n            int age = 28;\n            double height = 1.68;\n            bool isStudent = false;\n\n            // String interpolation with $ prefix\n            Console.WriteLine($"{name} is {age} years old.");\n\n            Greet(name);\n');
+  chapterStart(3, 'Classes & Objects', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three. Classes and objects. This is the heart of C#. A class is a blueprint — it defines fields, properties, and methods. An object is a concrete instance created from that blueprint with the new keyword. C# is fully object-oriented, so understanding classes is non-negotiable." });
+  E({ type: 'SHOW_CARD', title: 'Class vs Object', text: 'A class is the blueprint. An object is an instance built from that blueprint. Think of a class as a cookie cutter and objects as the cookies. You write the class once, then create as many objects as you need.', duration: 2400 });
+  E({ type: 'SPEAK', text: "Let me create a Player class in a separate file. A player has a name, a level, and a method to level up. I'll show properties — C#'s elegant way to expose data with get and set accessors." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'namespace CSharpTutorial' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    // A class is a blueprint for objects', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    class Player', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        // Auto-properties: clean get/set syntax', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        public string Name { get; set; }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        public int Level { get; set; } = 1;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        public int Health { get; private set; } = 100;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        // Constructor: runs when an object is created', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        public Player(string name)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Name = name;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        // A method on the class', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        public void LevelUp()', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Level++;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Health += 20;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Console.WriteLine($"{Name} reached level {Level}!");', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    }', indent: '' });
+  E({ type: 'SPEAK', text: "So class Player. Three auto-properties — Name, Level with a default of 1, and Health which is 100 but has a private set, meaning only the class itself can change it. Then a constructor — same name as the class, takes a name parameter, runs when you create a Player. Finally a LevelUp method that increments Level, adds 20 to Health, and prints a message." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'public string Name { get; set; }', label: 'auto-property', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'public Player(string name)', label: 'constructor — runs on new', duration: 2000 });
+  E({ type: 'SPEAK', text: "Now let me use it in Main. I'll create a Player object and call LevelUp." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Greet(name);' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '// Create an object with new', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Player hero = new Player("Aria");', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'hero.LevelUp();', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'hero.LevelUp();', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"{hero.Name}: Lv {hero.Level}, HP {hero.Health}");', indent: '            ' });
+  E({ type: 'SPEAK', text: "So new Player Aria creates an object — the constructor runs, setting Name to Aria. Then we call LevelUp twice. Each call bumps Level and Health. Finally we print the hero's stats. Notice we read hero dot Name and hero dot Level — those are the properties we defined." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'new Player', label: 'create an object instance', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, C#!\nMaya is 28 years old.\nHello, Maya!\nAria reached level 2!\nAria reached level 3!\nAria: Lv 3, HP 140' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, C#!', type: 'log' }, { text: 'Maya is 28 years old.', type: 'log' }, { text: 'Hello, Maya!', type: 'log' }, { text: 'Aria reached level 2!', type: 'log' }, { text: 'Aria reached level 3!', type: 'log' }, { text: 'Aria: Lv 3, HP 140', type: 'result' }] }, title: 'dotnet run' });
+  E({ type: 'SPEAK', text: "Aria leveled up twice and ended at level 3 with 140 health. That's object-oriented programming in a nutshell — define a class with data and behavior, create instances, and call methods on them. The class encapsulates everything about what a Player is and does." });
+
+  /* ======================================================================
+     CHAPTER 4 — COLLECTIONS & LINQ  (5:00–7:00)
+     ====================================================================== */
+  chapterStart(4, 'Collections & LINQ', '');
+  E({ type: 'SPEAK', text: "Chapter four. Collections and LINQ. Real programs juggle lists of things. C# gives you List of T — a growable array — and LINQ, which stands for Language Integrated Query. LINQ lets you filter, transform, and aggregate collections using a clean, declarative syntax. It's one of C#'s killer features." });
+  E({ type: 'SHOW_CARD', title: 'LINQ — query any collection', text: 'LINQ brings SQL-style querying into C#. You can filter with Where, transform with Select, sort with OrderBy, and aggregate with Sum, Count, Average. It works on lists, arrays, databases, XML — anything enumerable. The same query syntax, many data sources.', duration: 2600 });
+  E({ type: 'SPEAK', text: "Let me create a list of players and run some LINQ queries on it. First I'll build the list." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Console.WriteLine($"{hero.Name}: Lv {hero.Level}, HP {hero.Health}");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '// List<T> — a growable, typed collection', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'List<Player> party = new List<Player>', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '{', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '    new Player("Aria"),', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '    new Player("Bran"),', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '    new Player("Cleo"),', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '    new Player("Dax")', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '};', indent: '            ' });
+  E({ type: 'SPEAK', text: "List of Player, initialized with four players. The angle brackets are generics — List of T means a list that only holds Players. The compiler won't let you add anything else. Collection initializer syntax with curly braces sets all four in one statement." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'List<Player>', label: 'generic list — only holds Players', duration: 2000 });
+  E({ type: 'SPEAK', text: "Let me level them up differently, then query. I'll set Bran and Cleo to higher levels." });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'party[1].Level = 5;  // Bran', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'party[2].Level = 8;  // Cleo', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '// LINQ: find high-level players', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'var veterans = party.Where(p => p.Level >= 5);', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine("Veterans:");', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'foreach (Player p in veterans)', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '{', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '    Console.WriteLine($"  {p.Name} (Lv {p.Level})");', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '            ' });
+  E({ type: 'SPEAK', text: "Here's LINQ. The Where method filters — it takes a lambda, p arrow p dot Level greater or equal to 5, and returns only the matching players. The arrow is a lambda expression, C#'s inline function. Then foreach loops through the results. Bran and Cleo qualify, Aria and Dax don't." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.Where(', label: 'LINQ: filter with a lambda', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'p => ', label: 'lambda expression', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, C#!\nMaya is 28 years old.\nHello, Maya!\nAria reached level 2!\nAria reached level 3!\nAria: Lv 3, HP 140\nVeterans:\n  Bran (Lv 5)\n  Cleo (Lv 8)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, C#!', type: 'log' }, { text: 'Maya is 28 years old.', type: 'log' }, { text: 'Hello, Maya!', type: 'log' }, { text: 'Aria reached level 2!', type: 'log' }, { text: 'Aria reached level 3!', type: 'log' }, { text: 'Aria: Lv 3, HP 140', type: 'result' }, { text: 'Veterans:', type: 'info' }, { text: '  Bran (Lv 5)', type: 'log' }, { text: '  Cleo (Lv 8)', type: 'log' }] }, title: 'LINQ Where query' });
+  E({ type: 'SPEAK', text: "Bran and Cleo are the veterans — both level 5 or higher. LINQ's Where did the filtering, foreach did the printing. Now let me show Select for transformation and Sum for aggregation." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '}' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: '// LINQ: transform with Select, aggregate with Sum', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'var names = party.Select(p => p.Name);', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'int totalLevels = party.Sum(p => p.Level);', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'double avgLevel = party.Average(p => p.Level);', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"Names: {string.Join(", ", names)}");', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"Total levels: {totalLevels}");', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"Average level: {avgLevel:F1}");', indent: '            ' });
+  E({ type: 'SPEAK', text: "Select projects each Player to just its Name — transforming a list of players into a list of strings. Sum adds up all the levels. Average computes the mean. Then string dot Join concatenates the names with commas. The F1 formats the average to one decimal place. LINQ turns complex data wrangling into readable one-liners." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.Select(', label: 'LINQ: transform each element', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.Sum(', label: 'LINQ: aggregate to a total', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, C#!\nMaya is 28 years old.\nHello, Maya!\nAria reached level 2!\nAria reached level 3!\nAria: Lv 3, HP 140\nVeterans:\n  Bran (Lv 5)\n  Cleo (Lv 8)\nNames: Aria, Bran, Cleo, Dax\nTotal levels: 17\nAverage level: 4.3' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, C#!', type: 'log' }, { text: 'Maya is 28 years old.', type: 'log' }, { text: 'Hello, Maya!', type: 'log' }, { text: 'Aria reached level 2!', type: 'log' }, { text: 'Aria reached level 3!', type: 'log' }, { text: 'Aria: Lv 3, HP 140', type: 'result' }, { text: 'Veterans:', type: 'info' }, { text: '  Bran (Lv 5)', type: 'log' }, { text: '  Cleo (Lv 8)', type: 'log' }, { text: 'Names: Aria, Bran, Cleo, Dax', type: 'log' }, { text: 'Total levels: 17', type: 'result' }, { text: 'Average level: 4.3', type: 'result' }] }, title: 'LINQ Select + Sum + Average' });
+  E({ type: 'SPEAK', text: "All four names joined, total levels 17, average 4.3. Where filters, Select transforms, Sum and Average aggregate. That's LINQ in a nutshell — declarative data queries that read almost like English and work on any collection." });
+
+  /* ======================================================================
+     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (7:00–8:30)
+     ====================================================================== */
+  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  E({ type: 'SPEAK', text: "Chapter five. Three C# mistakes that catch every beginner. I'll make each one on purpose so you recognize the compiler error and know the fix. C# is statically typed and compiles before running, so most bugs are caught at compile time — which is a blessing once you learn to read the messages." });
+  // ===== BUG #1: Using a variable without initializing it =====
+  E({ type: 'SPEAK', text: "Bug number one. Using an uninitialized local variable. In C#, you must assign a value before reading a variable. Forget that and the compiler stops you cold. This is a feature, not a bug — it prevents a whole class of runtime errors." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Console.WriteLine($"Average level: {avgLevel:F1}");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  // DELIBERATE BUG #1 — reading uninitialized variable
+  E({ type: 'TYPE_LINE', text: '// BUG: using an uninitialized variable', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'int score;', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"Score: {score}");', indent: '            ' });
+  E({ type: 'SPEAK', text: "I declared int score but never assigned it, then tried to print it. Intuitively you might expect zero or null. But C# refuses — local variables must be definitely assigned before use." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'int score;', label: 'declared but never assigned', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Program.cs(45,13): error CS0165: Use of unassigned local variable 'score'" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Error CS0165: Use of unassigned local variable score. The compiler caught it before the program ran. The fix is simple — assign a value when you declare it, or before you use it." });
+  E({ type: 'FIX_TOKEN', from: 'int score;', to: 'int score = 0;', highlightMs: 1500 });
+  E({ type: 'SPEAK', text: "Now score starts at zero. That's the C# way — always initialize. The compiler enforces this, which means you'll never get a garbage value from a forgotten assignment." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Score: 0' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Score: 0', type: 'result' }, { text: '(compiler happy — variable initialized)', type: 'system' }] }, title: 'Fixed: initialize the variable' });
+  E({ type: 'SPEAK', text: "Score prints as zero. Initialize your locals — it's the law in C#." });
+
+  // ===== BUG #2: Index out of range (List) =====
+  E({ type: 'SPEAK', text: "Bug number two. Index out of range. Just like arrays in every language, C# lists are zero-indexed and throw an exception if you go past the end. The difference from JavaScript: C# throws immediately instead of returning undefined silently." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Console.WriteLine($"Score: {score}");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  // DELIBERATE BUG #2 — accessing index 4 on a 4-element list
+  E({ type: 'TYPE_LINE', text: '// BUG: index out of range', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Player fourth = party[4];', indent: '            ' });
+  E({ type: 'SPEAK', text: "Our party list has four players — indices 0, 1, 2, 3. But I'm asking for index 4, which doesn't exist. Let's see what happens." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'party[4]', label: 'index 4 doesnt exist (0-3 only)', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: 'Unhandled exception. System.ArgumentOutOfRangeException: Index was out of range. Must be non-negative and less than the size of the collection. (Parameter \'index\')\n   at Program.Main(String[] args) in Program.cs:line 47' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "ArgumentOutOfRangeException — index was out of range. The program crashed with a stack trace. This is the C# way: it fails loudly and immediately, so you find the bug now instead of in production. The fix: use the correct index, or check Count first, or use LINQ's ElementAtOrDefault which returns a default instead of throwing." });
+  E({ type: 'FIX_TOKEN', from: 'party[4]', to: 'party[party.Count - 1]', highlightMs: 1800 });
+  E({ type: 'SPEAK', text: "Party dot Count minus one gives the last valid index — 3. That's Dax, the fourth player. Count is the list's length property." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Score: 0\nDax is the last in the party.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Score: 0', type: 'result' }, { text: 'Dax is the last in the party.', type: 'log' }] }, title: 'Fixed: valid last index' });
+  E({ type: 'SPEAK', text: "No crash — we got Dax. Always remember: valid indices are zero through Count minus one. C# will not silently return null like some languages; it throws. That's a feature." });
+
+  // ===== BUG #3: Null reference without null-conditional =====
+  E({ type: 'SPEAK', text: "Bug number three. The dreaded NullReferenceException. You try to use a reference that's null — call a method on it, read a property — and the program crashes. It's the most common runtime error in C#. The modern fix is the null-conditional operator." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'Player fourth = party[party.Count - 1];' });
+  E({ type: 'TYPE_LINE', text: '', indent: '            ' });
+  // DELIBERATE BUG #3 — calling .Name on null
+  E({ type: 'TYPE_LINE', text: '// BUG: NullReferenceException', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Player missing = null;', indent: '            ' });
+  E({ type: 'TYPE_LINE', text: 'Console.WriteLine($"Name length: {missing.Name.Length}");', indent: '            ' });
+  E({ type: 'SPEAK', text: "Missing is a Player variable set to null — it points to nothing. Then I try to read missing dot Name dot Length. That's two dereferences of a null. Crash incoming." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'missing.Name.Length', label: 'null has no properties!', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: 'Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.\n   at Program.Main(String[] args) in Program.cs:line 49' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "NullReferenceException: object reference not set to an instance of an object. The classic. Missing was null, so missing dot Name blew up. The fix: the null-conditional operator — the question mark dot. It returns null instead of throwing when the left side is null." });
+  E({ type: 'FIX_TOKEN', from: 'missing.Name.Length', to: 'missing?.Name?.Length', highlightMs: 1800 });
+  E({ type: 'SPEAK', text: "Missing question mark dot Name question mark dot Length. If missing is null, the whole expression short-circuits to null. No exception. Then we just need to handle the null in the output." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Score: 0\nDax is the last in the party.\nName length: ' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Score: 0', type: 'result' }, { text: 'Dax is the last in the party.', type: 'log' }, { text: 'Name length:  (null — no crash)', type: 'warn' }] }, title: 'Fixed: null-conditional operator (?.)' });
+  E({ type: 'SPEAK', text: "Name length prints empty — it's null, but no crash. The null-conditional operator is your shield against NullReferenceException. Use it whenever a reference might be null." });
+  E({ type: 'SPEAK', text: "Three bugs, three fixes. Uninitialized variables, index out of range, and null references. C# catches the first at compile time and the other two at runtime — loudly, with clear messages. That's the benefit of a strongly-typed, compiled language." });
+
+  /* ======================================================================
+     CHAPTER 6 — FINAL PROJECT & WALKTHROUGH  (8:30–10:00)
+     ====================================================================== */
+  chapterStart(6, 'Final Project & Walkthrough', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together with a program that uses everything we've learned — classes, List of T, LINQ with Where, Select, OrderBy, and Sum. The scenario: a party of adventurers, and we want to find the strongest, sort them by level, and report the total power. One clean LINQ pipeline." });
+  E({ type: 'TYPE_FINAL_PROJECT' });
+  E({ type: 'SPEAK', text: "Let me walk you through this. We create a List of Player with five adventurers at different levels. Then one LINQ chain: Where filters to players level 3 or higher, OrderByDescending sorts them by level highest first, Select projects each to a formatted string, and ToList materializes it. Then foreach prints each line, and Sum aggregates the total levels of the veterans. That entire pipeline replaced what would be a nested for-loop in older code." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.Where(', label: 'filter: level 3 or higher', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.OrderByDescending(', label: 'sort: highest level first', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.Select(', label: 'project to formatted strings', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+
+  // ===== LIKE & SUBSCRIBE CTA =====
+  E({ type: 'SPEAK', text: "Quick break! If C# is making sense, hit that like button and subscribe. It genuinely helps the channel, and it tells the algorithm to share this with more people learning C#. Back to the project." });
+  E({ type: 'SHOW_SUBSCRIBE' });
+
+  E({ type: 'SPEAK', text: "Let's run it and see the report." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_CLEAR' });
+  E({ type: 'TERM_TYPE', cmd: 'dotnet run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '--- Party Roster (veterans only) ---\nCleo      Lv 8\nBran      Lv 5\nAria      Lv 3\nTotal veteran power: 16 levels' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: '--- Party Roster (veterans only) ---', type: 'info' }, { text: 'Cleo      Lv 8', type: 'log' }, { text: 'Bran      Lv 5', type: 'log' }, { text: 'Aria      Lv 3', type: 'log' }, { text: 'Total veteran power: 16 levels', type: 'result' }] }, title: 'Final project: party roster' });
+  E({ type: 'SPEAK', text: "There's our report. Three veterans — Cleo at level 8, Bran at 5, Aria at 3 — sorted highest first, with a total power of 16 levels. Dax, at level 1, was filtered out by Where. That's a real, readable data pipeline in about twenty lines of C#." });
+
+  // Final walkthrough
+  E({ type: 'SPEAK', text: "Let's recap the whole journey. We started with the boilerplate — using, namespace, class, Main. We learned variables with explicit types and var, string interpolation with the dollar sign, and methods. We built a Player class with properties, a constructor, and methods, then created objects with new." });
+  E({ type: 'MOVE_CURSOR', target: '.preview-area' });
+  E({ type: 'SLEEP', ms: 1500 });
+  E({ type: 'SPEAK', text: "Then collections — List of T with generics — and LINQ, the killer feature. Where to filter, Select to transform, Sum and Average to aggregate, all with lambda expressions. We hit three bugs: an uninitialized variable, an index out of range, and a null reference. We fixed them with initialization, correct indexing, and the null-conditional operator." });
+  E({ type: 'SPEAK', text: "The mindset with C#: it's strict, and that strictness is your friend. The compiler catches type errors and uninitialized variables before your program runs. Exceptions like NullReferenceException and ArgumentOutOfRangeException crash loudly so you fix them immediately. Embrace the type system and you'll write robust, maintainable code." });
+  E({ type: 'SPEAK', text: "That's it for today. If you followed along, you now know enough C# to build real applications — console tools, web APIs, games in Unity. Go build something small, watch it compile, and iterate. That's how you learn. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'FINISH' });
+
+  return { events, chapterBoundaries, snapshots };
+}
+
+/* The final project code — typed out for the last chapter. */
+const FINAL_PROJECT_CODE = `// Party Roster — a tiny C# project using LINQ
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace CSharpTutorial
+{
+    class Player
+    {
+        public string Name { get; set; }
+        public int Level { get; set; }
+
+        public Player(string name, int level)
+        {
+            Name = name;
+            Level = level;
+        }
+    }
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            List<Player> party = new List<Player>
+            {
+                new Player("Aria", 3),
+                new Player("Bran", 5),
+                new Player("Cleo", 8),
+                new Player("Dax", 1),
+                new Player("Eve", 4)
+            };
+
+            // One LINQ pipeline: filter, sort, project, aggregate
+            var roster = party
+                .Where(p => p.Level >= 3)
+                .OrderByDescending(p => p.Level)
+                .Select(p => $"{p.Name,-8} Lv {p.Level}")
+                .ToList();
+
+            int totalPower = party.Where(p => p.Level >= 3).Sum(p => p.Level);
+
+            Console.WriteLine("--- Party Roster (veterans only) ---");
+            foreach (string line in roster)
+            {
+                Console.WriteLine(line);
+            }
+            Console.WriteLine($"Total veteran power: {totalPower} levels");
+        }
+    }
+}
+`;
+
+/* Custom event TYPE_FINAL_PROJECT: replace editor content with the final program. */
+const _origExecuteCsharp = TimelineEngine.prototype._executeEvent;
+TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'TYPE_FINAL_PROJECT') {
+    this.editor.setContent(FINAL_PROJECT_CODE);
+    const lines = FINAL_PROJECT_CODE.split('\n');
+    this.editor.setCursor(lines.length - 2, lines[lines.length - 2].length);
+    this.editor.setModified(true);
+    this.editor.render();
+    await sleep(800);
+    return;
+  }
+  return _origExecuteCsharp.call(this, ev);
+};
+
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+(function init() {
+  const editor = new EditorSimulator();
+  const typing = new TypingEngine(editor);
+  const autocomplete = new AutoCompleteEngine(editor);
+  const speech = new SpeechController();
+  const audio = new AudioController();
+  const terminal = new TerminalController();
+  const preview = new PreviewController(editor, terminal);
+  const fx = new VisualEffectsController(editor);
+  const timeline = new TimelineEngine(editor, typing, autocomplete, speech, audio, preview, terminal, fx);
+  const controls = new RecordingControls(timeline, speech, audio);
+
+  const tut = buildTutorial();
+  timeline.setEvents(tut.events, tut.chapterBoundaries, tut.snapshots);
+
+  window.__sim = { editor, typing, autocomplete, speech, audio, terminal, preview, fx, timeline, controls };
+})();
+
+</script>
+</body>
+</html>
