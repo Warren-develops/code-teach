@@ -1396,6 +1396,17 @@ input, select { font-family: inherit; }
   </div>
 
   <div class="cp-section">
+    <div class="cp-section-title">Screen Recording</div>
+    <div class="cp-row">
+      <span id="screen-recording-status" role="status" aria-live="polite">Not recording</span>
+    </div>
+    <div class="cp-row">
+      <button class="cp-btn danger" id="btn-screen-stop" disabled>Stop &amp; Download</button>
+    </div>
+    <div style="font-size:10px; color:#858585; line-height:1.4;">Starting the tutorial asks permission to share a screen or tab. Enable the browser’s audio-sharing option to capture available system/tab audio. MP4 is used when supported; otherwise the download is WebM.</div>
+  </div>
+
+  <div class="cp-section">
     <div class="cp-section-title">Playback</div>
     <div class="cp-btn-row" style="margin-bottom:6px;">
       <button class="cp-btn" id="btn-start">
@@ -1636,6 +1647,106 @@ function el(tag, props={}, ...children) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* Screen capture recording. MP4 is browser-dependent; WebM is the usual fallback. */
+const screenRecorder = (() => {
+  let recorder = null;
+  let stream = null;
+  let chunks = [];
+  let statusEl;
+  let stopButton;
+
+  function setStatus(message) {
+    if (statusEl) statusEl.textContent = message;
+  }
+
+  function finishRecording() {
+    const recordedChunks = chunks;
+    chunks = [];
+    const recordedStream = stream;
+    stream = null;
+    recorder = null;
+
+    const mimeType = recordedChunks.find(chunk => chunk.type)?.type || 'video/webm';
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    const extension = mimeType.toLowerCase().includes('mp4') ? 'mp4' : 'webm';
+    if (blob.size) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `screen-recording-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setStatus(`Downloaded ${extension.toUpperCase()} recording.`);
+    } else {
+      setStatus('No recording data was captured.');
+    }
+
+    if (recordedStream) recordedStream.getTracks().forEach(track => track.stop());
+    if (stopButton) stopButton.disabled = true;
+  }
+
+  async function start() {
+    if (recorder && recorder.state === 'recording') return true;
+    if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
+      setStatus('Screen recording is not supported in this browser.');
+      return false;
+    }
+
+    try {
+      // The browser asks the user what screen/tab to share and whether to include audio.
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const types = [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+      ];
+      const mimeType = types.find(type => MediaRecorder.isTypeSupported?.(type));
+      recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      chunks = [];
+      recorder.addEventListener('dataavailable', event => {
+        if (event.data?.size) chunks.push(event.data);
+      });
+      recorder.addEventListener('stop', finishRecording, { once: true });
+      recorder.addEventListener('error', () => setStatus('Recording encountered an error.'), { once: true });
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        if (recorder && recorder.state !== 'inactive') recorder.stop();
+      }, { once: true });
+      recorder.start(1000);
+      if (stopButton) stopButton.disabled = false;
+      const format = recorder.mimeType.toLowerCase().includes('mp4') ? 'MP4' : 'WebM';
+      setStatus(`Recording screen and available audio (${format}).`);
+      return true;
+    } catch (error) {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = null;
+      recorder = null;
+      setStatus(error?.name === 'NotAllowedError'
+        ? 'Screen recording permission was not granted. The tutorial will still start.'
+        : 'Could not start screen recording. The tutorial will still start.');
+      return false;
+    }
+  }
+
+  function stopAndDownload() {
+    if (recorder && recorder.state !== 'inactive') {
+      setStatus('Finishing recording and preparing download…');
+      recorder.stop();
+    }
+  }
+
+  function init() {
+    statusEl = document.getElementById('screen-recording-status');
+    stopButton = document.getElementById('btn-screen-stop');
+    stopButton?.addEventListener('click', stopAndDownload);
+  }
+
+  return { init, start, stopAndDownload };
+})();
 
 /* ---------- Shared state bucket ---------- */
 const STATE = {
@@ -3714,7 +3825,9 @@ class RecordingControls {
     };
   }
 
-  _startFromConfig() {
+  async _startFromConfig() {
+    // Request screen capture directly from the Start button gesture.
+    await screenRecorder.start();
     // Pull config from start screen (if visible) into shared state
     const ssVoice = $('#ss-voice').value;
     const ssRate = parseFloat($('#ss-rate').value);
@@ -4113,6 +4226,7 @@ TimelineEngine.prototype._executeEvent = async function(ev) {
    BOOTSTRAP
    ============================================================ */
 (function init() {
+  screenRecorder.init();
   const editor = new EditorSimulator();
   const typing = new TypingEngine(editor);
   const autocomplete = new AutoCompleteEngine(editor);
@@ -4130,9 +4244,6 @@ TimelineEngine.prototype._executeEvent = async function(ev) {
   // Expose for debugging
   window.__sim = { editor, typing, autocomplete, speech, audio, preview, fx, timeline, controls };
 })();
-</script>
-</body>
-</html>
 </script>
 </body>
 </html>
