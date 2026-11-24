@@ -695,6 +695,11 @@ input, select { font-family: inherit; }
     <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
   </div>
   <div class="cp-section">
+    <div class="cp-section-title">Screen Recording</div>
+    <div class="cp-row"><button class="cp-btn danger" id="btn-stop-recording" disabled style="flex:1;">Stop &amp; Download</button></div>
+    <div id="screen-recorder-status" role="status" aria-live="polite" style="font-size:10px; color:#858585; line-height:1.4;">Recording starts when you start the tutorial. Choose a screen or tab and allow audio in the browser prompt.</div>
+  </div>
+  <div class="cp-section">
     <div class="cp-section-title">Playback</div>
     <div class="cp-btn-row" style="margin-bottom:6px;">
       <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
@@ -2039,6 +2044,7 @@ class RecordingControls {
     }
     this.startScreen.classList.add('hidden');
     setTimeout(() => this.startScreen.style.display = 'none', 500);
+    if (window.ScreenRecorder) window.ScreenRecorder.start();
     this.timeline.editor.reset();
     this.timeline.terminal.reset();
     this.timeline.fx.showCursor();
@@ -2484,6 +2490,14 @@ TimelineEngine.prototype._executeEvent = async function(ev) {
    BOOTSTRAP
    ============================================================ */
 (function init() {
+  if (window.ScreenRecorder) {
+    window.ScreenRecorder.init({
+      stopButton: '#btn-stop-recording',
+      status: '#screen-recorder-status',
+      filename: 'javascript-tutorial',
+    });
+  }
+
   const editor = new EditorSimulator();
   const typing = new TypingEngine(editor);
   const autocomplete = new AutoCompleteEngine(editor);
@@ -2502,5 +2516,6 @@ TimelineEngine.prototype._executeEvent = async function(ev) {
 })();
 
 </script>
+<script src="screen-recorder.js"></script>
 </body>
 </html>
