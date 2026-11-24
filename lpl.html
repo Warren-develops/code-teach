@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programming Languages Explained | Cinematic Video Studio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism-tomorrow.min.css">
+    <style>
+      :root {
+        --bg: #050812;
+        --panel: #0b1222;
+        --panel2: #111b31;
+        --blue: #4da3ff;
+        --cyan: #58e5f2;
+        --purple: #a78bfa;
+        --white: #f4f7ff;
+        --muted: #9aa9c2;
+        --line: #263653
+      }
+
+      * {
+        box-sizing: border-box
+      }
+
+      body {
+        margin: 0;
+        background: radial-gradient(ellipse at 50% -20%, #17284b 0%, #070b16 50%, #03050b 100%);
+        color: var(--white);
+        font-family: Inter, Segoe UI, Arial, sans-serif
+      }
+
+      .app {
+        max-width: 1500px;
+        margin: auto;
+        padding: 24px
+      }
+
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 18px
+      }
+
+      .brand {
+        font-weight: 800;
+        letter-spacing: .12em;
+        font-size: 13px;
+        color: #b8c9e7
+      }
+
+      .brand span {
+        color: var(--cyan)
+      }
+
+      .top small {
+        color: var(--muted)
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 18px;
+        align-items: start
+      }
+
+      .stage-wrap {
+        background: #02040a;
+        border: 1px solid #25334c;
+        border-radius: 18px;
+        padding: 10px;
+        box-shadow: 0 25px 80px #0009
+      }
+
+      .stage {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        overflow: hidden;
+        background: radial-gradient(circle at 70% 35%, #14264b 0%, #090f20 36%, #03060d 78%);
+        border-radius: 12px;
+        isolation: isolate
+      }
+
+      #particles {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: .55;
+        z-index: 0
+      }
+
+      .vignette {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: radial-gradient(ellipse, transparent 35%, #02040a9c 100%)
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        padding: 5.5%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        opacity: 1;
+        transition: opacity .65s ease, transform .8s ease
+      }
+
+      .scene.fade {
+        opacity: 0;
+        transform: scale(1.035)
+      }
+
+      .eyebrow {
+        font-size: clamp(9px, 1vw, 14px);
+        letter-spacing: .28em;
+        text-transform: uppercase;
+        color: var(--cyan);
+        font-weight: 700;
+        margin-bottom: 14px
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0
+      }
+
+      .hero-title {
+        font-size: clamp(34px, 6.2vw, 88px);
+        line-height: .98;
+        letter-spacing: -.055em;
+        max-width: 850px;
+        margin: 0 0 18px;
+        font-weight: 900;
+        text-shadow: 0 8px 40px #0009
+      }
+
+      .gradient {
+        background: linear-gradient(100deg, #fff 10%, #7adfff 48%, #a78bfa 90%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent
+      }
+
+      .lead {
+        font-size: clamp(13px, 1.65vw, 22px);
+        line-height: 1.5;
+        color: #c2d0e7;
+        max-width: 760px
+      }
+
+      .chapter-head {
+        display: flex;
+        align-items: center;
+        gap: 28px
+      }
+
+      .logo {
+        width: clamp(75px, 11vw, 150px);
+        height: clamp(75px, 11vw, 150px);
+        display: grid;
+        place-items: center;
+        border-radius: 28px;
+        background: linear-gradient(145deg, #182d50, #0a1223);
+        border: 1px solid #54749e66;
+        box-shadow: 0 0 60px #4da3ff22;
+        font-size: clamp(42px, 7vw, 88px);
+        font-weight: 900;
+        color: var(--accent, var(--cyan));
+        flex-shrink: 0
+      }
+
+      .chapter-name {
+        font-size: clamp(38px, 6vw, 78px);
+        font-weight: 900;
+        letter-spacing: -.05em;
+        margin: 0
+      }
+
+      .chapter-sub {
+        color: #a9bad4;
+        font-size: clamp(12px, 1.5vw, 20px);
+        margin-top: 10px
+      }
+
+      .meta {
+        color: #7f91ad;
+        font-size: 12px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        margin-top: 18px
+      }
+
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1.08fr .92fr;
+        gap: 22px;
+        align-items: center
+      }
+
+      .glass {
+        background: linear-gradient(145deg, #14223bd9, #0a1222e8);
+        border: 1px solid #6680a533;
+        border-radius: 16px;
+        padding: clamp(14px, 2vw, 25px);
+        box-shadow: 0 18px 55px #0005;
+        backdrop-filter: blur(12px)
+      }
+
+      .card-title {
+        font-size: clamp(15px, 1.7vw, 23px);
+        font-weight: 800;
+        margin-bottom: 12px
+      }
+
+      .bullets {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+        display: grid;
+        gap: 11px
+      }
+
+      .bullets li {
+        color: #c6d3e8;
+        font-size: clamp(11px, 1.25vw, 16px);
+        line-height: 1.4;
+        display: flex;
+        gap: 10px
+      }
+
+      .bullets li:before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--cyan);
+        margin-top: 6px;
+        flex: none;
+        box-shadow: 0 0 12px var(--cyan)
+      }
+
+      .codebox {
+        background: #080d18;
+        border: 1px solid #31445f;
+        border-radius: 13px;
+        overflow: hidden;
+        box-shadow: 0 18px 45px #0007
+      }
+
+      .codebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: #111b2c;
+        color: #a9bad2;
+        font-size: 11px
+      }
+
+      .dots {
+        display: flex;
+        gap: 5px
+      }
+
+      .dots i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #53647d
+      }
+
+      .codebody {
+        padding: 15px 12px;
+        font: clamp(10px, 1.25vw, 16px)/1.8 ui-monospace, SFMono-Regular, Consolas, monospace;
+        white-space: pre;
+        overflow: hidden;
+        color: #d7e6ff
+      }
+
+      .code-line {
+        display: block;
+        padding: 0 8px;
+        border-left: 2px solid transparent;
+        opacity: .38;
+        transition: .3s
+      }
+
+      .code-line.active {
+        opacity: 1;
+        background: #1a3450;
+        border-left-color: var(--cyan);
+        color: #fff
+      }
+
+      .code-line .token {
+        background: none
+      }
+
+      .codebody .token.comment {
+        color: #8293ad
+      }
+
+      .codebody .token.keyword {
+        color: #c5a3ff
+      }
+
+      .codebody .token.string,
+      .codebody .token.char {
+        color: #9be6bd
+      }
+
+      .codebody .token.function,
+      .codebody .token.builtin {
+        color: #7ddcff
+      }
+
+      .codebody .token.number,
+      .codebody .token.boolean {
+        color: #f6c177
+      }
+
+      .ln {
+        display: inline-block;
+        width: 25px;
+        color: #61738f;
+        user-select: none
+      }
+
+      .kw {
+        color: #c5a3ff
+      }
+
+      .str {
+        color: #9be6bd
+      }
+
+      .fn {
+        color: #7ddcff
+      }
+
+      .comment {
+        color: #71839d
+      }
+
+      .output {
+        border-top: 1px solid #263750;
+        padding: 10px 14px;
+        color: #91e8bd;
+        font: 12px ui-monospace, monospace;
+        background: #09131a
+      }
+
+      .diagram {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin: 20px 0
+      }
+
+      .node {
+        padding: 15px 18px;
+        border-radius: 12px;
+        background: #142846;
+        border: 1px solid #4d77a7;
+        color: #eaf5ff;
+        font-weight: 700;
+        font-size: clamp(11px, 1.3vw, 17px);
+        box-shadow: 0 0 24px #4da3ff20
+      }
+
+      .arrow {
+        color: var(--cyan);
+        font-size: 25px
+      }
+
+      .fact {
+        border-left: 4px solid var(--purple);
+        padding: 12px 18px;
+        background: #a78bfa12;
+        border-radius: 0 12px 12px 0;
+        color: #e5ddff;
+        font-size: clamp(13px, 1.5vw, 19px);
+        line-height: 1.45
+      }
+
+      .language-wall {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin-top: 22px
+      }
+
+      .lang-tile {
+        background: #101c30;
+        border: 1px solid #38517488;
+        border-radius: 12px;
+        padding: 12px 5px;
+        text-align: center;
+        animation: float 4s ease-in-out infinite;
+        animation-delay: calc(var(--i)*.12s)
+      }
+
+      .lang-tile b {
+        display: block;
+        color: var(--accent);
+        min-height: 42px
+      }
+
+      .lang-tile b img {
+        width: clamp(28px, 3.3vw, 42px);
+        height: clamp(28px, 3.3vw, 42px);
+        object-fit: contain;
+        display: block;
+        margin: 0 auto 7px;
+        filter: drop-shadow(0 3px 10px #0008)
+      }
+
+      .logo img {
+        width: 68%;
+        height: 68%;
+        object-fit: contain;
+        filter: drop-shadow(0 8px 18px #0009)
+      }
+
+      .node-logo {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+        vertical-align: middle;
+        margin-right: 7px
+      }
+
+      .logo-fallback {
+        font-size: 22px;
+        font-weight: 900;
+        color: var(--accent, var(--cyan));
+        letter-spacing: -.05em
+      }
+
+      .lang-tile span {
+        font-size: clamp(8px, 1vw, 13px);
+        color: #c4d2e8;
+        letter-spacing: .05em
+      }
+
+      @keyframes float {
+        50% {
+          transform: translateY(-7px)
+        }
+      }
+
+      @keyframes pulse {
+        50% {
+          box-shadow: 0 0 50px #58e5f244
+        }
+      }
+
+      @keyframes reveal {
+        from {
+          opacity: 0;
+          transform: translateY(18px)
+        }
+
+        to {
+          opacity: 1;
+          transform: none
+        }
+      }
+
+      .caption {
+        position: absolute;
+        z-index: 5;
+        bottom: 5.5%;
+        left: 12%;
+        right: 12%;
+        text-align: center;
+        font-size: clamp(11px, 1.35vw, 18px);
+        line-height: 1.45;
+        color: #fff;
+        text-shadow: 0 2px 8px #000;
+        background: #050914b8;
+        border: 1px solid #ffffff18;
+        border-radius: 9px;
+        padding: 9px 16px;
+        backdrop-filter: blur(8px);
+        min-height: 34px
+      }
+
+      .watermark {
+        position: absolute;
+        z-index: 5;
+        top: 18px;
+        right: 22px;
+        color: #91a6c6;
+        font-size: 9px;
+        letter-spacing: .22em;
+        font-weight: 800
+      }
+
+      .stage-progress {
+        position: absolute;
+        z-index: 6;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--blue), var(--purple), var(--cyan));
+        width: 0%;
+        transition: width .2s linear
+      }
+
+      .panel {
+        background: linear-gradient(160deg, #101a2d, #080e1b);
+        border: 1px solid #273955;
+        border-radius: 16px;
+        padding: 17px;
+        box-shadow: 0 18px 50px #0005
+      }
+
+      .panel h3 {
+        font-size: 14px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        margin: 0 0 14px;
+        color: #d9e7fb
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px
+      }
+
+      .btn {
+        border: 1px solid #344b6d;
+        background: #17263e;
+        color: #e8f2ff;
+        padding: 10px 12px;
+        border-radius: 9px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: .2s
+      }
+
+      .btn:hover {
+        border-color: var(--cyan);
+        transform: translateY(-1px)
+      }
+
+      .btn.primary {
+        background: linear-gradient(100deg, #2164a8, #6044a3);
+        border: 0
+      }
+
+      .btn:disabled {
+        opacity: .35;
+        cursor: not-allowed;
+        transform: none
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        margin: 12px 0
+      }
+
+      .field label {
+        font-size: 11px;
+        color: #9eafc9;
+        letter-spacing: .08em;
+        text-transform: uppercase
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        background: #070d18;
+        border: 1px solid #30435f;
+        color: #e8f2ff;
+        border-radius: 8px;
+        padding: 9px;
+        font-size: 12px
+      }
+
+      .field input[type=range] {
+        padding: 0;
+        accent-color: var(--cyan)
+      }
+
+      .field input[type=checkbox] {
+        width: auto;
+        accent-color: var(--cyan)
+      }
+
+      .checkrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #b8c8df;
+        font-size: 12px
+      }
+
+      .progress-wrap {
+        height: 6px;
+        background: #1b2b44;
+        border-radius: 9px;
+        overflow: hidden;
+        margin: 10px 0
+      }
+
+      .progress-fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--blue), var(--cyan));
+        transition: width .2s
+      }
+
+      .status {
+        font-size: 11px;
+        color: #9eb1cc;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px
+      }
+
+      .chapter-list {
+        max-height: 260px;
+        overflow: auto;
+        display: grid;
+        gap: 5px;
+        margin-top: 10px
+      }
+
+      .chapter-btn {
+        text-align: left;
+        border: 1px solid transparent;
+        background: #0b1424;
+        color: #aebed5;
+        border-radius: 7px;
+        padding: 8px 10px;
+        font-size: 11px;
+        cursor: pointer
+      }
+
+      .chapter-btn.active {
+        border-color: #4b92d0;
+        background: #132b46;
+        color: #fff
+      }
+
+      .hint {
+        font-size: 10px;
+        color: #71839a;
+        line-height: 1.5;
+        margin-top: 12px
+      }
+
+      .hidden {
+        display: none !important
+      }
+
+      body.controls-hidden .panel,
+      body.controls-hidden .top {
+        display: none
+      }
+
+      body.controls-hidden .app {
+        padding: 0;
+        max-width: none
+      }
+
+      body.controls-hidden .layout {
+        display: block
+      }
+
+      body.controls-hidden .stage-wrap {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        padding: 0;
+        border: 0;
+        border-radius: 0
+      }
+
+      body.controls-hidden .stage {
+        width: 100vw;
+        height: 100vh;
+        aspect-ratio: auto;
+        border-radius: 0
+      }
+
+      #restoreFloat {
+        display: none;
+        position: fixed;
+        z-index: 50;
+        top: 14px;
+        left: 14px;
+        padding: 9px 13px;
+        border: 1px solid #54749e;
+        background: #101c30ef;
+        color: #e8f2ff;
+        border-radius: 9px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(10px)
+      }
+
+      body.controls-hidden #restoreFloat {
+        display: block
+      }
+
+      @media(max-width:980px) {
+        .layout {
+          grid-template-columns: 1fr
+        }
+
+        .panel {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px
+        }
+
+        .panel h3 {
+          grid-column: 1/-1
+        }
+
+        .chapter-list {
+          max-height: 180px
+        }
+      }
+
+      @media(max-width:600px) {
+        .app {
+          padding: 10px
+        }
+
+        .panel {
+          display: block
+        }
+
+        .content-grid {
+          grid-template-columns: 1fr
+        }
+
+        .language-wall {
+          grid-template-columns: repeat(3, 1fr)
+        }
+
+        .chapter-head {
+          gap: 14px
+        }
+
+        .glass {
+          padding: 12px
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <button id="restoreFloat" type="button" aria-label="Show controls">Show controls · H</button>
+    <div class="app" id="app">
+      <header class="top">
+        <div class="brand">EPSILON <span>•</span> CINEMATIC LEARNING </div>
+        <small>PROGRAMMING LANGUAGES EXPLAINED · VIDEO SIMULATOR</small>
+      </header>
+      <div class="layout">
+        <main class="stage-wrap">
+          <div class="stage" id="stage">
+            <canvas id="particles"></canvas>
+            <div class="vignette"></div>
+            <div class="watermark">TECHNOLOGY / EXPLAINED</div>
+            <div class="scene" id="scene"></div>
+            <div class="caption" id="caption">A journey through the languages behind our digital world.</div>
+            <div class="stage-progress" id="stageProgress"></div>
+          </div>
+        </main>
+        <aside class="panel" id="panel">
+          <section>
+            <h3>Playback</h3>
+            <div class="controls">
+              <button class="btn primary" id="start">▶ Start</button>
+              <button class="btn" id="pause">Ⅱ Pause</button>
+              <button class="btn" id="resume">▶ Resume</button>
+              <button class="btn" id="restart">↺ Restart</button>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status">
+              <span id="time">00:00 / 12:00</span>
+              <span id="status">Ready</span>
+            </div>
+          </section>
+          <section>
+            <h3>Voice & Audio</h3>
+            <div class="field">
+              <label>English voice</label>
+              <select id="voice">
+                <option value="">Browser default voice</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Narration speed <span id="rateVal">1.0×</span>
+              </label>
+              <input id="rate" type="range" min=".75" max="1.25" step=".05" value="1">
+            </div>
+            <div class="field">
+              <label>Music URL (optional)</label>
+              <input id="musicUrl" type="url" placeholder="https://.../ambient-track.mp3">
+            </div>
+            <div class="field">
+              <label>Music volume <span id="musicVal">12%</span>
+              </label>
+              <input id="musicVol" type="range" min="0" max="0.35" step=".01" value=".12">
+            </div>
+            <div class="field">
+              <label>Sound effects volume <span id="sfxVal">25%</span>
+              </label>
+              <input id="sfxVol" type="range" min="0" max="1" step=".05" value=".25">
+            </div>
+            <div class="controls">
+              <button class="btn" id="testVoice">Test voice</button>
+              <button class="btn" id="testMusic">Test music</button>
+            </div>
+            <div class="field">
+              <label class="checkrow">
+                <input type="checkbox" id="narration" checked> Narration enabled </label>
+            </div>
+            <div class="field">
+              <label class="checkrow">
+                <input type="checkbox" id="captions" checked> Captions enabled </label>
+            </div>
+          </section>
+          <section>
+            <h3>Video Settings</h3>
+            <div class="field">
+              <label class="checkrow">
+                <input type="checkbox" id="effects" checked> Motion effects </label>
+            </div>
+            <div class="controls">
+              <button class="btn" id="hide">Hide controls (H)</button>
+              <button class="btn" id="show" disabled>Restore controls</button>
+            </div>
+            <div class="field">
+              <label>Jump to chapter</label>
+              <select id="chapterSelect"></select>
+            </div>
+            <div class="chapter-list" id="chapterList"></div>
+            <p class="hint">Tip: Start once to unlock browser audio. Voice availability and speech timing depend on your browser. Music is optional and must be a direct audio URL you have permission to use.</p>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <audio id="music" loop crossorigin="anonymous"></audio>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-markup-templating.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-swift.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-kotlin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-dart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-lua.min.js"></script>
+    <script>
+      "use strict";
+      const languages = [{
+            name: "Python",
+            icon: "python",
+            year: "1991",
+            creator: "Guido van Rossum",
+            tag: "Readable syntax. Remarkable range.",
+            uses: ["Artificial intelligence, machine learning and scientific computing", "Automation, data analysis and visualization", "Backend services, scripting and education"],
+            code: 'print("Hello, World!")',
+            output: "Hello, World!",
+            lines: ["print(...) calls Python's built-in output function.", "The text inside quotation marks is a string, meaning a piece of text.", "When this statement runs, Python writes that text to the output."],
+            fact: "Python was named after the comedy group Monty Python, not the snake. The snake became a very convenient mascot.",
+            color: "#ffd65a",
+            accent: "PY"
+          }, {
+            name: "JavaScript",
+            icon: "javascript",
+            year: "1995",
+            creator: "Brendan Eich at Netscape",
+            tag: "The language that made the web interactive.",
+            uses: ["Interactive pages, browser applications and web interfaces", "Servers and APIs with environments such as Node.js", "Browser games, tools and full-stack applications"],
+            code: 'console.log("Hello, World!");',
+            output: "Hello, World!",
+            lines: ["console is an object provided by the JavaScript environment.", "log is a method that writes information to the developer console.", "The string is the message. The semicolon ends the statement in this style."],
+            fact: "JavaScript and Java are different languages. Their similar names came from a historical marketing decision, not a shared language design.",
+            color: "#f5dc55",
+            accent: "JS"
+          }, {
+            name: "Java",
+            icon: "java",
+            year: "1995",
+            creator: "James Gosling and the team at Sun Microsystems",
+            tag: "Build once, run on many platforms.",
+            uses: ["Large-scale enterprise and backend systems", "Android development, alongside Kotlin and other tools", "Desktop software, data platforms and server applications"],
+            code: 'public class Main {\\n  public static void main(String[] args) {\\n    System.out.println("Hello, World!");\\n  }\\n}',
+            output: "Hello, World!",
+            lines: ["public class Main declares a class named Main.", "main is the entry point the Java runtime looks for when starting this program.", "System.out.println prints a line of text to standard output."],
+            fact: "Java bytecode runs on the Java Virtual Machine, allowing compatible programs to run on different operating systems.",
+            color: "#f0a45b",
+            accent: "J"
+          }, {
+            name: "C",
+            icon: "c",
+            year: "1972",
+            creator: "Dennis Ritchie at Bell Labs",
+            tag: "A foundation of modern systems software.",
+            uses: ["Operating systems, kernels and device drivers", "Embedded systems and microcontrollers", "Compilers, databases and performance-sensitive tools"],
+            code: '#include  < stdio.h > \\n\\ nint main(void) {
+              \\
+              n printf("Hello, World!");\\
+              n
+              return 0;\\
+              n
+            }
+            ',output:"Hello, World!",lines:["#include brings in declarations from the standard input/output library.","main is where this C program begins executing.","printf writes formatted text to standard output.","return 0 reports successful completion to the environment."],fact:"The C language strongly influenced many later languages, including C++, Java, C# and JavaScript.",color:"#83baff",accent:"C"}, {
+              name: "C++",
+              icon: "cplusplus",
+              year: "1985",
+              creator: "Bjarne Stroustrup",
+              tag: "Fine-grained control with powerful abstractions.",
+              uses: ["Game engines, graphics and real-time applications", "Browsers, desktop software and high-performance systems", "Simulation, finance and embedded development"],
+              code: '#include  < iostream > \\n\\ nint main() {
+                \\
+                n std::cout << "Hello, World!";\\
+                n
+                return 0;\\
+                n
+              }
+              ',output:"Hello, World!",lines:["iostream provides stream-based input and output tools.","main is the program entry point.","std::cout sends text to the standard output stream.","return 0 signals that the program completed successfully."],fact:"C++ supports multiple programming styles, including procedural, object-oriented and generic programming.",color:"#79a9ff",accent:"C++"}, {
+                name: "C#",
+                icon: "csharp",
+                year: "2000",
+                creator: "Microsoft, led by Anders Hejlsberg",
+                tag: "A modern language in the .NET ecosystem.",
+                uses: ["Web APIs and services with ASP.NET Core", "Desktop and enterprise applications", "Games made with engines such as Unity"],
+                code: 'Console.WriteLine("Hello, World!");',
+                output: "Hello, World!",
+                lines: ["Console is a .NET class for interacting with a text console.", "WriteLine writes the supplied text followed by a line break.", "The string is the message shown when the statement executes."],
+                fact: "C# is pronounced 'C sharp'. It is developed as an open language with a large ecosystem beyond Windows.",
+                color: "#b89cff",
+                accent: "C#"
+              },
+              {
+                name: "PHP",
+                icon: "php",
+                year: "1995",
+                creator: "Rasmus Lerdorf",
+                tag: "A long-running force in server-side web development.",
+                uses: ["Generating dynamic pages on web servers", "Content management systems, including WordPress", "Backend applications and database-driven websites"],
+                code: ' < ? php\\ necho "Hello, World!";\\n ? > ',output:"Hello, World!",lines:["The PHP opening tag tells the server that PHP code begins here.","echo outputs text into the response being generated.","The closing tag is commonly omitted in PHP-only files to avoid accidental output."],fact:"PHP originally stood for Personal Home Page; the name is now commonly expanded as PHP: Hypertext Preprocessor.",color:"#a7a8ef",accent:"PHP"}, {
+                  name: "Ruby",
+                  icon: "ruby",
+                  year: "1995",
+                  creator: "Yukihiro Matsumoto",
+                  tag: "Designed to make programming expressive and enjoyable.",
+                  uses: ["Web applications, especially with Ruby on Rails", "Automation, scripting and developer tools", "Prototypes and data-processing tasks"],
+                  code: 'puts "Hello, World!"',
+                  output: "Hello, World!",
+                  lines: ["puts is a built-in method that writes a value to output.", "The quoted words form a string.", "Ruby adds a newline after puts displays the value."],
+                  fact: "Ruby on Rails helped popularize conventions that let developers build database-backed web applications quickly.",
+                  color: "#ff7d91",
+                  accent: "Rb"
+                },
+                {
+                  name: "Go",
+                  icon: "go",
+                  year: "2009",
+                  creator: "Robert Griesemer, Rob Pike and Ken Thompson at Google",
+                  tag: "Simple tools for concurrent services.",
+                  uses: ["Cloud infrastructure and network services", "Command-line tools and backend APIs", "Distributed systems and developer platforms"],
+                  code: 'package main\\n\\nimport "fmt"\\n\\nfunc main() {\\n  fmt.Println("Hello, World!")\\n}',
+                  output: "Hello, World!",
+                  lines: ["package main marks this as an executable program package.", "import brings in fmt, Go's formatting and input/output package.", "func main defines the function where execution starts.", "fmt.Println prints the message and a newline."],
+                  fact: "Go includes goroutines, lightweight concurrent tasks managed by the Go runtime.",
+                  color: "#69d8e8",
+                  accent: "Go"
+                },
+                {
+                  name: "Rust",
+                  icon: "rust",
+                  year: "2010 (first public release)",
+                  creator: "Graydon Hoare; developed with the Rust community and Mozilla initially",
+                  tag: "Memory safety without a garbage collector.",
+                  uses: ["Systems software and command-line tools", "Performance-sensitive services and WebAssembly", "Infrastructure where reliability and control matter"],
+                  code: 'fn main() {\\n  println!("Hello, World!");\\n}',
+                  output: "Hello, World!",
+                  lines: ["fn declares a function, and main is the program entry point.", "println! is a macro, indicated by the exclamation mark.", "The macro prints the string and a newline."],
+                  fact: "Rust's ownership and borrowing rules help prevent many memory-safety bugs at compile time.",
+                  color: "#f2a06f",
+                  accent: "Rs"
+                },
+                {
+                  name: "Swift",
+                  icon: "swift",
+                  year: "2014",
+                  creator: "Apple",
+                  tag: "A modern language for Apple's platforms and beyond.",
+                  uses: ["iPhone and iPad applications", "macOS, watchOS and other Apple-platform software", "Server-side development and systems projects"],
+                  code: 'print("Hello, World!")',
+                  output: "Hello, World!",
+                  lines: ["print is Swift's standard function for writing output.", "The quoted text is a string value.", "Swift infers the type here, so no explicit type annotation is needed."],
+                  fact: "Swift was designed with safety and clarity in mind, and its compiler can catch many mistakes before a program runs.",
+                  color: "#ff9a6c",
+                  accent: "Sw"
+                },
+                {
+                  name: "Kotlin",
+                  icon: "kotlin",
+                  year: "2011 (first announced)",
+                  creator: "JetBrains",
+                  tag: "Concise, expressive and interoperable with Java.",
+                  uses: ["Android application development", "Backend services running on the JVM", "Multiplatform projects sharing code across targets"],
+                  code: 'fun main() {\\n  println("Hello, World!")\\n}',
+                  output: "Hello, World!",
+                  lines: ["fun is Kotlin's keyword for declaring a function.", "main is the entry point for this simple program.", "println displays the string followed by a newline."],
+                  fact: "Kotlin is officially supported for Android development and can call Java code on the JVM.",
+                  color: "#b18aff",
+                  accent: "Kt"
+                },
+                {
+                  name: "TypeScript",
+                  icon: "typescript",
+                  year: "2012",
+                  creator: "Microsoft",
+                  tag: "JavaScript with a powerful type system.",
+                  uses: ["Large web applications and frontend projects", "Backend services built on JavaScript runtimes", "Shared codebases that benefit from static type checking"],
+                  code: 'let message: string = "Hello, World!";\\nconsole.log(message);',
+                  output: "Hello, World!",
+                  lines: ["let declares a variable whose value can be reassigned.", "The : string annotation says the variable should hold text.", "The assignment stores the greeting, and console.log displays it.", "TypeScript is typically compiled or transformed into JavaScript before execution."],
+                  fact: "TypeScript adds types to JavaScript and generally removes those type annotations when producing JavaScript output.",
+                  color: "#67a9ff",
+                  accent: "TS"
+                },
+                {
+                  name: "Dart",
+                  icon: "dart",
+                  year: "2011",
+                  creator: "Google",
+                  tag: "One language behind the Flutter UI toolkit.",
+                  uses: ["Cross-platform mobile applications with Flutter", "Web and desktop applications", "Backend tools and command-line programs"],
+                  code: 'void main() {\\n  print("Hello, World!");\\n}',
+                  output: "Hello, World!",
+                  lines: ["void indicates that main does not return a value.", "main is the entry point of this Dart program.", "print writes the greeting to the program's output."],
+                  fact: "Flutter uses Dart to build interfaces for multiple platforms from a shared codebase.",
+                  color: "#6ed5f3",
+                  accent: "D"
+                },
+                {
+                  name: "Lua",
+                  icon: "lua",
+                  year: "1993",
+                  creator: "Roberto Ierusalimschy, Luiz Henrique de Figueiredo and Waldemar Celes",
+                  tag: "Small, fast and easy to embed.",
+                  uses: ["Scripting inside games and applications", "Embedded configuration and automation", "Tools where a lightweight extension language is useful"],
+                  code: 'print("Hello, World!")',
+                  output: "Hello, World!",
+                  lines: ["print is a standard Lua function that writes a value to output.", "The quoted phrase is a string.", "Lua keeps this example short while still supporting functions, tables and more."],
+                  fact: "Lua was designed to be embedded in other software, which is why games and applications often use it as a scripting language.",
+                  color: "#8ca8ff",
+                  accent: "Lua"
+                }];
+              const $ = id => document.getElementById(id);
+              const scene = $("scene"),
+                caption = $("caption"),
+                stage = $("stage");
+              let events = [],
+                eventIndex = 0,
+                running = false,
+                paused = false,
+                started = false,
+                runToken = 0,
+                elapsed = 0,
+                totalEstimate = 0,
+                voices = [],
+                currentUtterance = null,
+                typingTimer = null,
+                progressTimer = null,
+                sceneStart = 0;
+              const sleep = ms => new Promise(r => setTimeout(r, ms));
+              const escapeHTML = s => String(s).replace(/[&<>"']/g, c => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+              } [c]));
+
+              function setScene(html) {
+                scene.classList.add("fade");
+                setTimeout(() => {
+                  scene.innerHTML = html;
+                  scene.classList.remove("fade")
+                }, 250)
+              }
+
+              function titleScene(kicker, title, sub = "") {
+                setScene(`
+															<div class="eyebrow">${escapeHTML(kicker)}</div>
+															<h1 class="hero-title gradient">${title}</h1>
+															<p class="lead">${escapeHTML(sub)}</p>`)
+              }
+
+              function logoImg(l, cls = "") {
+                return `
+															<img class="${cls}" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/${l.icon}/${l.icon}-original.svg" alt="${escapeHTML(l.name)} official-style logo" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+																<span class="logo-fallback" hidden>${escapeHTML(l.accent)}</span>`
+              }
+
+              function logoWall() {
+                return `
+																<div class="eyebrow">FIFTEEN LANGUAGES · ONE DIGITAL WORLD</div>
+																<h1 class="hero-title">THE CODE 
+																	<span class="gradient">BEHIND EVERYTHING.</span>
+																</h1>
+																<p class="lead">From tiny devices to global platforms, languages turn ideas into instructions.</p>
+																<div class="language-wall">${languages.map((l,i)=>`
+																	<div class="lang-tile" style="--i:${i};--accent:${l.color}">
+																		<b>${logoImg(l)}</b>
+																		<span>${l.name.toUpperCase()}</span>
+																	</div>`).join("")}
+																</div>`
+              }
+
+              function chapterIntro(l, i) {
+                return `
+																<div class="chapter-head">
+																	<div class="logo" style="--accent:${l.color}">${logoImg(l)}</div>
+																	<div>
+																		<div class="eyebrow">CHAPTER ${String(i+1).padStart(2,"0")} / 15</div>
+																		<h2 class="chapter-name">${l.name}</h2>
+																		<div class="chapter-sub">${l.tag}</div>
+																		<div class="meta">Released ${l.year} · ${l.creator}</div>
+																	</div>
+																</div>`
+              }
+
+              function usesScene(l) {
+                return `
+																<div class="eyebrow">WHERE IT SHOWS UP</div>
+																<h2 class="hero-title">${l.name} IN THE 
+																	<span class="gradient">REAL WORLD</span>
+																</h2>
+																<div class="content-grid">
+																	<div class="glass">
+																		<div class="card-title">Common applications</div>
+																		<ul class="bullets">${l.uses.map(x=>`
+																			<li>${escapeHTML(x)}</li>`).join("")}
+																		</ul>
+																	</div>
+																	<div class="glass">
+																		<div class="card-title">Think of the ecosystem</div>
+																		<div class="diagram">
+																			<div class="node">${l.name}</div>
+																			<div class="arrow">→</div>
+																			<div class="node">Libraries</div>
+																			<div class="arrow">→</div>
+																			<div class="node">Applications</div>
+																		</div>
+																		<p class="lead">A language is the starting point. Libraries, frameworks, tools and communities make it useful in specific projects.</p>
+																	</div>
+																</div>`
+              }
+              const prismLanguages = {
+                Python: "python",
+                JavaScript: "javascript",
+                Java: "java",
+                C: "c",
+                "C++": "cpp",
+                "C#": "csharp",
+                PHP: "php",
+                Ruby: "ruby",
+                Go: "go",
+                Rust: "rust",
+                Swift: "swift",
+                Kotlin: "kotlin",
+                TypeScript: "typescript",
+                Dart: "dart",
+                Lua: "lua"
+              };
+
+              function codeScene(l) {
+                const lang = prismLanguages[l.name] || "clike";
+                // Language samples store line breaks as escaped \n sequences; decode them before highlighting.
+                const source = String(l.code).replace(/\\n/g, "\n");
+                const grammar = window.Prism && Prism.languages[lang];
+                const highlighted = grammar ? Prism.highlight(source, grammar, lang) : escapeHTML(source);
+                const lines = highlighted.split("\n");
+                return `
+																<div class="eyebrow">LET'S READ THE CODE</div>
+																<h2 class="hero-title">A FIRST 
+																	<span class="gradient">PROGRAM</span>
+																</h2>
+																<div class="content-grid">
+																	<div class="codebox">
+																		<div class="codebar">
+																			<span>${escapeHTML(l.name)} · HELLO WORLD</span>
+																			<span class="dots">
+																				<i></i>
+																				<i></i>
+																				<i></i>
+																			</span>
+																		</div>
+																		<div class="codebody" id="codeBody">${lines.map((line,i)=>`
+																			<span class="code-line" data-line="${i}">
+																				<span class="ln">${i+1}</span>${line||"&nbsp;"}
+																			</span>`).join("")}
+																		</div>
+																		<div class="output">▶ OUTPUT&nbsp;&nbsp; ${escapeHTML(l.output)}</div>
+																	</div>
+																	<div class="glass">
+																		<div class="card-title">What happens?</div>
+																		<ul class="bullets">${l.lines.map(x=>`
+																			<li>${escapeHTML(x)}</li>`).join("")}
+																		</ul>
+																	</div>
+																</div>`;
+              }
+
+              function factScene(l) {
+                return `
+																<div class="eyebrow">A QUICK DETOUR</div>
+																<h2 class="hero-title">DID YOU 
+																	<span class="gradient">KNOW?</span>
+																</h2>
+																<div class="fact">${escapeHTML(l.fact)}</div>
+																<div class="diagram">
+																	<div class="node">${logoImg(l,"node-logo")} ${l.name}</div>
+																	<div class="arrow">✦</div>
+																	<div class="node">Ideas → Instructions → Impact</div>
+																</div>`
+              }
+
+              function comparisonScene() {
+                return `
+																<div class="eyebrow">THE BIG PICTURE</div>
+																<h2 class="hero-title">DIFFERENT TOOLS.
+																	<br>
+																		<span class="gradient">SHARED PURPOSE.</span>
+																	</h2>
+																	<div class="content-grid">
+																		<div class="glass">
+																			<div class="card-title">Compiled and interpreted: a useful starting model</div>
+																			<div class="diagram">
+																				<div class="node">Source code</div>
+																				<span class="arrow">→</span>
+																				<div class="node">Compiler / runtime</div>
+																				<span class="arrow">→</span>
+																				<div class="node">Execution</div>
+																			</div>
+																			<p class="lead">Real implementations vary. Some compile to machine code, some use virtual machines, and many combine compilation with runtime techniques.</p>
+																		</div>
+																		<div class="glass">
+																			<div class="card-title">Frontend meets backend</div>
+																			<div class="diagram">
+																				<div class="node">Browser</div>
+																				<span class="arrow">⇄</span>
+																				<div class="node">Server</div>
+																			</div>
+																			<p class="lead">The browser presents an interface. Servers can handle data, accounts and business logic. JavaScript can participate on both sides, while many other languages power server systems.</p>
+																		</div>
+																	</div>`
+              }
+
+              function finalBoard() {
+                return `
+																	<div class="eyebrow">A FIELD GUIDE, NOT A LEADERBOARD</div>
+																	<h2 class="hero-title">WHICH TOOL 
+																		<span class="gradient">FOR WHICH JOB?</span>
+																	</h2>
+																	<div class="content-grid">
+																		<div class="glass">
+																			<div class="card-title">Common starting points</div>
+																			<ul class="bullets">
+																				<li>Web interfaces: JavaScript and TypeScript</li>
+																				<li>AI, data and automation: Python</li>
+																				<li>Mobile: Swift, Kotlin and Dart with Flutter</li>
+																				<li>Games: C++, C# and Lua in relevant engines</li>
+																				<li>Systems: C, C++ and Rust</li>
+																				<li>Backend: Java, Go, C#, PHP, Ruby, Python and more</li>
+																			</ul>
+																		</div>
+																		<div class="glass">
+																			<div class="card-title">The useful truth</div>
+																			<p class="lead">These categories overlap. The best choice depends on the project, team, platform, performance needs and ecosystem. There is no universal champion language.</p>
+																			<div class="diagram">
+																				<div class="node">Problem</div>
+																				<span class="arrow">→</span>
+																				<div class="node">Trade-offs</div>
+																				<span class="arrow">→</span>
+																				<div class="node">Good fit</div>
+																			</div>
+																		</div>
+																	</div>`
+              }
+
+              function buildEvents() {
+                const e = [];
+                const add = (type, html, narration, duration = 7000, extra = {}) => e.push({
+                  type,
+                  html,
+                  narration,
+                  duration,
+                  ...extra
+                });
+                add("opening", `
+																	<div class="eyebrow">A CINEMATIC GUIDE TO SOFTWARE</div>
+																	<h1 class="hero-title">PROGRAMMING
+																		<br>
+																			<span class="gradient">LANGUAGES</span>
+																		</h1>
+																		<p class="lead">Understanding the languages that power our digital world.</p>`, `Every app you've ever used, every game you've played, and every website you've visited has something in common. Behind the screen, instructions tell computers what to do. Those instructions can be written in many different programming languages. Today, we're exploring fifteen of them, what makes each one interesting, and where they help bring ideas to life.`, 12000);
+                add("montage", logoWall(), `A programming language is a structured way for people to express instructions that software tools can translate or execute. Different languages exist because computing has many different needs: speed, safety, portability, readability, specialized hardware, and enormous ecosystems. No single language is perfect for every job.`, 12000);
+                add("definition", `
+																		<div class="eyebrow">FIRST, THE BIG IDEA</div>
+																		<h2 class="hero-title">A LANGUAGE IS A 
+																			<span class="gradient">BRIDGE.</span>
+																		</h2>
+																		<div class="diagram">
+																			<div class="node">Human idea</div>
+																			<span class="arrow">→</span>
+																			<div class="node">Source code</div>
+																			<span class="arrow">→</span>
+																			<div class="node">Tools & runtime</div>
+																			<span class="arrow">→</span>
+																			<div class="node">Computer action</div>
+																		</div>
+																		<p class="lead">Code turns a plan into precise steps a computer can carry out.</p>`, `Think of a programming language as a bridge between human problem-solving and machine execution. We write source code using rules called syntax. A compiler or runtime processes that code, and the computer performs the resulting operations. Languages also provide abstractions, which let us work with useful ideas without manually controlling every electrical detail.`, 9000);
+                languages.forEach((l, i) => {
+                  add("chapter", chapterIntro(l, i), `${l.name} is one of the languages that helped shape modern software. It first appeared in ${l.year}, and is associated with ${l.creator}. Its identity is ${l.tag.toLowerCase()} Let's look at why developers use it, and what a tiny program can teach us.`, 6500, {
+                    chapter: i
+                  });
+                  add("uses", usesScene(l), `${l.name} appears in several areas of software. ${l.uses.join(". ")}. These are common uses, not strict boundaries. A language can be used in many ways when the tools and libraries support the task.`, 6500, {
+                    chapter: i
+                  });
+                  add("code", codeScene(l), `Here is a classic first example in ${l.name}. ${l.lines.join(" ")} The expected output is: ${l.output}. The program is tiny, but it demonstrates the essential cycle: write an instruction, run it, and observe the result.`, 8500, {
+                    chapter: i,
+                    codeLines: l.code.split("\\n").length
+                  });
+                  add("fact", factScene(l), `Here's an interesting fact about ${l.name}. ${l.fact} Small details like this reveal how programming languages grow out of real engineering needs and communities.`, 5500, {
+                    chapter: i
+                  });
+                });
+                add("midpoint", `
+																		<div class="eyebrow">A MOMENT TO CONNECT THE DOTS</div>
+																		<h2 class="hero-title">WHICH LANGUAGE
+																			<br>WOULD 
+																				<span class="gradient">YOU LEARN FIRST?</span>
+																			</h2>
+																			<div class="language-wall">${languages.slice(0,10).map((l,i)=>`
+																				<div class="lang-tile" style="--i:${i};--accent:${l.color}">
+																					<b>${logoImg(l)}</b>
+																					<span>${l.name}</span>
+																				</div>`).join("")}
+																			</div>`, `By now, you've probably noticed something interesting. These languages may look different, but they share the same goal: expressing instructions that make useful things happen. If you are starting out, Python and JavaScript are common first choices, but curiosity and the project you want to build matter more than any ranking.`, 9000);
+                add("comparison", comparisonScene(), `Let's compare a few ideas. Compiled and interpreted are useful labels, but modern language implementations often blur the line. Some compile ahead of time, some use virtual machines, and some combine compilation with just-in-time execution. On the web, frontend code runs in the browser while backend services run on servers. The important thing is understanding the environment where your code runs.`, 11000);
+                add("board", finalBoard(), `Here is a practical map. JavaScript and TypeScript are central to web interfaces. Python is widely used for AI, data and automation. Swift and Kotlin are important in native Apple and Android development, while Dart is closely associated with Flutter. C, C++ and Rust are used where systems control and performance matter. Game projects may use C++, C-sharp or Lua. Backend development spans many languages. These are starting points, not fences.`, 11000);
+                add("cta", `
+																			<div class="eyebrow">KEEP BUILDING</div>
+																			<h2 class="hero-title">YOUR NEXT IDEA
+																				<br>STARTS WITH 
+																					<span class="gradient">CURIOSITY.</span>
+																				</h2>
+																				<div class="diagram">
+																					<div class="node">♡ LIKE</div>
+																					<div class="node">SUBSCRIBE</div>
+																					<div class="node">🔔 NOTIFICATIONS</div>
+																				</div>
+																				<p class="lead">Learn a little. Build something. Repeat.</p>`, `If you learned something new today, give the video a like and subscribe for more programming and technology explainers. The best way to understand a language is to use it to build something small, then keep experimenting.`, 8000);
+                add("outro", `
+																				<div class="eyebrow">THE WORLD OF PROGRAMMING IS YOURS TO EXPLORE</div>
+																				<h1 class="hero-title">THANKS FOR
+																					<br>
+																						<span class="gradient">WATCHING.</span>
+																					</h1>
+																					<div class="language-wall">${languages.map((l,i)=>`
+																						<div class="lang-tile" style="--i:${i};--accent:${l.color}">
+																							<b>${logoImg(l)}</b>
+																							<span>${l.name}</span>
+																						</div>`).join("")}
+																					</div>
+																					<p class="lead" style="margin-top:18px">EPSILON · TECHNOLOGY EXPLAINED</p>`, `The world of programming is yours to explore. Every language is another way to turn an idea into something real. Thanks for watching, and happy building.`, 9000);
+                return e;
+              }
+
+              function estimate() {
+                return events.reduce((s, x) => s + x.duration, 0)
+              }
+
+              function renderEvent(ev) {
+                $("stageProgress").style.width = "0%";
+                caption.textContent = "";
+                if (ev.type === "code") {
+                  setScene(ev.html);
+                  animateCode(ev.codeLines || 1)
+                } else setScene(ev.html);
+                if (ev.type === "chapter") {
+                  stage.style.setProperty("--accent", languages[ev.chapter].color)
+                }
+              }
+
+              function animateCode(n) {
+                let i = 0;
+                clearInterval(typingTimer);
+                typingTimer = setInterval(() => {
+                  document.querySelectorAll(".code-line").forEach((x, j) => x.classList.toggle("active", j === i));
+                  i++;
+                  if (i >= n) clearInterval(typingTimer)
+                }, 550)
+              }
+
+              function loadVoices() {
+                voices = speechSynthesis.getVoices();
+                const sel = $("voice"),
+                  old = sel.value;
+                sel.innerHTML = ' < option value = "" > Browser
+                default voice < /option>';voices.filter(v=>/ ^ en / i.test(v.lang)).forEach((v, i) => {
+                let o = document.createElement("option");
+                o.value = voices.indexOf(v);
+                o.textContent = `${v.name} (${v.lang})`;
+                sel.appendChild(o)
+              });
+              if (old) sel.value = old
+            }
+            if ("speechSynthesis" in window) {
+              loadVoices();
+              speechSynthesis.onvoiceschanged = loadVoices
+            }
+
+            function speak(text, token) {
+              return new Promise(resolve => {
+                if (!text || !$("narration").checked || !("speechSynthesis" in window)) {
+                  resolve();
+                  return
+                }
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                const v = $("voice").value;
+                if (v !== "" && voices[Number(v)]) u.voice = voices[Number(v)];
+                u.rate = Number($("rate").value);
+                u.volume = 1;
+                currentUtterance = u;
+                u.onend = () => resolve();
+                u.onerror = () => resolve();
+                if (token !== runToken) {
+                  resolve();
+                  return
+                }
+                speechSynthesis.speak(u)
+              })
+            }
+            async function waitWhilePaused(token) {
+              while (paused && token === runToken) await sleep(120)
+            }
+
+            function setStatus(s) {
+              $("status").textContent = s
+            }
+
+            function formatTime(ms) {
+              let sec = Math.floor(ms / 1000);
+              return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0")
+            }
+            async function run(from = 0) {
+              if (running) return;
+              runToken++;
+              const token = runToken;
+              running = true;
+              paused = false;
+              started = true;
+              eventIndex = from;
+              elapsed = events.slice(0, from).reduce((a, x) => a + x.duration, 0);
+              setStatus("Playing");
+              $("start").disabled = true;
+              while (eventIndex < events.length && token === runToken) {
+                await waitWhilePaused(token);
+                if (token !== runToken) break;
+                const ev = events[eventIndex];
+                renderEvent(ev);
+                sceneStart = performance.now();
+                caption.textContent = $("captions").checked ? ev.narration : "";
+                const eventStart = performance.now();
+                let narrationPromise = speak(ev.narration, token);
+                let visualDuration = ev.duration;
+                // The visual stays on screen for at least its designed beat and until narration finishes.
+                let narrationDone = false;
+                narrationPromise.then(() => {
+                  narrationDone = true
+                });
+                while (token === runToken) {
+                  await waitWhilePaused(token);
+                  if (token !== runToken) break;
+                  const spent = performance.now() - eventStart;
+                  const pct = Math.min(100, spent / visualDuration * 100);
+                  $("stageProgress").style.width = pct + "%";
+                  const overall = elapsed + Math.min(spent, visualDuration);
+                  $("progressFill").style.width = Math.min(100, overall / totalEstimate * 100) + "%";
+                  $("time").textContent = `${formatTime(overall)} / ${formatTime(totalEstimate)}`;
+                  if (spent >= visualDuration && narrationDone) break;
+                  if (spent >= visualDuration + 45000 && !narrationDone) {
+                    speechSynthesis.cancel();
+                    break
+                  }
+                  await sleep(100);
+                }
+                if (token !== runToken) break;
+                elapsed += Math.max(visualDuration, performance.now() - eventStart);
+                eventIndex++;
+              }
+              if (token === runToken) {
+                running = false;
+                paused = false;
+                setStatus("Finished");
+                $("start").disabled = false;
+                $("progressFill").style.width = "100%";
+                $("time").textContent = `${formatTime(totalEstimate)} / ${formatTime(totalEstimate)}`;
+                caption.textContent = "The world of programming is yours to explore."
+              }
+            }
+
+            function pause() {
+              if (!running || paused) return;
+              paused = true;
+              speechSynthesis.pause();
+              $("music").pause();
+              setStatus("Paused")
+            }
+
+            function resume() {
+              if (!running || !paused) return;
+              paused = false;
+              speechSynthesis.resume();
+              if ($("music").src) $("music").play().catch(() => {});
+              setStatus("Playing")
+            }
+
+            function stopAll() {
+              runToken++;
+              running = false;
+              paused = false;
+              speechSynthesis.cancel();
+              clearInterval(typingTimer);
+              $("start").disabled = false;
+              $("music").pause()
+            }
+
+            function jump(index) {
+              stopAll();
+              eventIndex = index;
+              elapsed = events.slice(0, index).reduce((a, x) => a + x.duration, 0);
+              const ev = events[index];
+              renderEvent(ev);
+              $("progressFill").style.width = (elapsed / totalEstimate * 100) + "%";
+              $("time").textContent = `${formatTime(elapsed)} / ${formatTime(totalEstimate)}`;
+              setStatus("Chapter selected")
+            }
+
+            function startMusic() {
+              const url = $("musicUrl").value.trim();
+              if (!url) return;
+              const a = $("music");
+              if (a.src !== url) a.src = url;
+              a.volume = Number($("musicVol").value);
+              a.play().catch(() => setStatus("Music needs a direct playable audio URL"))
+            }
+            $("start").onclick = () => {
+              if (!started) {
+                startMusic();
+                run(0)
+              } else if (!running) {
+                startMusic();
+                run(eventIndex)
+              }
+            };
+            $("pause").onclick = pause;$("resume").onclick = () => {
+              if (paused) resume();
+              else if (!running && started) run(eventIndex)
+            };
+            $("restart").onclick = () => {
+              stopAll();
+              started = false;
+              eventIndex = 0;
+              elapsed = 0;
+              $("progressFill").style.width = "0%";
+              $("time").textContent = `00:00 / ${formatTime(totalEstimate)}`;
+              setStatus("Ready");
+              setScene(`
+																						<div class="eyebrow">READY WHEN YOU ARE</div>
+																						<h1 class="hero-title">PROGRAMMING
+																							<br>
+																								<span class="gradient">LANGUAGES</span>
+																							</h1>
+																							<p class="lead">Press Start to begin the documentary.</p>`);
+              caption.textContent = "A journey through the languages behind our digital world."
+            };
+            $("testVoice").onclick = () => {
+              if (!("speechSynthesis" in window)) return alert("Speech synthesis is not supported in this browser.");
+              speechSynthesis.cancel();
+              const u = new SpeechSynthesisUtterance("Welcome to Programming Languages Explained. Let's build something.");
+              if ($("voice").value) u.voice = voices[Number($("voice").value)];
+              u.rate = Number($("rate").value);
+              speechSynthesis.speak(u)
+            };
+            $("testMusic").onclick = () => {
+              startMusic();
+              if ($("music").paused && $("music").src) $("music").play().catch(() => {})
+            };
+            $("musicVol").oninput = () => {
+              $("music").volume = Number($("musicVol").value);
+              $("musicVal").textContent = Math.round(Number($("musicVol").value) * 100) + "%"
+            };
+            $("sfxVol").oninput = () => $("sfxVal").textContent = Math.round(Number($("sfxVol").value) * 100) + "%";
+            $("rate").oninput = () => $("rateVal").textContent = Number($("rate").value).toFixed(2) + "×";
+            $("captions").onchange = () => {
+              if (!$("captions").checked) caption.textContent = "";
+            };
+            $("chapterSelect").onchange = e => jump(Number(e.target.value));
+
+            function showControls() {
+              document.body.classList.remove("controls-hidden");
+              $("show").disabled = true;
+            }
+
+            function hideControls() {
+              document.body.classList.add("controls-hidden");
+              $("show").disabled = false;
+            }
+
+            function isTypingTarget(target) {
+              return target && (["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName) || target.isContentEditable)
+            }
+            $("hide").onclick = hideControls;$("show").onclick = showControls;$("restoreFloat").onclick = showControls;
+            document.addEventListener("keydown", e => {
+              if (isTypingTarget(document.activeElement)) return;
+              if (e.key.toLowerCase() === "h") {
+                e.preventDefault();
+                document.body.classList.contains("controls-hidden") ? showControls() : hideControls();
+              }
+              if (e.key === "Escape" && document.body.classList.contains("controls-hidden")) {
+                showControls();
+              }
+              if (e.code === "Space") {
+                e.preventDefault();
+                paused ? resume() : pause();
+              }
+            });
+            events = buildEvents();totalEstimate = estimate();$("time").textContent = `00:00 / ${formatTime(totalEstimate)}`;
+            events.forEach((ev, i) => {
+              if (ev.type === "chapter") {
+                let opt = document.createElement("option");
+                opt.value = i;
+                opt.textContent = `${String(ev.chapter+1).padStart(2,"0")} · ${languages[ev.chapter].name}`;
+                $("chapterSelect").appendChild(opt);
+                let b = document.createElement("button");
+                b.className = "chapter-btn";
+                b.textContent = `${String(ev.chapter+1).padStart(2,"0")}  ${languages[ev.chapter].name}`;
+                b.onclick = () => jump(i);
+                $("chapterList").appendChild(b)
+              }
+            });
+
+            function drawParticles() {
+              const c = $("particles"),
+                ctx = c.getContext("2d");
+              let w, h, pts = [];
+
+              function resize() {
+                const r = stage.getBoundingClientRect();
+                w = c.width = Math.max(1, Math.floor(r.width * devicePixelRatio));
+                h = c.height = Math.max(1, Math.floor(r.height * devicePixelRatio));
+                c.style.width = r.width + "px";
+                c.style.height = r.height + "px";
+                pts = Array.from({
+                  length: 65
+                }, () => ({
+                  x: Math.random() * w,
+                  y: Math.random() * h,
+                  vx: (Math.random() - .5) * .22,
+                  vy: (Math.random() - .5) * .22,
+                  r: Math.random() * 1.8 + .5
+                }))
+              }
+              resize();
+              window.addEventListener("resize", resize);
+
+              function frame() {
+                ctx.clearRect(0, 0, w, h);
+                if ($("effects").checked) {
+                  pts.forEach(p => {
+                    p.x += p.vx * devicePixelRatio;
+                    p.y += p.vy * devicePixelRatio;
+                    if (p.x < 0 || p.x > w) p.vx *= -1;
+                    if (p.y < 0 || p.y > h) p.vy *= -1;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r * devicePixelRatio, 0, Math.PI * 2);
+                    ctx.fillStyle = "#83cfff";
+                    ctx.fill()
+                  });
+                  for (let i = 0; i < pts.length; i++)
+                    for (let j = i + 1; j < pts.length; j++) {
+                      let dx = pts[i].x - pts[j].x,
+                        dy = pts[i].y - pts[j].y,
+                        d = Math.hypot(dx, dy);
+                      if (d < 120 * devicePixelRatio) {
+                        ctx.strokeStyle = `rgba(90,160,230,${(1-d/(120*devicePixelRatio))*.12})`;
+                        ctx.lineWidth = devicePixelRatio;
+                        ctx.beginPath();
+                        ctx.moveTo(pts[i].x, pts[i].y);
+                        ctx.lineTo(pts[j].x, pts[j].y);
+                        ctx.stroke()
+                      }
+                    }
+                }
+                requestAnimationFrame(frame)
+              }
+              frame()
+            }
+            drawParticles();
+            setScene(`
+																												<div class="eyebrow">EPSILON PRESENTS</div>
+																												<h1 class="hero-title">PROGRAMMING
+																													<br>
+																														<span class="gradient">LANGUAGES</span>
+																													</h1>
+																													<p class="lead">A cinematic journey through 15 languages shaping the digital world.</p>
+																													<div class="meta">15 CHAPTERS · CODE DEMOS · NARRATION · MOTION GRAPHICS</div>`);
+    </script>
+  </body>
+</html>
