@@ -239,7 +239,7 @@ input, select { font-family: inherit; }
    Shows rendered Python output or rich-text docs
    ============================================================ */
 .preview-area {
-  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  width: 48%; min-width: 360px; background: #ffffff; display: flex; flex-direction: column;
   border-left: 1px solid var(--vs-border); flex-shrink: 0;
 }
 .preview-header {
@@ -495,9 +495,9 @@ input, select { font-family: inherit; }
 .finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
-@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
-@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+@media (max-width: 1100px) { .preview-area { width: 44%; min-width: 300px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 42%; min-width: 260px; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 46%; min-width: 220px; } }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1483,6 +1483,9 @@ class TerminalController {
       this._scroll();
       await sleep(rand(40, 90));
     }
+    // Submit the completed command as if Enter was pressed.
+    line.appendChild(document.createTextNode('\n'));
+    this._scroll();
     await sleep(rand(200, 400));
   }
 
@@ -1619,6 +1622,12 @@ class VisualEffectsController {
     return box;
   }
   highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+
+  highlightToken(lineIdx, startCol, endCol) {
+    if (!STATE.effectsOn) return;
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (rect) this.highlightRect(rect);
+  }
 
   circleRect(rect) {
     if (!STATE.effectsOn) return null;
@@ -1803,8 +1812,8 @@ class PreviewController {
       <style>
         html,body { margin:0; padding:0; background:#0d0d0d; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:-apple-system,sans-serif; }
         .gw-title { color:#21A179; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:6px 0; }
-        .gw-frame { border:2px solid #333; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,.6); }
-        canvas { display:block; background:${esc(s.bg)}; }
+        .gw-frame { width:min(640px, 100%); border:2px solid #333; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,.6); }
+        canvas { display:block; width:100%; height:auto; background:${esc(s.bg)}; }
         .gw-hud { color:#9cdcfe; font-size:12px; font-family:"SF Mono",monospace; padding:4px 10px; background:#1e1e1e; border-top:1px solid #333; display:flex; justify-content:space-between; }
       </style></head><body>
         <div class="gw-title">▶ ${esc(s.label)}</div>
@@ -2004,6 +2013,19 @@ class TimelineEngine {
       case 'GOTO_LINE_CONTAINING': {
         let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
         if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'COMMENT_LINE_CONTAINING': {
+        const found = this.editor.lines.findIndex(line => line.includes(ev.substring));
+        if (found !== -1 && !this.editor.lines[found].trimStart().startsWith('#')) {
+          const line = this.editor.lines[found];
+          const indent = line.match(/^\\s*/)[0];
+          this.editor.lines[found] = indent + '# ' + line.slice(indent.length);
+          this.editor.setCursor(found, this.editor.lines[found].length);
+          this.editor.setModified(true);
+          this.editor.render();
+          await sleep(rand(150, 300));
+        }
         break;
       }
       case 'INSERT_BEFORE_LINE_CONTAINING': {
@@ -2399,7 +2421,7 @@ function buildTutorial() {
   E({ type: 'TYPE_LINE', text: '', indent: '' });
   E({ type: 'TYPE_LINE', text: 'clock = pygame.time.Clock()', indent: '' });
   E({ type: 'TYPE_LINE', text: 'FPS = 60', indent: '' });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'if event.type == pygame.QUIT:' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'running = False' });
   E({ type: 'TYPE_LINE', text: '        if event.type == pygame.KEYDOWN:', indent: '' });
   E({ type: 'TYPE_LINE', text: '            if event.key == pygame.K_ESCAPE:', indent: '' });
   E({ type: 'TYPE_LINE', text: '                running = False', indent: '' });
@@ -2449,7 +2471,6 @@ function buildTutorial() {
   E({ type: 'TYPE_LINE', text: 'font = pygame.font.SysFont("Arial", 24)', indent: '' });
   E({ type: 'SPEAK', text: "Now the drawing. Inside the loop, after the fill, I draw the player as a green rectangle, the coin as a yellow circle, and the score as text. Let me replace that print statement with actual drawing." });
   E({ type: 'GOTO_LINE_CONTAINING', substring: 'keys = pygame.key.get_pressed()' });
-  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
   E({ type: 'TYPE_LINE', text: '    # Draw player (green square)', indent: '' });
   E({ type: 'TYPE_LINE', text: '    pygame.draw.rect(screen, (33, 161, 121),', indent: '' });
   E({ type: 'TYPE_LINE', text: '                     (player_x, player_y, player_size, player_size))', indent: '' });
@@ -2480,11 +2501,37 @@ function buildTutorial() {
   /* ======================================================================
      CHAPTER 4 — MOVEMENT & COLLISION  (4:30–6:00)
      ====================================================================== */
-  chapterStart(4, 'Movement & Collision', '');
+  const snapshot4 = `import pygame
+import random
+pygame.init()
+screen = pygame.display.set_mode((640, 480))
+pygame.display.set_caption("Coin Collector")
+clock = pygame.time.Clock()
+FPS = 60
+player_x, player_y = 300, 240
+player_size = 30
+coin_x, coin_y = 100, 100
+coin_radius = 12
+score = 0
+font = pygame.font.SysFont("Arial", 24)
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    screen.fill((30, 30, 50))
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        print("moving left")
+    pygame.display.flip()
+    clock.tick(FPS)
+pygame.quit()
+`;
+  chapterStart(4, 'Movement & Collision', snapshot4);
   E({ type: 'SPEAK', text: "Chapter four. Movement and collision. Let's make the player move with the arrow keys, and detect when it touches the coin to collect it. Movement is just updating coordinates each frame based on input. Collision is checking if two shapes overlap." });
   E({ type: 'SHOW_CARD', title: 'Collision detection with Rect', text: 'Pygame Rect objects have a colliderect method that returns True if two rectangles overlap. Convert your shapes to Rects, then call player_rect.colliderect(coin_rect). For circle-vs-rect, you can approximate by checking the circle center against an expanded rect, or use simple distance checks. Rects are the standard Pygame way.', duration: 2600 });
   E({ type: 'SPEAK', text: "Let me add movement. I'll read the arrow keys and update player_x and player_y each frame, with a speed variable. Then I'll keep the player inside the window with bounds checking." });
-  E({ type: 'GOTO_LINE_CONTAINING', substring: 'keys = pygame.key.get_pressed()' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'keys = pygame.key.get_pressed()' });
   E({ type: 'TYPE_LINE', text: '    # Move player with arrow keys', indent: '' });
   E({ type: 'TYPE_LINE', text: '    speed = 5', indent: '' });
   E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_LEFT]:', indent: '' });
@@ -2530,14 +2577,12 @@ function buildTutorial() {
   /* ======================================================================
      CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (6:00–7:30)
      ====================================================================== */
-  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  const snapshot5 = snapshot4;
+  chapterStart(5, 'Debugging — 3 Mistakes', snapshot5);
   E({ type: 'SPEAK', text: "Chapter five. Three Pygame mistakes that catch every beginner. I'll make each on purpose so you recognize the symptom and know the fix. Pygame bugs are sneaky — some crash immediately, some silently do nothing, and some make your game unplayable without any error message." });
   // ===== BUG #1: Forgetting pygame.init() =====
   E({ type: 'SPEAK', text: "Bug number one. Forgetting to call pygame dot init. Every Pygame program must initialize the library before using it. Skip that line and you get a confusing error the first time you touch the display." });
-  E({ type: 'GOTO_LINE_CONTAINING', substring: 'pygame.init()' });
-  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
-  E({ type: 'TYPE_LINE', text: '# BUG: commented out pygame.init()', indent: '' });
-  E({ type: 'TYPE_LINE', text: '# pygame.init()', indent: '' });
+  E({ type: 'COMMENT_LINE_CONTAINING', substring: 'pygame.init()' });
   E({ type: 'SPEAK', text: "I commented out pygame dot init. Now the very next line tries to create a display mode. Let's see what happens." });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# pygame.init()', label: 'init missing!', duration: 2000 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
@@ -2563,10 +2608,7 @@ function buildTutorial() {
 
   // ===== BUG #2: Forgetting display.flip() =====
   E({ type: 'SPEAK', text: "Bug number two. Forgetting to call display dot flip. In Pygame, drawing operations go to an off-screen buffer. Nothing appears on the actual window until you flip — copy the buffer to the visible surface. Forget it and you get a blank or frozen window with no error at all." });
-  E({ type: 'GOTO_LINE_CONTAINING', substring: 'pygame.display.flip()' });
-  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
-  E({ type: 'TYPE_LINE', text: '    # BUG: commented out display.flip()', indent: '' });
-  E({ type: 'TYPE_LINE', text: '    # pygame.display.flip()', indent: '' });
+  E({ type: 'COMMENT_LINE_CONTAINING', substring: 'pygame.display.flip()' });
   E({ type: 'SPEAK', text: "I commented out display dot flip. The game will still run, the loop still spins, drawing still happens to the buffer — but nothing shows up. No crash, no error. Just a window that never updates." });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# pygame.display.flip()', label: 'no flip = nothing visible!', duration: 2200 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
@@ -2594,10 +2636,7 @@ function buildTutorial() {
 
   // ===== BUG #3: Missing clock.tick (CPU burn) =====
   E({ type: 'SPEAK', text: "Bug number three. Forgetting clock dot tick. Without it, the game loop runs as fast as your CPU can spin — thousands of frames per second. The game becomes unplayable because movement is tied to frame count, and your CPU hits one hundred percent. No error, just a broken, CPU-melting game." });
-  E({ type: 'GOTO_LINE_CONTAINING', substring: 'clock.tick(FPS)' });
-  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
-  E({ type: 'TYPE_LINE', text: '    # BUG: commented out clock.tick(FPS)', indent: '' });
-  E({ type: 'TYPE_LINE', text: '    # clock.tick(FPS)', indent: '' });
+  E({ type: 'COMMENT_LINE_CONTAINING', substring: 'clock.tick(FPS)' });
   E({ type: 'SPEAK', text: "I commented out clock dot tick. Now the loop has no throttle. On my machine this runs at maybe three thousand frames per second. The player would move at five pixels times three thousand — fifteen thousand pixels per second. Way too fast to control. And one CPU core is pinned at a hundred percent." });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# clock.tick(FPS)', label: 'no throttle = CPU burn + super-fast game', duration: 2200 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
