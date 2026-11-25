@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roblox Studio Simulator — Learn Lua & Build a Game</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
 /* ============================================================
    RESET & BASE
@@ -27,30 +29,65 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
 /* ============================================================
    BROWSER SCENE (Roblox create page)
    ============================================================ */
-.browser-bar{height:36px;background:#ddd;display:flex;align-items:center;
-  padding:0 8px;gap:6px;border-bottom:1px solid #bbb;}
+.browser-bar{height:36px;background:#3a3a3a;display:flex;align-items:center;
+  padding:0 8px;gap:6px;border-bottom:1px solid #222;}
 .br-btn{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
-  justify-content:center;background:#bbb;color:#fff;font-size:12px;}
-.br-btn.back{background:#5a9;}
-.url-bar{flex:1;height:24px;background:#fff;border:1px solid #bbb;border-radius:12px;
-  padding:0 12px;display:flex;align-items:center;font-size:12px;color:#555;}
-.roblox-page{position:absolute;inset:36px;background:linear-gradient(180deg,#0066cc 0%,#003d7a 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;overflow:hidden;}
-.roblox-logo{font-size:clamp(28px,6vw,48px);font-weight:900;letter-spacing:-1px;
-  text-shadow:0 2px 8px rgba(0,0,0,0.3);margin-bottom:8px;}
-.roblox-logo .r{display:inline-block;background:#fff;color:#0066cc;padding:2px 10px;
-  border-radius:8px;transform:rotate(-3deg);}
-.roblox-tag{font-size:14px;opacity:0.9;margin-bottom:30px;}
-.create-grid{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:700px;padding:0 20px;}
-.template-card{width:180px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.25);
-  border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;backdrop-filter:blur(4px);}
-.template-card:hover{background:rgba(255,255,255,0.22);border-color:#fff;transform:translateY(-3px);}
-.template-card .icon{font-size:40px;margin-bottom:8px;}
-.template-card .name{font-size:14px;font-weight:700;margin-bottom:4px;}
-.template-card .desc{font-size:11px;opacity:0.8;}
-.template-card.highlighted{border-color:#ffdd44;box-shadow:0 0 20px rgba(255,221,68,0.5);
-  background:rgba(255,221,68,0.15);}
-.cursor-blink::after{content:'▼';color:#ffdd44;font-size:14px;animation:blink 1s steps(2) infinite;
+  justify-content:center;background:#555;color:#fff;font-size:10px;}
+.br-btn.back{background:#4a90d9;}
+.url-bar{flex:1;height:24px;background:#2a2a2a;border:1px solid #444;border-radius:12px;
+  padding:0 12px;display:flex;align-items:center;font-size:11px;color:#aaa;gap:6px;}
+.url-bar .lock{color:#6a6;font-size:9px;}
+/* --- Roblox create dashboard --- */
+.roblox-dashboard{position:absolute;inset:36px;background:#1b1c22;display:flex;flex-direction:column;overflow:auto;}
+.rd-topbar{height:48px;background:#111218;display:flex;align-items:center;padding:0 20px;gap:28px;
+  border-bottom:1px solid #2a2b33;flex-shrink:0;}
+.rd-logo{font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;display:flex;align-items:center;gap:8px;}
+.rd-logo .r-icon{display:inline-flex;width:22px;height:22px;background:linear-gradient(135deg,#00a2ff,#0066cc);
+  border-radius:4px;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:900;}
+.rd-nav{display:flex;gap:22px;}
+.rd-nav span{color:#8a8a98;font-size:13px;cursor:pointer;transition:color .15s;}
+.rd-nav span:hover{color:#c8c8d0;}
+.rd-nav span.active{color:#fff;font-weight:600;}
+.rd-user{margin-left:auto;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ee5a5a);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;}
+.rd-main{flex:1;padding:28px 32px;max-width:1100px;margin:0 auto;width:100%;}
+.rd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.rd-title{font-size:22px;font-weight:700;color:#fff;}
+.rd-subtitle{font-size:13px;color:#8a8a98;margin-bottom:18px;}
+.rd-tabs{display:flex;gap:4px;background:#26272f;border-radius:8px;padding:3px;}
+.rd-tab{padding:6px 16px;font-size:12px;color:#8a8a98;cursor:pointer;border-radius:6px;transition:all .15s;}
+.rd-tab.active{background:#3a3b45;color:#fff;font-weight:600;}
+.rd-section-label{font-size:11px;color:#6a6a78;text-transform:uppercase;letter-spacing:1.5px;
+  font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.rd-section-label::before{content:'';width:3px;height:14px;background:#00a2ff;border-radius:2px;}
+.rd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;}
+.rd-card{background:#26272f;border:1px solid #33343d;border-radius:8px;overflow:hidden;cursor:pointer;
+  transition:all .2s;position:relative;}
+.rd-card:hover{border-color:#00a2ff;transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,0.4);}
+.rd-card.highlighted{border-color:#00a2ff;box-shadow:0 0 0 2px rgba(0,162,255,0.35),0 8px 20px rgba(0,162,255,0.2);}
+.rd-thumb{height:110px;position:relative;overflow:hidden;display:flex;align-items:flex-end;}
+.rd-thumb.baseplate{background:#4a4a52;background-image:
+  linear-gradient(rgba(255,255,255,0.04) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,0.04) 1px,transparent 1px);background-size:16px 16px;}
+.rd-thumb.obby{background:linear-gradient(135deg,#ff6b6b 0%,#ffd93d 50%,#6bcf7f 100%);}
+.rd-thumb.racing{background:linear-gradient(180deg,#5a9fd9 0%,#2a4f80 100%);}
+.rd-thumb.village{background:linear-gradient(180deg,#7ec0ee 0%,#4a8a3a 70%,#3a6a2a 100%);}
+.rd-thumb.castle{background:linear-gradient(135deg,#8B7355 0%,#c4a06a 100%);}
+.rd-thumb.city{background:linear-gradient(180deg,#3a3a45 0%,#2a2a35 60%,#1a1a25 100%);}
+.rd-thumb .play-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:36px;height:36px;background:rgba(0,0,0,0.5);border-radius:50%;display:flex;align-items:center;
+  justify-content:center;color:#fff;font-size:13px;opacity:0;transition:opacity .2s;}
+.rd-card:hover .play-icon{opacity:1;}
+.rd-card-info{padding:10px 12px;}
+.rd-card-name{font-size:13px;font-weight:600;color:#e8e8f0;margin-bottom:2px;}
+.rd-card-desc{font-size:11px;color:#7a7a88;}
+.rd-recent{margin-top:28px;}
+.rd-recent-item{display:flex;align-items:center;gap:12px;padding:10px;background:#26272f;
+  border:1px solid #33343d;border-radius:6px;margin-bottom:8px;}
+.rd-recent-thumb{width:48px;height:36px;border-radius:4px;background:#3a3b45;flex-shrink:0;}
+.rd-recent-name{font-size:13px;color:#e8e8f0;font-weight:500;}
+.rd-recent-date{font-size:11px;color:#6a6a78;margin-left:auto;}
+.cursor-blink::after{content:'▼';color:#00a2ff;font-size:14px;animation:blink 1s steps(2) infinite;
   margin-left:4px;}
 @keyframes blink{50%{opacity:0;}}
 
@@ -318,6 +355,35 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
 @keyframes hpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,193,7,0.6);}
   50%{box-shadow:0 0 0 6px rgba(255,193,7,0);}}
 
+/* --- Icon sizing (Font Awesome + Lucide) --- */
+.rbtn i.fa-solid{font-size:14px;}
+.tree-item .ticon i.fa-solid{font-size:12px;width:14px;text-align:center;}
+.tree-item .ticon i.fa-cubes{color:#4a9eff;}
+.tree-item .ticon i.fa-square{color:#aaa;}
+.tree-item .ticon i.fa-camera{color:#666;}
+.tree-item .ticon i.fa-users{color:#5b9bd5;}
+.tree-item .ticon i.fa-lightbulb{color:#ffc107;}
+.tree-item .ticon i.fa-satellite-dish{color:#7e57c2;}
+.tree-item .ticon i.fa-box-archive{color:#66bb6a;}
+.tree-item .ticon i.fa-scroll{color:#ff8a65;}
+.tree-item .ticon i.fa-database{color:#78909c;}
+.tree-item .ticon i.fa-desktop{color:#42a5f5;}
+.tree-item .ticon i.fa-suitcase{color:#8d6e63;}
+.tree-item .ticon i.fa-person-walking{color:#26a69a;}
+.tree-item .ticon i.fa-file-code{color:#42a5f5;}
+.tree-item .ticon i.fa-volume-high{color:#ec407a;}
+.tree-item .ticon i.fa-flag{color:#ef5350;}
+.tree-item .ticon i.fa-coins{color:#ffd700;}
+.tree-item .twisty i.fa-solid{font-size:8px;color:#888;}
+.panel-header .ph-title i.fa-solid{font-size:11px;margin-right:4px;}
+.script-icon i.fa-solid{font-size:13px;color:#569cd6;margin-right:2px;}
+.ctrl-btn i.fa-solid{font-size:13px;}
+.ctrl-btn svg.lucide{width:14px;height:14px;stroke-width:2.5;}
+.start-btn svg.lucide{width:18px;height:18px;stroke-width:2.5;}
+.finish-card .check svg.lucide{width:34px;height:34px;stroke-width:3;}
+.show-controls svg.lucide{width:16px;height:16px;stroke-width:2.5;}
+.br-btn i.fa-solid{font-size:9px;}
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
@@ -343,31 +409,91 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
 <body>
 <div id="stage">
 
-  <!-- ============ SCENE 1: BROWSER (Roblox create page) ============ -->
+  <!-- ============ SCENE 1: BROWSER (Roblox create dashboard) ============ -->
   <div class="scene" id="scene-browser">
     <div class="browser-bar">
-      <div class="br-btn back">‹</div>
-      <div class="br-btn">›</div>
-      <div class="url-bar">create.roblox.com/dashboard</div>
+      <div class="br-btn back"><i class="fa-solid fa-chevron-left"></i></div>
+      <div class="br-btn"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="br-btn"><i class="fa-solid fa-rotate-right"></i></div>
+      <div class="url-bar"><i class="fa-solid fa-lock lock"></i>create.roblox.com/dashboard/creations</div>
     </div>
-    <div class="roblox-page">
-      <div class="roblox-logo"><span class="r">R</span>OBLOX Studio</div>
-      <div class="roblox-tag">Create a new experience — choose a template to start</div>
-      <div class="create-grid">
-        <div class="template-card" id="tpl-baseplate" data-name="Baseplate">
-          <div class="icon">🗺️</div>
-          <div class="name">Baseplate</div>
-          <div class="desc">A flat world. Perfect for learning.</div>
+    <div class="roblox-dashboard">
+      <div class="rd-topbar">
+        <div class="rd-logo"><span class="r-icon">R</span>ROBLOX</div>
+        <div class="rd-nav">
+          <span>Discover</span>
+          <span>Marketplace</span>
+          <span class="active">Create</span>
+          <span>Robux</span>
         </div>
-        <div class="template-card" data-name="Obby">
-          <div class="icon">🧗</div>
-          <div class="name">Obby</div>
-          <div class="desc">Obstacle course starter.</div>
+        <div class="rd-user">B</div>
+      </div>
+      <div class="rd-main">
+        <div class="rd-header">
+          <div>
+            <div class="rd-title">Create</div>
+            <div class="rd-subtitle">Start building a new experience</div>
+          </div>
+          <div class="rd-tabs">
+            <div class="rd-tab active">New</div>
+            <div class="rd-tab">Recent</div>
+          </div>
         </div>
-        <div class="template-card" data-name="Racing">
-          <div class="icon">🏁</div>
-          <div class="name">Racing</div>
-          <div class="desc">A racing track template.</div>
+        <div class="rd-section-label">Templates</div>
+        <div class="rd-grid">
+          <div class="rd-card highlighted" id="tpl-baseplate" data-name="Baseplate">
+            <div class="rd-thumb baseplate"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">Baseplate</div>
+              <div class="rd-card-desc">A flat, empty baseplate</div>
+            </div>
+          </div>
+          <div class="rd-card" data-name="Obby">
+            <div class="rd-thumb obby"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">Obby</div>
+              <div class="rd-card-desc">Obstacle course starter</div>
+            </div>
+          </div>
+          <div class="rd-card" data-name="Racing">
+            <div class="rd-thumb racing"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">Racing</div>
+              <div class="rd-card-desc">A racing track template</div>
+            </div>
+          </div>
+          <div class="rd-card" data-name="Village">
+            <div class="rd-thumb village"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">Village</div>
+              <div class="rd-card-desc">A medieval village</div>
+            </div>
+          </div>
+          <div class="rd-card" data-name="Castle">
+            <div class="rd-thumb castle"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">Castle</div>
+              <div class="rd-card-desc">A stone castle scene</div>
+            </div>
+          </div>
+          <div class="rd-card" data-name="City">
+            <div class="rd-thumb city"><div class="play-icon"><i class="fa-solid fa-play"></i></div></div>
+            <div class="rd-card-info">
+              <div class="rd-card-name">City</div>
+              <div class="rd-card-desc">An urban city template</div>
+            </div>
+          </div>
+        </div>
+        <div class="rd-section-label rd-recent" style="margin-top:28px;">Recent</div>
+        <div class="rd-recent-item">
+          <div class="rd-recent-thumb" style="background:linear-gradient(135deg,#4a9eff,#2667d4);"></div>
+          <div class="rd-recent-name">My First Game</div>
+          <div class="rd-recent-date">2 days ago</div>
+        </div>
+        <div class="rd-recent-item">
+          <div class="rd-recent-thumb" style="background:linear-gradient(135deg,#ff8a65,#e64a19);"></div>
+          <div class="rd-recent-name">Tower Defense Demo</div>
+          <div class="rd-recent-date">5 days ago</div>
         </div>
       </div>
     </div>
@@ -403,31 +529,31 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
       <div class="ribbon-toolbar">
         <div class="rbtn-group">
           <div class="rbtn-row">
-            <div class="rbtn" id="tool-select">🖱</div>
-            <div class="rbtn" id="tool-move">✥</div>
-            <div class="rbtn" id="tool-scale">⤢</div>
-            <div class="rbtn" id="tool-rotate">⟳</div>
+            <div class="rbtn" id="tool-select"><i class="fa-solid fa-arrow-pointer"></i></div>
+            <div class="rbtn" id="tool-move"><i class="fa-solid fa-up-down-left-right"></i></div>
+            <div class="rbtn" id="tool-scale"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></div>
+            <div class="rbtn" id="tool-rotate"><i class="fa-solid fa-rotate"></i></div>
           </div>
           <div class="grp-label">Tools</div>
         </div>
         <div class="rbtn-group">
           <div class="rbtn-row">
-            <div class="rbtn small">Part</div>
-            <div class="rbtn small">Script</div>
+            <div class="rbtn small"><i class="fa-solid fa-cube"></i> Part</div>
+            <div class="rbtn small"><i class="fa-solid fa-file-code"></i> Script</div>
           </div>
           <div class="grp-label">Insert</div>
         </div>
         <div class="rbtn-group">
           <div class="rbtn-row">
-            <div class="rbtn play" id="btn-play">▶ Play</div>
-            <div class="rbtn stop" id="btn-stop" style="display:none;">■ Stop</div>
+            <div class="rbtn play" id="btn-play"><i class="fa-solid fa-play"></i> Play</div>
+            <div class="rbtn stop" id="btn-stop" style="display:none;"><i class="fa-solid fa-stop"></i> Stop</div>
           </div>
           <div class="grp-label">Test</div>
         </div>
         <div class="rbtn-group">
           <div class="rbtn-row">
-            <div class="rbtn small">Explorer</div>
-            <div class="rbtn small">Output</div>
+            <div class="rbtn small"><i class="fa-solid fa-list"></i> Explorer</div>
+            <div class="rbtn small"><i class="fa-solid fa-terminal"></i> Output</div>
           </div>
           <div class="grp-label">View</div>
         </div>
@@ -438,8 +564,8 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
         <!-- Explorer -->
         <div class="explorer-panel" id="explorer-panel">
           <div class="panel-header">
-            <span class="ph-title">📋 Explorer</span>
-            <span class="ph-close">×</span>
+            <span class="ph-title"><i class="fa-solid fa-list-tree"></i>Explorer</span>
+            <span class="ph-close"><i class="fa-solid fa-xmark"></i></span>
           </div>
           <div class="explorer-tree" id="explorer-tree"></div>
         </div>
@@ -462,9 +588,9 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
             <div class="script-editor" id="script-editor">
               <div class="se-tabs">
                 <div class="se-tab active" id="se-tab-name">
-                  <span class="script-icon">📄</span>
+                  <span class="script-icon"><i class="fa-solid fa-file-code"></i></span>
                   <span id="se-tab-text">Script</span>
-                  <span class="close" id="se-close">×</span>
+                  <span class="close" id="se-close"><i class="fa-solid fa-xmark"></i></span>
                 </div>
               </div>
               <div class="se-body">
@@ -478,8 +604,8 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
         <!-- Properties -->
         <div class="properties-panel" id="properties-panel">
           <div class="panel-header">
-            <span class="ph-title">⚙ Properties</span>
-            <span class="ph-close">×</span>
+            <span class="ph-title"><i class="fa-solid fa-sliders"></i>Properties</span>
+            <span class="ph-close"><i class="fa-solid fa-xmark"></i></span>
           </div>
           <div class="properties-list" id="properties-list">
             <div class="prop-row"><div class="prop-name">— Select an object —</div><div class="prop-val"></div></div>
@@ -518,9 +644,9 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
 <!-- Controls -->
 <div class="ctrl-progress" id="ctrl-progress"></div>
 <div class="controls" id="controls">
-  <button class="ctrl-btn" id="btn-pause">⏸ Pause</button>
-  <button class="ctrl-btn secondary" id="btn-restart">↻ Restart</button>
-  <button class="ctrl-btn secondary" id="btn-skip">⏭ Skip</button>
+  <button class="ctrl-btn" id="btn-pause"><i data-lucide="pause"></i><span id="pause-text">Pause</span></button>
+  <button class="ctrl-btn secondary" id="btn-restart"><i data-lucide="rotate-ccw"></i>Restart</button>
+  <button class="ctrl-btn secondary" id="btn-skip"><i data-lucide="skip-forward"></i>Skip</button>
   <label class="voice-setting" for="voice-select">Voice
     <select id="voice-select" aria-label="Narration voice"><option value="">Off</option></select>
   </label>
@@ -528,15 +654,15 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
     <input type="range" id="voice-rate" min="0.6" max="1.6" step="0.1" value="1" aria-label="Narration speed">
     <span class="rate-value" id="rate-value">1.0×</span>
   </label>
-  <button class="ctrl-btn secondary" id="btn-hide-controls">Hide</button>
+  <button class="ctrl-btn secondary" id="btn-hide-controls"><i data-lucide="eye-off"></i>Hide</button>
 </div>
 <div class="paused-indicator" id="pause-indicator">Paused</div>
-<button class="show-controls" id="btn-show-controls" type="button" style="display:none;">≡ Controls</button>
+<button class="show-controls" id="btn-show-controls" type="button" style="display:none;"><i data-lucide="menu"></i>Controls</button>
 
 <!-- Start screen -->
 <div class="overlay start-overlay visible" id="start-screen">
   <div class="start-card">
-    <div class="sc-logo">🎮</div>
+    <div class="sc-logo"><i class="fa-solid fa-gamepad" style="font-size:48px;color:#00a2ff;"></i></div>
     <h1>Roblox Studio Simulator <span class="badge">Lua</span></h1>
     <p class="sub">A friendly, automated walkthrough. We open Roblox Studio, explore the interface, learn <b>Lua</b> basics — <b>print</b>, <b>variables</b>, <b>if/else</b>, <b>Instance.new</b>, and <b>events</b> — then build and play a coin-collecting game in a real 3D viewport.</p>
     <div class="steps" id="start-steps">
@@ -550,7 +676,7 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
       <div class="step"><span class="step-num">8</span><span>Press Play and watch your character collect coins!</span></div>
     </div>
     <button class="start-btn" id="btn-start">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+      <i data-lucide="play"></i>
       Start the walkthrough
     </button>
     <div class="start-hint">Tip: press <kbd>Space</kbd> to pause / resume, <kbd>R</kbd> to restart.<br>The whole thing takes about 5–6 minutes.</div>
@@ -560,14 +686,14 @@ kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
 <!-- Finish screen -->
 <div class="overlay finish-overlay" id="finish-screen">
   <div class="finish-card">
-    <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <div class="check"><i data-lucide="check"></i></div>
     <h2>You made a game!</h2>
     <p>You opened Roblox Studio, learned <b>Lua</b> — print, variables, if/else, Instance.new, and events — and built a working coin-collecting game with a 3D character. That's real Roblox game development!</p>
     <div class="stats">
       <div><div class="stat-val">5</div><div class="stat-lbl">Lessons</div></div>
       <div><div class="stat-val">1</div><div class="stat-lbl">Game Built</div></div>
     </div>
-    <button class="ctrl-btn" id="btn-finish-restart" style="width:100%;justify-content:center;">Run it again</button>
+    <button class="ctrl-btn" id="btn-finish-restart" style="width:100%;justify-content:center;"><i data-lucide="rotate-ccw"></i>Run it again</button>
   </div>
 </div>
 
@@ -777,7 +903,7 @@ const VP = {
     this.renderer.render(this.scene,this.camera);
   },
 
-  showBadge(t){ const b=$('#viewport-badge'); b.textContent=t; b.classList.add('visible'); },
+  showBadge(t){ const b=$('#viewport-badge'); b.innerHTML=t; b.classList.add('visible'); },
   hideBadge(){ $('#viewport-badge').classList.remove('visible'); },
 };
 
@@ -836,23 +962,23 @@ function highlightLua(line){
    ============================================================ */
 const Explorer = {
   data:[
-    {name:'Workspace', icon:'🌐', expanded:true, children:[
-      {name:'Baseplate', icon:'⬜'},
-      {name:'Camera', icon:'📷'},
+    {name:'Workspace', icon:'fa-cubes', expanded:true, children:[
+      {name:'Baseplate', icon:'fa-square'},
+      {name:'Camera', icon:'fa-camera'},
     ]},
-    {name:'Players', icon:'👥'},
-    {name:'Lighting', icon:'💡'},
-    {name:'ReplicatedFirst', icon:'📡'},
-    {name:'ReplicatedStorage', icon:'📦'},
-    {name:'ServerScriptService', icon:'📜', expanded:true, children:[]},
-    {name:'ServerStorage', icon:'🗄'},
-    {name:'StarterGui', icon:'🖥'},
-    {name:'StarterPack', icon:'🎒'},
-    {name:'StarterPlayer', icon:'🚶', expanded:false, children:[
-      {name:'StarterPlayerScripts', icon:'📄'},
+    {name:'Players', icon:'fa-users'},
+    {name:'Lighting', icon:'fa-lightbulb'},
+    {name:'ReplicatedFirst', icon:'fa-satellite-dish'},
+    {name:'ReplicatedStorage', icon:'fa-box-archive'},
+    {name:'ServerScriptService', icon:'fa-scroll', expanded:true, children:[]},
+    {name:'ServerStorage', icon:'fa-database'},
+    {name:'StarterGui', icon:'fa-desktop'},
+    {name:'StarterPack', icon:'fa-suitcase'},
+    {name:'StarterPlayer', icon:'fa-person-walking', expanded:false, children:[
+      {name:'StarterPlayerScripts', icon:'fa-file-code'},
     ]},
-    {name:'SoundService', icon:'🔊'},
-    {name:'Teams', icon:'🏁'},
+    {name:'SoundService', icon:'fa-volume-high'},
+    {name:'Teams', icon:'fa-flag'},
   ],
 
   render(){
@@ -865,8 +991,8 @@ const Explorer = {
       div.className='tree-item'; div.dataset.name=item.name;
       div.style.setProperty('--depth', depth);
       const hasCh=item.children&&item.children.length>0;
-      div.innerHTML=`<span class="twisty ${item.expanded?'open':''}">${hasCh?'▶':''}</span>`+
-        `<span class="ticon">${item.icon}</span><span class="tname">${esc(item.name)}</span>`;
+      div.innerHTML=`<span class="twisty ${item.expanded?'open':''}">${hasCh?'<i class="fa-solid fa-caret-right"></i>':''}</span>`+
+        `<span class="ticon"><i class="fa-solid ${item.icon}"></i></span><span class="tname">${esc(item.name)}</span>`;
       container.appendChild(div);
       if(hasCh&&item.expanded) this._renderLevel(item.children, container, depth+1);
     }
@@ -1036,14 +1162,36 @@ const Caption = {
   narrate:false, voice:null, rate:1,
   async say(text, duration=2500){
     const el=$('#captions'); el.textContent=text; el.classList.add('visible');
+    // Start speech and get a promise that resolves when it ends
+    let speechDone=Promise.resolve();
+    let speechEstimate=0;
     if(this.narrate&&'speechSynthesis' in window){
       speechSynthesis.cancel();
       const u=new SpeechSynthesisUtterance(text);
       if(this.voice) u.voice=this.voice;
       u.rate=this.rate; u.lang='en-US';
-      speechSynthesis.speak(u);
+      // Rough estimate: ~15 chars/sec at rate 1.0, plus padding
+      speechEstimate=Math.ceil(text.length/15*1000/this.rate)+500;
+      speechDone=new Promise(resolve=>{
+        u.onend=()=>resolve();
+        u.onerror=()=>resolve();
+      });
+      setTimeout(()=>speechSynthesis.speak(u), 30);
     }
-    await CTL.wait(duration);
+    // Wait for the longer of: the specified duration or the estimated speech time
+    const waitTime=this.narrate?Math.max(duration, speechEstimate):duration;
+    await CTL.wait(waitTime);
+    // If speech is still going, wait for it to actually finish so it isn't cut off
+    // (safety timeout of 12s in case onend never fires)
+    if(this.narrate&&'speechSynthesis' in window){
+      let resolved=false;
+      const deadline=Date.now()+12000;
+      speechDone.then(()=>{ resolved=true; });
+      while(!resolved&&!CTL.cancelled&&Date.now()<deadline){
+        if(CTL.skipRequested){ CTL.skipRequested=false; break; }
+        await sleep(80);
+      }
+    }
     el.classList.remove('visible');
     if('speechSynthesis' in window) speechSynthesis.cancel();
   },
@@ -1097,7 +1245,7 @@ function showContextMenu(x, y, items){
         sub.appendChild(se);
       }
       el.appendChild(sub);
-      const ar=document.createElement('span'); ar.className='arrow'; ar.textContent='▶';
+      const ar=document.createElement('span'); ar.className='arrow'; ar.innerHTML='<i class="fa-solid fa-chevron-right"></i>';
       el.appendChild(ar);
     } else if(!item.disabled){
       el.onclick=()=>{ menu.classList.remove('visible'); if(item.action) item.action(); };
@@ -1142,7 +1290,7 @@ async function runScript(opts={}){
     Editor.close(); await CTL.wait(400);
     Output.clear(); Output.print('The current identity is 8 (Game)', 'warn');
     await CTL.wait(300);
-    VP.showBadge('▶ Game running');
+    VP.showBadge('<i class="fa-solid fa-play"></i> Game running');
     await VP.playGame(
       (score)=>Output.print('Coin collected! Score: '+score, 'success'),
       ()=>Output.print(opts.winMsg||'You collected all coins! You win!', 'success')
@@ -1252,7 +1400,7 @@ async function timeline(){
   await CTL.wait(200);
 
   // Add Script to explorer and open editor
-  Explorer.addItem('ServerScriptService', {name:'Script', icon:'📄'});
+  Explorer.addItem('ServerScriptService', {name:'Script', icon:'fa-file-code'});
   Explorer.select('Script');
   await CTL.wait(300);
   Editor.open('Script');
@@ -1349,7 +1497,7 @@ async function timeline(){
     duration:3600,
   });
   // Add coin to explorer for authenticity
-  Explorer.addItem('Workspace', {name:'Coin', icon:'🪙'});
+  Explorer.addItem('Workspace', {name:'Coin', icon:'fa-coins'});
   await Typer.hesitate(500);
 
   /* ===== Chapter 8: Events — Touched ===== */
@@ -1454,7 +1602,7 @@ setInterval(()=>{ if(CTL.running&&!CTL.paused&&!CTL.cancelled) bumpProgress(); }
    ============================================================ */
 Explorer.resetData=function(){
   const ws=this._findItem(this.data,'Workspace');
-  if(ws) ws.children=[{name:'Baseplate',icon:'⬜'},{name:'Camera',icon:'📷'}];
+  if(ws) ws.children=[{name:'Baseplate',icon:'fa-square'},{name:'Camera',icon:'fa-camera'}];
   const sss=this._findItem(this.data,'ServerScriptService');
   if(sss) sss.children=[];
   this.render();
@@ -1519,10 +1667,17 @@ $('#btn-start').addEventListener('click', async ()=>{
 });
 
 // Pause
+function swapLucideIcon(btnSel, iconName){
+  const btn=$(btnSel); if(!btn) return;
+  const svg=btn.querySelector('svg.lucide')||btn.querySelector('svg');
+  if(svg){ const i=document.createElement('i'); i.setAttribute('data-lucide',iconName); svg.replaceWith(i); }
+  if(window.lucide) lucide.createIcons();
+}
 $('#btn-pause').addEventListener('click', ()=>{
   if(!CTL.running) return;
   CTL.paused=!CTL.paused;
-  $('#btn-pause').textContent=CTL.paused?'▶ Resume':'⏸ Pause';
+  $('#pause-text').textContent=CTL.paused?'Resume':'Pause';
+  swapLucideIcon('#btn-pause', CTL.paused?'play':'pause');
   $('#pause-indicator').classList.toggle('visible', CTL.paused);
   if(CTL.paused){ if('speechSynthesis' in window) speechSynthesis.pause(); }
   else { if('speechSynthesis' in window) speechSynthesis.resume(); }
@@ -1542,7 +1697,8 @@ function doRestart(){
     Explorer.resetData();
     Properties.show(null);
     $('#pause-indicator').classList.remove('visible');
-    $('#btn-pause').textContent='⏸ Pause';
+    $('#pause-text').textContent='Pause';
+    swapLucideIcon('#btn-pause', 'pause');
     $('#finish-screen').classList.remove('visible');
     $('#start-screen').classList.add('visible');
     setProgress(0);
@@ -1577,6 +1733,8 @@ document.addEventListener('keydown', e=>{
    ============================================================ */
 VP.init();
 Explorer.render();
+// Render Lucide icons (start screen, controls, finish screen)
+if(window.lucide) lucide.createIcons();
 
 </script>
 </body>
