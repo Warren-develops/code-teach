@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Typing Studio — 9:16 Shorts Recorder</title>
+    <!-- Load Tailwind CSS for responsive layout & clean UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load JetBrains Mono & Inter Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        ide: {
+                            bg: '#1e2127',
+                            darker: '#181a1f',
+                            header: '#21252b',
+                            border: '#2c313a',
+                            tabActive: '#282c34',
+                            tabInactive: '#21252b',
+                            text: '#abb2bf',
+                            gutter: '#4b5263'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars for code inputs & editor */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(171, 178, 191, 0.2);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(171, 178, 191, 0.35);
+        }
+
+        /* Blinking IDE Cursor */
+        @keyframes cursorBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.25em;
+            background-color: #528bff;
+            vertical-align: text-bottom;
+            margin-left: 1px;
+            box-shadow: 0 0 8px rgba(82, 139, 255, 0.8);
+            animation: cursorBlink 0.9s infinite;
+        }
+        .typing-cursor.active-typing {
+            animation: none;
+            opacity: 1;
+        }
+
+        /* Countdown Pop Animation */
+        @keyframes popNumber {
+            0% { transform: scale(0.5); opacity: 0; }
+            25% { transform: scale(1.1); opacity: 1; }
+            85% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.85); opacity: 0; }
+        }
+        .countdown-digit {
+            animation: popNumber 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* One Dark Pro Syntax Highlighting Tokens */
+        .tok-tag { color: #e06c75; }
+        .tok-attr { color: #d19a66; }
+        .tok-str { color: #98c379; }
+        .tok-comment { color: #5c6370; font-style: italic; }
+        .tok-kw { color: #c678dd; }
+        .tok-fn { color: #61afef; }
+        .tok-num { color: #d19a66; }
+        .tok-prop { color: #56b6c2; }
+        .tok-sel { color: #e5c07b; }
+        .tok-punct { color: #abb2bf; }
+
+        /* Recording Stage Exact 9:16 Container */
+        .stage-container {
+            width: 360px;
+            height: 640px;
+            min-width: 360px;
+            min-height: 640px;
+            max-width: 360px;
+            max-height: 640px;
+        }
+
+        /* Subtle Crop Frame Corners */
+        .crop-guide {
+            box-shadow: 0 0 0 2px #3b82f6, 0 25px 60px -15px rgba(0, 0, 0, 0.85);
+        }
+        .crop-guide.recording {
+            box-shadow: 0 0 0 2px #ef4444, 0 25px 60px -15px rgba(239, 68, 68, 0.25);
+        }
+
+        /* Range Slider Custom Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 999px;
+            background: #2c313a;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -5px;
+            cursor: pointer;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+            transition: transform 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        /* Unified Line-by-Line Code Editor Rows for Pixel-Perfect Line Number Alignment */
+        .editor-row {
+            display: flex;
+            align-items: flex-start;
+            min-height: 19.2px; /* 12px font-size * 1.6 line-height */
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 19.2px;
+            box-sizing: border-box;
+        }
+        .editor-gutter-cell {
+            width: 34px;
+            min-width: 34px;
+            padding-right: 10px;
+            text-align: right;
+            color: #4b5263;
+            user-select: none;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 19.2px;
+            box-sizing: border-box;
+        }
+        .editor-row.active-line .editor-gutter-cell {
+            color: #abb2bf;
+        }
+        .editor-code-cell {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            padding: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            color: #abb2bf;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 19.2px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="bg-[#0d0f12] text-gray-200 font-sans min-h-screen flex flex-col lg:flex-row overflow-x-hidden selection:bg-blue-500/30">
+
+    <!-- LEFT PANEL: STUDIO CONTROLS -->
+    <aside class="w-full lg:w-[460px] xl:w-[500px] bg-[#14171c] border-b lg:border-b-0 lg:border-r border-gray-800/80 flex flex-col shrink-0 lg:h-screen lg:overflow-y-auto">
+        <!-- Studio Header -->
+        <div class="p-5 border-b border-gray-800/80 flex items-center justify-between bg-[#181b21]">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base text-white tracking-tight">Code Typing Studio</h1>
+                    <p class="text-xs text-gray-400">9:16 Vertical Shorts & Reels Generator</p>
+                </div>
+            </div>
+            <span class="px-2.5 py-1 text-[11px] font-mono font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg">
+                360×640
+            </span>
+        </div>
+
+        <!-- Primary Action Bar -->
+        <div class="p-4 bg-[#16191f] border-b border-gray-800/80 space-y-3">
+            <div class="grid grid-cols-2 gap-2.5">
+                <button id="btnStart" class="col-span-1 py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <span>Start Simulation</span>
+                </button>
+                <button id="btnReset" class="col-span-1 py-2.5 px-4 bg-gray-800 hover:bg-gray-700 active:scale-[0.99] text-gray-200 font-medium text-sm rounded-xl border border-gray-700/80 flex items-center justify-center gap-2 transition-all cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Reset</span>
+                </button>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-1">
+                <button id="btnInstantPreview" class="flex-1 py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span>Instant Live Preview</span>
+                </button>
+                <label class="flex items-center gap-2 px-3 py-2 bg-gray-800/60 border border-gray-700/60 rounded-xl text-xs text-gray-300 cursor-pointer select-none hover:bg-gray-800 transition">
+                    <input type="checkbox" id="chkAutoLoop" class="rounded accent-blue-500 w-3.5 h-3.5 cursor-pointer">
+                    <span>Auto-Loop</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Timing & Playback Settings -->
+        <div class="p-4 border-b border-gray-800/80 space-y-4">
+            <!-- Typing Speed Slider -->
+            <div class="space-y-1.5">
+                <div class="flex justify-between items-center text-xs">
+                    <label for="speedSlider" class="font-medium text-gray-300 flex items-center gap-1.5">
+                        <span>Typing Speed</span>
+                    </label>
+                    <span id="speedValue" class="font-mono font-semibold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md">65 chars/sec</span>
+                </div>
+                <input type="range" id="speedSlider" min="15" max="180" value="65" class="w-full">
+                <div class="flex justify-between text-[10px] text-gray-500 font-mono">
+                    <span>Slow (15)</span>
+                    <span>Natural (65)</span>
+                    <span>Turbo (180)</span>
+                </div>
+            </div>
+
+            <!-- Output Duration Slider -->
+            <div class="space-y-1.5">
+                <div class="flex justify-between items-center text-xs">
+                    <label for="durationSlider" class="font-medium text-gray-300">Output Display Duration</label>
+                    <span id="durationValue" class="font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">8 sec</span>
+                </div>
+                <input type="range" id="durationSlider" min="2" max="30" value="8" class="w-full">
+                <div class="flex justify-between text-[10px] text-gray-500 font-mono">
+                    <span>2s</span>
+                    <span>8s (Default)</span>
+                    <span>30s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Editors Section -->
+        <div class="p-4 space-y-4 flex-1">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Source Code Inputs</span>
+                <button id="btnLoadDemo" class="text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2 cursor-pointer">Restore Default Demo</button>
+            </div>
+
+            <!-- HTML Input -->
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <label for="inputHtml" class="text-xs font-mono font-medium text-rose-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-rose-500"></span> index.html
+                    </label>
+                    <span id="countHtml" class="text-[11px] font-mono text-gray-500">0 chars</span>
+                </div>
+                <textarea id="inputHtml" rows="5" spellcheck="false" placeholder="<!-- Enter HTML markup here -->"
+                    class="w-full bg-[#1a1d24] text-gray-200 font-mono text-xs p-3 rounded-xl border border-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y leading-relaxed"></textarea>
+            </div>
+
+            <!-- CSS Input -->
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <label for="inputCss" class="text-xs font-mono font-medium text-sky-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-sky-500"></span> style.css
+                    </label>
+                    <span id="countCss" class="text-[11px] font-mono text-gray-500">0 chars</span>
+                </div>
+                <textarea id="inputCss" rows="7" spellcheck="false" placeholder="/* Enter CSS styles here */"
+                    class="w-full bg-[#1a1d24] text-gray-200 font-mono text-xs p-3 rounded-xl border border-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y leading-relaxed"></textarea>
+            </div>
+
+            <!-- JS Input -->
+            <div class="space-y-1.5 pb-4">
+                <div class="flex items-center justify-between">
+                    <label for="inputJs" class="text-xs font-mono font-medium text-amber-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span> script.js
+                    </label>
+                    <span id="countJs" class="text-[11px] font-mono text-gray-500">0 chars</span>
+                </div>
+                <textarea id="inputJs" rows="5" spellcheck="false" placeholder="// Enter JavaScript here"
+                    class="w-full bg-[#1a1d24] text-gray-200 font-mono text-xs p-3 rounded-xl border border-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y leading-relaxed"></textarea>
+            </div>
+        </div>
+    </aside>
+
+    <!-- RIGHT AREA: RECORDING STAGE CANVAS -->
+    <main class="flex-1 flex flex-col items-center justify-center p-6 lg:p-10 bg-[#0d0f12] relative min-h-[760px]">
+        <!-- Subtle Radial Background Glow -->
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.06)_0%,transparent_65%)] pointer-events-none"></div>
+
+        <!-- External Recording Status Bar (Above Crop Area) -->
+        <div class="w-[360px] mb-3 flex items-center justify-between px-1 z-10">
+            <div class="flex items-center gap-2">
+                <span id="recDot" class="w-2.5 h-2.5 rounded-full bg-gray-600 transition-colors"></span>
+                <span id="statusText" class="text-xs font-mono font-medium text-gray-400">READY TO RECORD</span>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] font-mono text-gray-500">
+                <span id="timerText">0.0s</span>
+                <span>•</span>
+                <span>9:16 CROP</span>
+            </div>
+        </div>
+
+        <!-- FIXED 9:16 RECORDING STAGE (360px x 640px) -->
+        <div id="recordingStage" class="stage-container crop-guide rounded-2xl overflow-hidden bg-ide-bg relative flex flex-col select-none z-10 transition-shadow duration-300">
+
+            <!-- IDE WINDOW HEADER (macOS Controls + File Tabs) -->
+            <header class="bg-ide-header border-b border-ide-border shrink-0">
+                <!-- Top Window Bar -->
+                <div class="h-8 px-3.5 flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></span>
+                    </div>
+                    <div class="text-[11px] font-mono text-gray-400/90 tracking-tight truncate">
+                        shorts-demo — VS Code
+                    </div>
+                    <div class="w-10 text-right">
+                        <span id="headerBadge" class="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/5 text-gray-400">UTF-8</span>
+                    </div>
+                </div>
+
+                <!-- File Tabs Bar -->
+                <div class="flex bg-ide-darker border-t border-ide-border/60 text-[11px] font-mono overflow-x-auto no-scrollbar">
+                    <button id="tab-html" data-tab="html" class="tab-btn flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 border-r border-ide-border/60 bg-ide-tabActive text-white border-t-2 border-t-rose-500 transition-colors">
+                        <span class="text-rose-400 font-bold">&lt;&gt;</span>
+                        <span>index.html</span>
+                    </button>
+                    <button id="tab-css" data-tab="css" class="tab-btn flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 border-r border-ide-border/60 bg-ide-tabInactive text-gray-400 border-t-2 border-t-transparent transition-colors">
+                        <span class="text-sky-400 font-bold">#</span>
+                        <span>style.css</span>
+                    </button>
+                    <button id="tab-js" data-tab="js" class="tab-btn flex-1 py-2 px-2.5 flex items-center justify-center gap-1.5 bg-ide-tabInactive text-gray-400 border-t-2 border-t-transparent transition-colors">
+                        <span class="text-amber-400 font-bold">JS</span>
+                        <span>script.js</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- STAGE BODY: CODE EDITOR + LIVE PREVIEW + COUNTDOWN OVERLAY -->
+            <div class="relative flex-1 overflow-hidden bg-ide-bg">
+
+                <!-- 1. CODE EDITOR VIEW -->
+                <div id="editorView" class="absolute inset-0 flex flex-col transition-all duration-500 ease-out opacity-100 scale-100">
+                    <!-- Breadcrumb Bar -->
+                    <div class="h-6 px-3 bg-ide-bg border-b border-ide-border/40 flex items-center justify-between text-[10px] font-mono text-gray-500 shrink-0">
+                        <span id="breadcrumbPath">src &gt; index.html</span>
+                        <span id="cursorPos">Ln 1, Col 1</span>
+                    </div>
+
+                    <!-- Unified Scrollable Code Area (Line Numbers + Code Rows Locked Together) -->
+                    <div id="codeScrollArea" class="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 font-mono text-[12px] leading-[19.2px] box-border">
+                        <div id="codeLinesContainer" class="flex flex-col w-full">
+                            <div class="editor-row active-line">
+                                <div class="editor-gutter-cell">1</div>
+                                <div class="editor-code-cell"><span id="typingCursor" class="typing-cursor"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IDE Bottom Status Footer -->
+                    <div class="h-6 px-3 bg-[#21252b] border-t border-ide-border flex items-center justify-between text-[10px] font-mono text-gray-400 shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span id="langLabel">HTML</span>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span>Spaces: 2</span>
+                            <span class="text-emerald-400">Prettier ✓</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. LIVE OUTPUT PREVIEW VIEW (Sandboxed Iframe) -->
+                <div id="previewView" class="absolute inset-0 bg-black flex flex-col transition-all duration-500 ease-out opacity-0 scale-95 pointer-events-none">
+                    <iframe id="previewFrame" sandbox="allow-scripts" class="w-full h-full border-0 bg-[#090d16]" title="Live Output Preview"></iframe>
+                </div>
+
+                <!-- 3. 3-SECOND COUNTDOWN OVERLAY -->
+                <div id="countdownOverlay" class="absolute inset-0 bg-[#14171d]/90 backdrop-blur-md flex flex-col items-center justify-center z-30 hidden">
+                    <div class="text-xs font-mono uppercase tracking-[0.2em] text-blue-400 mb-3">Recording Starts In</div>
+                    <div id="countdownNumber" class="text-7xl font-bold text-white font-mono countdown-digit">3</div>
+                    <div class="mt-5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-gray-400 font-mono">
+                        Frame 360 × 640 Ready
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- External Output Hold Progress Bar (Outside Crop Area) -->
+        <div class="w-[360px] mt-3 space-y-1.5 z-10">
+            <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                <div id="progressBar" class="h-full w-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-100"></div>
+            </div>
+            <p class="text-[11px] text-center text-gray-500">
+                Tip: Crop your screen recorder right inside the blue/red frame border.
+            </p>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * DEFAULT DEMO CODE
+         * A visually striking, kinetic neon cyber-card optimized for a 360x640 vertical viewport.
+         */
+        const DEFAULT_DEMO = {
+            html: `<div class="scene">
+  <div class="glow-orb"></div>
+  <div class="card" id="card">
+    <div class="badge">LIVE DEMO</div>
+    <h2>Neon Pulse</h2>
+    <p>Pure HTML, CSS &amp; JS kinetic glow effect.</p>
+    <button id="pulseBtn">Trigger Pulse</button>
+  </div>
+</div>`,
+            css: `* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #07090e;
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.glow-orb {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #00f5d4, #7b2cbf, #ff006e, #00f5d4);
+  filter: blur(36px);
+  opacity: 0.75;
+  animation: spin 4s linear infinite;
+}
+
+.card {
+  position: relative;
+  width: 270px;
+  padding: 28px 24px;
+  border-radius: 24px;
+  background: rgba(15, 20, 32, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #00f5d4;
+  background: rgba(0, 245, 212, 0.12);
+  padding: 4px 10px;
+  border-radius: 99px;
+  margin-bottom: 14px;
+}
+
+h2 {
+  font-size: 26px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+p {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 22px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #07090e;
+  background: linear-gradient(90deg, #00f5d4, #00bbf9);
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}`,
+            js: `const card = document.getElementById('card');
+const btn = document.getElementById('pulseBtn');
+let hue = 0;
+
+function pulseEffect() {
+  hue = (hue + 65) % 360;
+  card.style.transform = 'scale(1.06)';
+  card.style.borderColor = \`hsl(\${hue}, 90%, 65%)\`;
+  setTimeout(() => {
+    card.style.transform = 'scale(1)';
+  }, 260);
+}
+
+btn.addEventListener('click', pulseEffect);
+
+// Auto-trigger kinetic demo pulses for video recording
+setInterval(pulseEffect, 1800);`
+        };
+
+        // DOM References
+        const inputHtml = document.getElementById('inputHtml');
+        const inputCss = document.getElementById('inputCss');
+        const inputJs = document.getElementById('inputJs');
+        const countHtml = document.getElementById('countHtml');
+        const countCss = document.getElementById('countCss');
+        const countJs = document.getElementById('countJs');
+
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const durationSlider = document.getElementById('durationSlider');
+        const durationValue = document.getElementById('durationValue');
+        const chkAutoLoop = document.getElementById('chkAutoLoop');
+
+        const btnStart = document.getElementById('btnStart');
+        const btnReset = document.getElementById('btnReset');
+        const btnInstantPreview = document.getElementById('btnInstantPreview');
+        const btnLoadDemo = document.getElementById('btnLoadDemo');
+
+        const recordingStage = document.getElementById('recordingStage');
+        const recDot = document.getElementById('recDot');
+        const statusText = document.getElementById('statusText');
+        const timerText = document.getElementById('timerText');
+        const progressBar = document.getElementById('progressBar');
+
+        const editorView = document.getElementById('editorView');
+        const previewView = document.getElementById('previewView');
+        const previewFrame = document.getElementById('previewFrame');
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownNumber = document.getElementById('countdownNumber');
+
+        const codeScrollArea = document.getElementById('codeScrollArea');
+        const codeLinesContainer = document.getElementById('codeLinesContainer');
+        let typingCursor = document.getElementById('typingCursor');
+        const breadcrumbPath = document.getElementById('breadcrumbPath');
+        const cursorPos = document.getElementById('cursorPos');
+        const langLabel = document.getElementById('langLabel');
+
+        const tabs = {
+            html: document.getElementById('tab-html'),
+            css: document.getElementById('tab-css'),
+            js: document.getElementById('tab-js')
+        };
+
+        // Simulation State
+        let simState = {
+            isRunning: false,
+            timers: [],
+            intervals: [],
+            startTime: 0,
+            clockInterval: null
+        };
+
+        /**
+         * Updates character counters next to each source input box.
+         */
+        function updateCharCounts() {
+            countHtml.textContent = `${inputHtml.value.length} chars`;
+            countCss.textContent = `${inputCss.value.length} chars`;
+            countJs.textContent = `${inputJs.value.length} chars`;
+        }
+
+        /**
+         * Escapes raw HTML characters before injecting syntax-highlighted spans.
+         */
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /**
+         * Lightweight regex-based syntax highlighter for HTML, CSS, and JavaScript.
+         */
+        function highlightSyntax(code, lang) {
+            let escaped = escapeHtml(code);
+
+            if (lang === 'html') {
+                // HTML Comments
+                escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="tok-comment">$1</span>');
+                // HTML Tags & Attributes
+                escaped = escaped.replace(/(&lt;\/?)([a-zA-Z0-9-]+)([\s\S]*?)(\/?&gt;)/g, (match, open, tag, attrs, close) => {
+                    const styledAttrs = attrs.replace(/([a-zA-Z-:]+)(=)(".*?"|'.*?')/g,
+                        '<span class="tok-attr">$1</span><span class="tok-punct">$2</span><span class="tok-str">$3</span>');
+                    return `<span class="tok-punct">${open}</span><span class="tok-tag">${tag}</span>${styledAttrs}<span class="tok-punct">${close}</span>`;
+                });
+                return escaped;
+            }
+
+            if (lang === 'css') {
+                // CSS Comments
+                escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="tok-comment">$1</span>');
+                // CSS Strings
+                escaped = escaped.replace(/(".*?"|'.*?')/g, '<span class="tok-str">$1</span>');
+                // CSS Selectors (before {)
+                escaped = escaped.replace(/^([^{}\n]+)(\{)/gm, '<span class="tok-sel">$1</span><span class="tok-punct">$2</span>');
+                // CSS Properties
+                escaped = escaped.replace(/([a-zA-Z-]+)(\s*:)/g, '<span class="tok-prop">$1</span>$2');
+                // Numbers & Units
+                escaped = escaped.replace(/\b(\d+(\.\d+)?(px|vh|vw|rem|em|%|s|deg)?)\b/g, '<span class="tok-num">$1</span>');
+                return escaped;
+            }
+
+            if (lang === 'js') {
+                // Single-line & Multi-line Comments
+                escaped = escaped.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, '<span class="tok-comment">$1</span>');
+                // Strings & Template Literals
+                escaped = escaped.replace(/(`[\s\S]*?`|".*?"|'.*?')/g, '<span class="tok-str">$1</span>');
+                // Keywords
+                escaped = escaped.replace(/\b(const|let|var|function|return|if|else|for|while|new|true|false|null|undefined|async|await)\b/g,
+                    '<span class="tok-kw">$1</span>');
+                // Function calls
+                escaped = escaped.replace(/\b([a-zA-Z_$][0-9a-zA-Z_$]*)(?=\s*\()/g, '<span class="tok-fn">$1</span>');
+                // Numbers
+                escaped = escaped.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+                return escaped;
+            }
+
+            return escaped;
+        }
+
+        /**
+         * Switches the active file tab styling in the IDE header.
+         */
+        function setActiveTab(lang) {
+            const borderColors = {
+                html: 'border-t-rose-500',
+                css: 'border-t-sky-500',
+                js: 'border-t-amber-400'
+            };
+
+            Object.keys(tabs).forEach(key => {
+                const btn = tabs[key];
+                btn.classList.remove('bg-ide-tabActive', 'text-white', 'border-t-rose-500', 'border-t-sky-500', 'border-t-amber-400');
+                btn.classList.add('bg-ide-tabInactive', 'text-gray-400', 'border-t-transparent');
+            });
+
+            const activeBtn = tabs[lang];
+            activeBtn.classList.remove('bg-ide-tabInactive', 'text-gray-400', 'border-t-transparent');
+            activeBtn.classList.add('bg-ide-tabActive', 'text-white', borderColors[lang]);
+
+            const meta = {
+                html: { path: 'src > index.html', label: 'HTML' },
+                css:  { path: 'src > style.css',  label: 'CSS' },
+                js:   { path: 'src > script.js',  label: 'JavaScript' }
+            };
+            breadcrumbPath.textContent = meta[lang].path;
+            langLabel.textContent = meta[lang].label;
+        }
+
+        /**
+         * Renders typed code as synchronized row pairs (gutter number + wrapped code line)
+         * inside a single unified scrollable container so soft-wrapping and scrolling never
+         * cause line numbers to drift out of alignment.
+         */
+        function renderEditorContent(text, lang) {
+            const wasActiveTyping = typingCursor && typingCursor.classList.contains('active-typing');
+
+            // Split raw text strictly on newline characters so every '\n' creates an exact new numbered line
+            const rawLines = text.split('\n');
+            const lineCount = rawLines.length;
+            const currentCol = rawLines[lineCount - 1].length + 1;
+
+            // Highlight full string first to preserve multi-line block comments (/* ... */ or <!-- ... -->)
+            const fullHighlighted = highlightSyntax(text, lang);
+            const highlightedLines = fullHighlighted.split('\n');
+
+            // Build paired row HTML so wrapped code lines push subsequent line numbers down automatically
+            let rowsHtml = '';
+            for (let i = 0; i < lineCount; i++) {
+                const isLastLine = i === lineCount - 1;
+                const lineContent = highlightedLines[i] !== undefined ? highlightedLines[i] : '';
+                const cursorMarkup = isLastLine
+                    ? `<span id="typingCursor" class="typing-cursor${wasActiveTyping ? ' active-typing' : ''}"></span>`
+                    : '';
+
+                rowsHtml += `<div class="editor-row${isLastLine ? ' active-line' : ''}">` +
+                    `<div class="editor-gutter-cell">${i + 1}</div>` +
+                    `<div class="editor-code-cell">${lineContent}${cursorMarkup}</div>` +
+                    `</div>`;
+            }
+
+            codeLinesContainer.innerHTML = rowsHtml;
+            typingCursor = document.getElementById('typingCursor');
+            cursorPos.textContent = `Ln ${lineCount}, Col ${currentCol}`;
+
+            // Keep active typing line comfortably visible inside the unified scroll container
+            codeScrollArea.scrollTop = codeScrollArea.scrollHeight;
+        }
+
+        /**
+         * Builds the isolated HTML document for the sandboxed iframe.
+         */
+        function buildCombinedSrcdoc() {
+            const html = inputHtml.value;
+            const css = inputCss.value;
+            const js = inputJs.value;
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>${css}</style>
+</head>
+<body>
+${html}
+<script>
+try {
+${js}
+} catch (err) {
+  console.error('Preview Script Error:', err);
+}
+<\/script>
+</body>
+</html>`;
+        }
+
+        /**
+         * Smoothly transitions from the IDE code editor to the live sandboxed iframe preview.
+         */
+        function showLivePreview() {
+            previewFrame.srcdoc = buildCombinedSrcdoc();
+
+            editorView.classList.remove('opacity-100', 'scale-100');
+            editorView.classList.add('opacity-0', 'scale-105', 'pointer-events-none');
+
+            previewView.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+            previewView.classList.add('opacity-100', 'scale-100');
+        }
+
+        /**
+         * Resets views back to the clean IDE code editor.
+         */
+        function showCodeEditor() {
+            previewView.classList.remove('opacity-100', 'scale-100');
+            previewView.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+            previewFrame.srcdoc = '';
+
+            editorView.classList.remove('opacity-0', 'scale-105', 'pointer-events-none');
+            editorView.classList.add('opacity-100', 'scale-100');
+        }
+
+        /**
+         * Clears all running timeouts/intervals cleanly.
+         */
+        function clearAllTimers() {
+            simState.timers.forEach(id => clearTimeout(id));
+            simState.intervals.forEach(id => clearInterval(id));
+            simState.timers = [];
+            simState.intervals = [];
+            if (simState.clockInterval) {
+                clearInterval(simState.clockInterval);
+                simState.clockInterval = null;
+            }
+        }
+
+        /**
+         * Updates the status header above the recording stage.
+         */
+        function setRecordingStatus(mode, label) {
+            statusText.textContent = label;
+            if (mode === 'recording') {
+                recordingStage.classList.add('recording');
+                recDot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse';
+                statusText.className = 'text-xs font-mono font-semibold text-red-400';
+            } else if (mode === 'countdown') {
+                recordingStage.classList.remove('recording');
+                recDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+                statusText.className = 'text-xs font-mono font-semibold text-amber-400';
+            } else if (mode === 'done') {
+                recordingStage.classList.remove('recording');
+                recDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                statusText.className = 'text-xs font-mono font-semibold text-emerald-400';
+            } else {
+                recordingStage.classList.remove('recording');
+                recDot.className = 'w-2.5 h-2.5 rounded-full bg-gray-600';
+                statusText.className = 'text-xs font-mono font-medium text-gray-400';
+            }
+        }
+
+        /**
+         * Resets the entire studio back to its initial idle state.
+         */
+        function resetSimulation() {
+            clearAllTimers();
+            simState.isRunning = false;
+
+            countdownOverlay.classList.add('hidden');
+            showCodeEditor();
+            setActiveTab('html');
+            renderEditorContent('', 'html');
+            typingCursor.classList.remove('active-typing');
+
+            setRecordingStatus('idle', 'READY TO RECORD');
+            timerText.textContent = '0.0s';
+            progressBar.style.width = '0%';
+
+            btnStart.disabled = false;
+            btnStart.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+
+        /**
+         * Runs the 3-second visual countdown before typing begins.
+         */
+        function runCountdown(onComplete) {
+            setRecordingStatus('countdown', 'GET READY...');
+            countdownOverlay.classList.remove('hidden');
+
+            let count = 3;
+            const renderDigit = (num) => {
+                countdownNumber.textContent = num;
+                countdownNumber.classList.remove('countdown-digit');
+                void countdownNumber.offsetWidth; // Trigger CSS animation reflow
+                countdownNumber.classList.add('countdown-digit');
+            };
+
+            renderDigit(count);
+
+            const step = () => {
+                count--;
+                if (count > 0) {
+                    renderDigit(count);
+                    simState.timers.push(setTimeout(step, 950));
+                } else {
+                    countdownOverlay.classList.add('hidden');
+                    onComplete();
+                }
+            };
+
+            simState.timers.push(setTimeout(step, 950));
+        }
+
+        /**
+         * Types out a single file's content character-by-character with realistic keystroke jitter.
+         */
+        function typeFileSequence(lang, content, onFileFinished) {
+            setActiveTab(lang);
+            renderEditorContent('', lang);
+            typingCursor.classList.add('active-typing');
+
+            let index = 0;
+            const totalChars = content.length;
+
+            const typeNextChar = () => {
+                if (!simState.isRunning) return;
+
+                if (index < totalChars) {
+                    index++;
+                    const currentSlice = content.slice(0, index);
+                    renderEditorContent(currentSlice, lang);
+
+                    // Compute realistic keystroke delay from slider speed (chars/sec)
+                    const cps = parseInt(speedSlider.value, 10) || 65;
+                    const baseDelay = 1000 / cps;
+                    const lastChar = content[index - 1];
+
+                    // Add slight organic human variance & micro-pauses on newlines/punctuation
+                    let jitter = baseDelay * (0.65 + Math.random() * 0.75);
+                    if (lastChar === '\n') jitter += baseDelay * 1.4;
+                    else if (lastChar === ';' || lastChar === '{' || lastChar === '}') jitter += baseDelay * 0.7;
+
+                    simState.timers.push(setTimeout(typeNextChar, Math.max(4, jitter)));
+                } else {
+                    typingCursor.classList.remove('active-typing');
+                    // Brief pause at end of file so viewer registers completion before tab switch
+                    simState.timers.push(setTimeout(onFileFinished, 420));
+                }
+            };
+
+            typeNextChar();
+        }
+
+        /**
+         * Main simulation orchestrator: Countdown -> Typing Queue -> Live Preview -> Hold -> Finish/Loop.
+         */
+        function startSimulation() {
+            if (simState.isRunning) {
+                resetSimulation();
+            }
+
+            // Prepare non-empty files in order: HTML -> CSS -> JS
+            const queue = [
+                { lang: 'html', code: inputHtml.value },
+                { lang: 'css',  code: inputCss.value },
+                { lang: 'js',   code: inputJs.value }
+            ].filter(item => item.code.trim().length > 0);
+
+            if (queue.length === 0) {
+                setRecordingStatus('idle', 'ADD CODE FIRST');
+                return;
+            }
+
+            resetSimulation();
+            simState.isRunning = true;
+            btnStart.disabled = true;
+            btnStart.classList.add('opacity-60', 'cursor-not-allowed');
+
+            // Total character count for global progress tracking
+            const totalAllChars = queue.reduce((sum, item) => sum + item.code.length, 0);
+            let typedSoFar = 0;
+
+            // Wrap renderEditorContent temporarily during run to update typing progress bar
+            const originalRender = renderEditorContent;
+
+            runCountdown(() => {
+                if (!simState.isRunning) return;
+
+                setRecordingStatus('recording', 'REC • TYPING CODE');
+                simState.startTime = performance.now();
+                simState.clockInterval = setInterval(() => {
+                    const elapsed = ((performance.now() - simState.startTime) / 1000).toFixed(1);
+                    timerText.textContent = `${elapsed}s`;
+                }, 100);
+
+                let fileIndex = 0;
+
+                const processNextFile = () => {
+                    if (!simState.isRunning) return;
+
+                    if (fileIndex < queue.length) {
+                        const currentFile = queue[fileIndex];
+                        const previousChars = typedSoFar;
+
+                        // Hook progress calculation
+                        renderEditorContent = (text, lang) => {
+                            originalRender(text, lang);
+                            const pct = Math.min(65, ((previousChars + text.length) / totalAllChars) * 65);
+                            progressBar.style.width = `${pct}%`;
+                        };
+
+                        typeFileSequence(currentFile.lang, currentFile.code, () => {
+                            typedSoFar += currentFile.code.length;
+                            fileIndex++;
+                            processNextFile();
+                        });
+                    } else {
+                        // Restore original render function
+                        renderEditorContent = originalRender;
+
+                        // Transition to Live Output Phase
+                        setRecordingStatus('recording', 'REC • LIVE PREVIEW');
+                        showLivePreview();
+
+                        const holdSeconds = parseInt(durationSlider.value, 10) || 8;
+                        const holdMs = holdSeconds * 1000;
+                        const holdStart = performance.now();
+
+                        const holdProgressInterval = setInterval(() => {
+                            if (!simState.isRunning) return;
+                            const elapsedHold = performance.now() - holdStart;
+                            const holdRatio = Math.min(1, elapsedHold / holdMs);
+                            progressBar.style.width = `${65 + holdRatio * 35}%`;
+                        }, 50);
+                        simState.intervals.push(holdProgressInterval);
+
+                        simState.timers.push(setTimeout(() => {
+                            clearInterval(holdProgressInterval);
+                            progressBar.style.width = '100%';
+
+                            if (chkAutoLoop.checked && simState.isRunning) {
+                                startSimulation();
+                            } else {
+                                clearAllTimers();
+                                simState.isRunning = false;
+                                setRecordingStatus('done', 'RECORDING COMPLETE');
+                                btnStart.disabled = false;
+                                btnStart.classList.remove('opacity-60', 'cursor-not-allowed');
+                            }
+                        }, holdMs));
+                    }
+                };
+
+                processNextFile();
+            });
+        }
+
+        /**
+         * Immediately renders the live output in the 9:16 stage without typing animation.
+         */
+        function triggerInstantPreview() {
+            resetSimulation();
+            setRecordingStatus('done', 'INSTANT PREVIEW');
+            progressBar.style.width = '100%';
+            showLivePreview();
+        }
+
+        /**
+         * Loads the pre-built demo snippet into the three editors.
+         */
+        function loadDefaultDemo() {
+            inputHtml.value = DEFAULT_DEMO.html;
+            inputCss.value = DEFAULT_DEMO.css;
+            inputJs.value = DEFAULT_DEMO.js;
+            updateCharCounts();
+            resetSimulation();
+        }
+
+        // Event Listeners
+        [inputHtml, inputCss, inputJs].forEach(el => {
+            el.addEventListener('input', updateCharCounts);
+        });
+
+        speedSlider.addEventListener('input', () => {
+            speedValue.textContent = `${speedSlider.value} chars/sec`;
+        });
+
+        durationSlider.addEventListener('input', () => {
+            durationValue.textContent = `${durationSlider.value} sec`;
+        });
+
+        btnStart.addEventListener('click', startSimulation);
+        btnReset.addEventListener('click', resetSimulation);
+        btnInstantPreview.addEventListener('click', triggerInstantPreview);
+        btnLoadDemo.addEventListener('click', loadDefaultDemo);
+
+        // Allow clicking tabs manually when simulation is idle to inspect code
+        Object.keys(tabs).forEach(lang => {
+            tabs[lang].addEventListener('click', () => {
+                if (simState.isRunning) return;
+                showCodeEditor();
+                setActiveTab(lang);
+                const map = { html: inputHtml.value, css: inputCss.value, js: inputJs.value };
+                renderEditorContent(map[lang], lang);
+            });
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDefaultDemo();
+            // Show initial HTML preview in editor so stage looks rich before pressing Start
+            setActiveTab('html');
+            renderEditorContent(DEFAULT_DEMO.html, 'html');
+        });
+    </script>
+</body>
+</html>
