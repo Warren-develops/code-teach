@@ -1,0 +1,3022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Live-Coding Tutorial Simulator — Flutter / Dart</title>
+<!-- Prism.js for syntax highlighting (loaded from CDN) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-dart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<style>
+/* ============================================================
+   VS CODE DARK+ FLUTTER / DART TUTORIAL SIMULATOR
+   Single-file application — Prism.js syntax highlighting
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #1e1e1e; color: #d4d4d4; font-size: 13px;
+  user-select: none; -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --vs-editor: #1e1e1e;
+  --vs-sidebar: #252526;
+  --vs-activity: #333333;
+  --vs-statusbar: #007acc;
+  --vs-tab-active: #1e1e1e;
+  --vs-tab-inactive: #2d2d2d;
+  --vs-border: #3c3c3c;
+  --vs-titlebar: #3c3c3c;
+  --vs-text: #d4d4d4;
+  --vs-muted: #858585;
+  --vs-line-active: rgba(255,255,255,0.06);
+  --vs-line-num: #858585;
+  --vs-line-num-active: #c6c6c6;
+  --vs-cursor: #aeafad;
+  --vs-terminal: #1e1e1e;
+  --py-blue: #4ec9b0;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--vs-editor); }
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  height: 30px; background: var(--vs-titlebar); display: flex; align-items: center;
+  font-size: 12px; color: #cccccc; flex-shrink: 0;
+}
+.titlebar-left, .titlebar-right { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.titlebar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.tb-menu-item { padding: 4px 8px; border-radius: 3px; cursor: default; }
+.tb-menu-item:hover { background: rgba(255,255,255,0.08); }
+.tb-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.tb-dot.red { background: #ff5f57; }
+.tb-dot.yellow { background: #febc2e; }
+.tb-dot.green { background: #28c840; }
+.tb-title { color: #cccccc; font-size: 12px; }
+
+/* ---------- Main body ---------- */
+.main-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ---------- Activity bar ---------- */
+.activity-bar {
+  width: 48px; background: var(--vs-activity); display: flex; flex-direction: column;
+  align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0;
+}
+.activity-icon {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  color: #858585; cursor: pointer; position: relative; transition: color .15s;
+}
+.activity-icon:hover { color: #fff; }
+.activity-icon.active { color: #fff; }
+.activity-icon.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.activity-icon svg { width: 24px; height: 24px; }
+.activity-spacer { flex: 1; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; background: var(--vs-sidebar); display: flex; flex-direction: column;
+  flex-shrink: 0; transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 0; }
+.sidebar-header {
+  height: 35px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font-size: 11px; letter-spacing: 0.5px; color: #bbbbbb;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.sidebar-header-actions { display: flex; gap: 6px; color: #858585; }
+.sidebar-header-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.sidebar-header-actions svg:hover { color: #fff; }
+.explorer { flex: 1; overflow-y: auto; font-size: 13px; padding-bottom: 12px; }
+.explorer-project { padding: 4px 14px; color: #cccccc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.tree-node {
+  display: flex; align-items: center; height: 22px; padding: 0 8px; cursor: pointer;
+  color: #cccccc; white-space: nowrap; position: relative;
+}
+.tree-node:hover { background: rgba(255,255,255,0.05); }
+.tree-node.active { background: #37373d; }
+.tree-chevron { width: 12px; display: inline-flex; align-items: center; justify-content: center; color: #858585; }
+.tree-chevron svg { width: 10px; height: 10px; transition: transform .15s; }
+.tree-chevron.collapsed svg { transform: rotate(-90deg); }
+.tree-icon { width: 16px; height: 16px; margin-right: 6px; flex-shrink: 0; }
+.tree-label { font-size: 13px; }
+
+/* ---------- Editor + Terminal split ---------- */
+.editor-area {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--vs-editor);
+}
+.tab-bar {
+  height: 35px; background: var(--vs-sidebar); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--vs-border); flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--vs-tab-inactive); color: #969696; border-right: 1px solid #252526;
+  font-size: 13px; cursor: pointer; white-space: nowrap; position: relative; min-width: 120px;
+}
+.tab.active { background: var(--vs-tab-active); color: #fff; }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #fff; }
+.tab-icon { width: 16px; height: 16px; }
+.tab-modified { width: 8px; height: 8px; border-radius: 50%; background: #c5c5c5; margin-left: auto; }
+.tab-modified.hidden { display: none; }
+.tab-close { color: #858585; opacity: 0; transition: opacity .1s; margin-left: 4px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+
+.editor-breadcrumbs {
+  height: 22px; background: var(--vs-editor); display: flex; align-items: center;
+  padding: 0 14px; font-size: 12px; color: #858585; border-bottom: 1px solid #252526; flex-shrink: 0; gap: 4px;
+}
+.editor-breadcrumbs svg { width: 12px; height: 12px; }
+.crumb-sep { color: #5a5a5a; }
+
+/* Editor takes top portion, terminal takes bottom */
+.editor-terminal-split {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.editor-scroll {
+  flex: 1; overflow: auto; position: relative; background: var(--vs-editor);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 14px; line-height: 19px; min-height: 0;
+}
+.editor-content { position: relative; min-width: 100%; min-height: 100%; padding: 8px 0 200px 0; }
+.line {
+  display: flex; align-items: flex-start; height: 19px; white-space: pre; position: relative;
+}
+.line.active-line { background: var(--vs-line-active); }
+.line-num {
+  width: 60px; text-align: right; padding-right: 16px; color: var(--vs-line-num);
+  user-select: none; flex-shrink: 0; font-size: 13px;
+}
+.line.active-line .line-num { color: var(--vs-line-num-active); }
+.line-code { position: relative; white-space: pre; flex: 1; padding-right: 14px; }
+.cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--vs-cursor);
+  vertical-align: text-bottom; margin-left: -1px; animation: blink 1s steps(1) infinite;
+  position: relative; top: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Prism override: token spans inherit our font */
+.line-code code, .line-code pre { background: transparent !important; font-family: inherit !important; font-size: inherit !important; padding: 0 !important; margin: 0 !important; }
+.line-code .token { background: transparent !important; }
+
+/* Autocomplete */
+.autocomplete {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  min-width: 260px; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 50; display: none; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+}
+.autocomplete.visible { display: block; }
+.ac-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; color: #cccccc;
+}
+.ac-item.selected { background: #04395e; }
+.ac-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ac-label { flex: 1; }
+.ac-detail { color: #858585; font-size: 11px; }
+.suggestion-doc {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  padding: 8px 12px; font-size: 12px; color: #cccccc; max-width: 320px; z-index: 60;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.suggestion-doc.visible { display: block; }
+
+/* ---------- Terminal panel ---------- */
+.terminal-panel {
+  height: 220px; min-height: 80px; background: var(--vs-terminal); border-top: 1px solid var(--vs-border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.terminal-header {
+  height: 30px; background: #252526; display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #cccccc;
+  border-bottom: 1px solid #1a1a1a; gap: 14px; flex-shrink: 0;
+}
+.terminal-tab { padding: 3px 8px; border-radius: 3px; cursor: pointer; color: #858585; }
+.terminal-tab.active { color: #fff; background: rgba(255,255,255,0.08); }
+.terminal-tab.active::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #54C5F8; margin-right: 6px; vertical-align: middle; }
+.terminal-actions { margin-left: auto; display: flex; gap: 8px; color: #858585; }
+.terminal-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.terminal-actions svg:hover { color: #fff; }
+.terminal-body {
+  flex: 1; overflow-y: auto; padding: 6px 12px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px; line-height: 18px; color: #cccccc;
+}
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-prompt { color: #4ec9b0; }
+.term-prompt-path { color: #9cdcfe; }
+.term-prompt-arrow { color: #dcdcaa; }
+.term-cmd { color: #d4d4d4; }
+.term-output { color: #cccccc; }
+.term-error { color: #f48771; }
+.term-success { color: #6a9955; }
+.term-info { color: #569cd6; }
+.term-cursor {
+  display: inline-block; width: 7px; height: 15px; background: #aeafad; vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite; margin-left: 2px;
+}
+.terminal-body .spinner-term { display: inline-block; color: #dcdcaa; }
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  height: 22px; background: var(--vs-statusbar); display: flex; align-items: center;
+  color: #fff; font-size: 12px; padding: 0 8px; gap: 14px; flex-shrink: 0;
+}
+.statusbar-item { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.statusbar-item svg { width: 14px; height: 14px; }
+.statusbar-spacer { flex: 1; }
+.statusbar-remote { background: #007acc; }
+
+/* ============================================================
+   PREVIEW / DOCS PANEL (right side, ~40%)
+   Shows rendered emulator output or rich-text docs
+   ============================================================ */
+.preview-area {
+  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  border-left: 1px solid var(--vs-border); flex-shrink: 0;
+}
+.preview-header {
+  height: 35px; background: #ececec; display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  border-bottom: 1px solid #d0d0d0; flex-shrink: 0;
+}
+.preview-title {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #555;
+}
+.preview-title svg { width: 16px; height: 16px; color: #02569B; }
+.preview-tabs { display: flex; gap: 4px; margin-left: auto; }
+.preview-tab {
+  padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; color: #555; background: transparent; border: 1px solid transparent;
+}
+.preview-tab.active { background: #fff; border-color: #d0d0d0; color: #007acc; font-weight: 600; }
+.preview-viewport {
+  flex: 1; position: relative; background: #fff; overflow: hidden;
+}
+.preview-iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+.preview-loading-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: none;
+  align-items: center; justify-content: center; z-index: 5;
+}
+.preview-loading-overlay.visible { display: flex; }
+.preview-loading-overlay .spinner {
+  width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: #007acc; border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-indicator {
+  font-size: 11px; color: #555; opacity: 0; transition: opacity .3s; padding: 0 6px; display: flex; align-items: center; gap: 4px;
+}
+.run-indicator.visible { opacity: 1; }
+.run-indicator svg { width: 12px; height: 12px; }
+.run-indicator.running svg { animation: spin 0.8s linear infinite; }
+
+/* ============================================================
+   SIMULATED MOUSE CURSOR
+   ============================================================ */
+.fake-cursor {
+  position: fixed; width: 22px; height: 22px; z-index: 9999; pointer-events: none;
+  transform: translate(-2px, -2px); transition: left .25s cubic-bezier(.4,0,.2,1), top .25s cubic-bezier(.4,0,.2,1), opacity .2s; opacity: 0;
+}
+.fake-cursor.visible { opacity: 1; }
+.fake-cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.fake-cursor.clicking { animation: clickPulse .25s ease; }
+@keyframes clickPulse { 0% { transform: translate(-2px,-2px) scale(1); } 50% { transform: translate(-2px,-2px) scale(0.75); } 100% { transform: translate(-2px,-2px) scale(1); } }
+.fake-cursor-ring { position: fixed; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; z-index: 9998; pointer-events: none; opacity: 0; transition: opacity .2s; }
+
+/* ============================================================
+   VISUAL OVERLAYS
+   ============================================================ */
+.overlay-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+.overlay-arrow { position: absolute; pointer-events: none; transition: opacity .3s; }
+.overlay-arrow.fade-out { opacity: 0; }
+.overlay-circle {
+  position: absolute; border: 2px solid #ffcc00; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.4); animation: pulseCircle 1.4s ease-in-out infinite;
+}
+@keyframes pulseCircle { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
+.overlay-highlight {
+  position: absolute; background: rgba(255, 204, 0, 0.18); border: 1px solid rgba(255,204,0,0.7);
+  border-radius: 3px; pointer-events: none; box-shadow: 0 0 14px rgba(255,204,0,0.35); animation: highlightPulse 1.4s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100% { box-shadow: 0 0 14px rgba(255,204,0,0.35); } 50% { box-shadow: 0 0 22px rgba(255,204,0,0.6); } }
+.overlay-label {
+  position: absolute; background: rgba(40,40,40,0.95); color: #ffcc00; padding: 5px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,204,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 260px;
+}
+.pointer-trail { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,204,0,0.6); pointer-events: none; z-index: 8999; }
+
+/* ============================================================
+   FLOATING CARDS
+   ============================================================ */
+.card-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9500; display: none;
+  align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s;
+}
+.card-overlay.visible { display: flex; opacity: 1; }
+.info-card {
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 18px; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); color: #d4d4d4; font-size: 13px; transform: scale(0.92);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.card-overlay.visible .info-card { transform: scale(1); }
+.info-card img, .info-card svg { width: 100%; max-height: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+.info-card h3 { color: #fff; font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+.info-card p { color: #cccccc; line-height: 1.5; }
+.code-card { font-family: "SF Mono", Menlo, monospace; }
+.code-card pre {
+  background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 10px; color: #d4d4d4;
+  font-size: 12px; overflow-x: auto; margin: 6px 0; white-space: pre;
+}
+.code-card .code-caption { color: #9cdcfe; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.code-card .code-output { color: #6a9955; font-size: 11px; font-style: italic; margin-top: 4px; }
+
+/* ============================================================
+   CHAPTER TRANSITION
+   ============================================================ */
+.chapter-transition {
+  position: fixed; inset: 0; background: #fff; z-index: 9700; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .35s;
+}
+.chapter-transition.visible { display: flex; opacity: 1; }
+.chapter-transition .ch-content { text-align: center; color: #000; padding: 40px; }
+.chapter-transition .ch-number { font-size: 18px; letter-spacing: 8px; color: #888; font-weight: 600; margin-bottom: 18px; text-transform: uppercase; }
+.chapter-transition .ch-title { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; text-transform: uppercase; }
+.chapter-transition .ch-bar { width: 60px; height: 4px; background: #000; margin: 24px auto 0; }
+.chapter-transition .ch-flutter-logo { margin-bottom: 18px; }
+.chapter-transition .ch-flutter-logo svg { width: 80px; height: 80px; }
+
+/* ============================================================
+   CAPTIONS
+   ============================================================ */
+.captions-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.78);
+  color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 16px; max-width: 70%; text-align: center;
+  z-index: 8500; display: none; pointer-events: none; line-height: 1.4;
+}
+.captions-bar.visible { display: block; }
+.captions-bar.hidden { display: none !important; }
+
+/* ============================================================
+   LIKE & SUBSCRIBE
+   ============================================================ */
+.subscribe-overlay {
+  position: fixed; top: 80px; right: 60px; z-index: 9600; display: none; flex-direction: column; gap: 10px;
+  align-items: flex-end; opacity: 0; transition: opacity .3s, transform .3s; transform: translateY(-10px);
+}
+.subscribe-overlay.visible { display: flex; opacity: 1; transform: translateY(0); }
+.sub-btn-row { display: flex; gap: 10px; align-items: center; }
+.yt-like { display: flex; align-items: center; gap: 6px; background: #fff; color: #0f0f0f; border: none; border-radius: 18px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.yt-like svg { width: 20px; height: 20px; }
+.yt-like.clicked { background: #065fd4; color: #fff; animation: btnClick .4s; }
+.yt-subscribe { display: flex; align-items: center; gap: 6px; background: #ff0000; color: #fff; border: none; border-radius: 18px; padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.yt-subscribe.clicked { background: #1c1c1c; animation: btnClick .4s; }
+.yt-subscribe.clicked::after { content: ' \2714'; }
+.yt-bell { background: #fff; color: #0f0f0f; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.yt-bell svg { width: 22px; height: 22px; }
+.yt-bell.clicked { animation: bellRing .6s ease; }
+@keyframes btnClick { 0% { transform: scale(1); } 50% { transform: scale(0.88); } 100% { transform: scale(1); } }
+@keyframes bellRing { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+.control-panel {
+  position: fixed; top: 50px; right: 16px; width: 320px; background: rgba(30,30,30,0.96);
+  border: 1px solid #3c3c3c; border-radius: 8px; z-index: 9800; box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  font-size: 12px; color: #d4d4d4; max-height: calc(100vh - 80px); overflow-y: auto;
+  transition: transform .25s, opacity .25s;
+}
+.control-panel.hidden { transform: translateX(340px); opacity: 0; pointer-events: none; }
+.cp-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  background: #252526; border-bottom: 1px solid #3c3c3c; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 1;
+}
+.cp-title { font-weight: 600; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.cp-title svg { width: 16px; height: 16px; color: #02569B; }
+.cp-collapse { background: transparent; border: none; color: #858585; cursor: pointer; padding: 2px; border-radius: 3px; }
+.cp-collapse:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cp-collapse svg { width: 14px; height: 14px; }
+.cp-section { padding: 12px 14px; border-bottom: 1px solid #2a2a2a; }
+.cp-section:last-child { border-bottom: none; }
+.cp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #858585; margin-bottom: 8px; font-weight: 600; }
+.cp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cp-row:last-child { margin-bottom: 0; }
+.cp-row label { flex: 1; color: #cccccc; font-size: 12px; }
+.cp-row input[type="range"] { width: 100px; accent-color: #007acc; }
+.cp-row input[type="text"], .cp-row select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; }
+.cp-row input[type="checkbox"] { accent-color: #007acc; width: 14px; height: 14px; }
+.cp-row .val-badge { background: #3c3c3c; color: #d4d4d4; border-radius: 3px; padding: 1px 6px; font-size: 11px; min-width: 32px; text-align: center; }
+.cp-btn { background: #0e639c; color: #fff; border: none; padding: 6px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.cp-btn:hover { background: #1177bb; }
+.cp-btn.secondary { background: #3a3d41; }
+.cp-btn.secondary:hover { background: #45494e; }
+.cp-btn.danger { background: #5a1d1d; }
+.cp-btn.danger:hover { background: #6e2424; }
+.cp-btn svg { width: 12px; height: 12px; }
+.cp-btn-row { display: flex; gap: 6px; }
+.cp-btn-row .cp-btn { flex: 1; }
+.cp-progress-section { padding: 10px 14px; background: #252526; }
+.cp-progress-bar { height: 6px; background: #3c3c3c; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.cp-progress-fill { height: 100%; background: linear-gradient(90deg, #02569B, #54C5F8); width: 0%; transition: width .3s; }
+.cp-time-display { display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-top: 4px; }
+.cp-chapter-display { font-size: 11px; color: #9cdcfe; margin-top: 4px; }
+.cp-rec-indicator { display: inline-flex; align-items: center; gap: 4px; color: #ff5252; font-size: 11px; font-weight: 600; }
+.cp-rec-indicator .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5252; animation: recBlink 1.2s infinite; }
+@keyframes recBlink { 50% { opacity: 0.3; } }
+
+.show-controls-btn {
+  position: fixed; top: 50px; right: 16px; width: 36px; height: 36px; background: rgba(30,30,30,0.95);
+  border: 1px solid #3c3c3c; border-radius: 50%; color: #fff; z-index: 9800; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.show-controls-btn.visible { display: flex; }
+.show-controls-btn:hover { background: #3a3d41; }
+.show-controls-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-screen {
+  position: fixed; inset: 0; background: #1e1e1e; z-index: 9990; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 30px; transition: opacity .4s;
+}
+.start-screen.hidden { opacity: 0; pointer-events: none; }
+.start-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 40px;
+  max-width: 640px; width: 100%; box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+}
+.start-card h1 {
+  color: #fff; font-size: 26px; margin-bottom: 6px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.start-card h1 .py-badge { background: #02569B; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.start-card .subtitle { color: #858585; margin-bottom: 24px; font-size: 13px; }
+.start-card .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 24px; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 11px; color: #858585; text-transform: uppercase; letter-spacing: .5px; }
+.config-field input, .config-field select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 3px; font-size: 13px; outline: none; }
+.config-field input:focus, .config-field select:focus { border-color: #02569B; }
+.config-field.full { grid-column: 1 / -1; }
+.start-btn {
+  width: 100%; background: #02569B; color: #fff; border: none; padding: 14px; border-radius: 6px;
+  font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 10px; transition: background .15s;
+}
+.start-btn:hover { background: #0468D7; }
+.start-btn svg { width: 20px; height: 20px; }
+.start-hint { color: #858585; font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+.start-hint kbd { background: #3c3c3c; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 11px; color: #d4d4d4; font-family: inherit; }
+
+/* ============================================================
+   FINISH SCREEN
+   ============================================================ */
+.finish-screen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9850; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .4s;
+}
+.finish-screen.visible { display: flex; opacity: 1; }
+.finish-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 44px;
+  max-width: 460px; text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.finish-card .check-circle { width: 64px; height: 64px; background: #107c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.finish-card .check-circle svg { width: 36px; height: 36px; color: #fff; }
+.finish-card h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+.finish-card p { color: #cccccc; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.finish-card .stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.finish-card .stat { text-align: center; }
+.finish-card .stat-val { color: #02569B; font-size: 22px; font-weight: 700; }
+.finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="tb-dot red"></span><span class="tb-dot yellow"></span><span class="tb-dot green"></span>
+    </div>
+    <div class="titlebar-center">
+      <span class="tb-menu-item">File</span><span class="tb-menu-item">Edit</span><span class="tb-menu-item">Selection</span>
+      <span class="tb-menu-item">View</span><span class="tb-menu-item">Go</span><span class="tb-menu-item">Run</span>
+      <span class="tb-menu-item">Terminal</span><span class="tb-menu-item">Help</span>
+    </div>
+    <div class="titlebar-right"><span class="tb-title">main.dart — Todo App — Visual Studio Code</span></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="main-body">
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></div>
+      <div class="activity-icon" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="activity-icon" title="Source Control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0.5"/></svg></div>
+      <div class="activity-icon" title="Extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 3l3 3-3 3M11 21l-3-3 3-3M3 11h7M21 13h-7M7 7l3 3M17 17l-3-3"/></svg></div>
+      <div class="activity-spacer"></div>
+      <div class="activity-icon" title="Accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div class="activity-icon" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <div class="sidebar-header-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="explorer-project">todo_app</div>
+        <div class="file-tree" id="file-tree">
+          <div class="tree-node" data-folder="lib">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">lib</span>
+          </div>
+          <div class="tree-node" data-folder="test">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">test</span>
+          </div>
+          <div class="tree-node" data-folder="android">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">android</span>
+          </div>
+          <div class="tree-node" data-file="pubspec.yaml">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">pubspec.yaml</span>
+          </div>
+          <div class="tree-node active" data-file="main.dart">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#02569B" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">main.dart</span>
+          </div>
+          <div class="tree-node" data-file="README.md">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">README.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor + Terminal -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="main.dart">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#02569B" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+          <span>main.dart</span>
+          <span class="tab-modified hidden" id="tab-modified"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+        <div class="tab" data-tab="pubspec.yaml">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+          <span>pubspec.yaml</span>
+          <span class="tab-modified hidden"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+      </div>
+      <div class="editor-breadcrumbs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg>
+        <span>todo_app</span><span class="crumb-sep">›</span><span>lib</span><span class="crumb-sep">›</span><span>main.dart</span>
+      </div>
+      <div class="editor-terminal-split">
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="editor-content" id="editor-content"></div>
+          <div class="autocomplete" id="autocomplete"></div>
+          <div class="suggestion-doc" id="suggestion-doc"></div>
+        </div>
+        <!-- Terminal -->
+        <div class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <span class="terminal-tab active">TERMINAL</span>
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <div class="terminal-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Docs panel -->
+    <div class="preview-area">
+      <div class="preview-header">
+        <div class="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#02569B" stroke-width="1.6"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/></svg>
+          <span>Emulator · Pixel 6 — API 34</span>
+        </div>
+        <div class="preview-tabs">
+          <div class="preview-tab active" data-ptab="output">Output</div>
+          <div class="preview-tab" data-ptab="docs">Docs</div>
+        </div>
+        <div class="run-indicator" id="run-indicator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+          Running
+        </div>
+      </div>
+      <div class="preview-viewport">
+        <iframe class="preview-iframe" id="preview-iframe" sandbox="allow-same-origin" title="Flutter emulator"></iframe>
+        <div class="preview-loading-overlay" id="preview-loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div class="statusbar-item statusbar-remote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3L4 7l4 4M16 3l4 4-4 4M14 4l-4 16"/></svg><span>Live Share</span></div>
+    <div class="statusbar-item" id="sb-cursor-pos">Ln 1, Col 1</div>
+    <div class="statusbar-item">Spaces: 2</div>
+    <div class="statusbar-item">UTF-8</div>
+    <div class="statusbar-item">Dart</div>
+    <div class="statusbar-item">LF</div>
+    <div class="statusbar-spacer"></div>
+    <div class="statusbar-item" id="sb-line-count">0 lines</div>
+    <div class="statusbar-item">Dart 3.2 · Flutter 3.16</div>
+    <div class="statusbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+</div>
+
+<!-- Simulated cursor -->
+<div class="fake-cursor" id="fake-cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M5 3l14 8-6 1 4 7-3 1-4-7-5 4z"/></svg></div>
+<div class="fake-cursor-ring" id="fake-cursor-ring"></div>
+
+<!-- Overlays -->
+<div class="overlay-layer" id="overlay-layer"></div>
+<div class="card-overlay" id="card-overlay"><div class="info-card" id="info-card"></div></div>
+<div class="chapter-transition" id="chapter-transition"><div class="ch-content"><div class="ch-flutter-logo" id="ch-flutter-logo"></div><div class="ch-number" id="ch-number">CHAPTER 01</div><div class="ch-title" id="ch-title">INTRODUCTION</div><div class="ch-bar"></div></div></div>
+<div class="captions-bar hidden" id="captions-bar"></div>
+<div class="subscribe-overlay" id="subscribe-overlay">
+  <div class="sub-btn-row">
+    <button class="yt-like" id="yt-like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11v9H4V11h3zm14-1l-1 8a2 2 0 0 1-2 2H9V11l4-7c.6 0 1 .4 1 1v4h6a1 1 0 0 1 1 1z"/></svg>Like</button>
+    <button class="yt-subscribe" id="yt-subscribe">Subscribe</button>
+    <button class="yt-bell" id="yt-bell" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0"/></svg></button>
+  </div>
+</div>
+
+<!-- Control panel -->
+<div class="control-panel" id="control-panel">
+  <div class="cp-header">
+    <div class="cp-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg><span>Recording Controls</span></div>
+    <button class="cp-collapse" id="cp-collapse" title="Hide (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="cp-progress-section">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="cp-rec-indicator" id="cp-rec"><span class="rec-dot"></span> STANDBY</span>
+      <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
+    </div>
+    <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Playback</div>
+    <div class="cp-btn-row" style="margin-bottom:6px;">
+      <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
+      <button class="cp-btn secondary" id="btn-pause" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>Pause</button>
+    </div>
+    <div class="cp-btn-row">
+      <button class="cp-btn secondary" id="btn-resume" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+      <button class="cp-btn danger" id="btn-restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 4v4h4"/></svg>Restart</button>
+    </div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Voice &amp; Narration</div>
+    <div class="cp-row"><label>Voice</label></div>
+    <div class="cp-row"><select id="cp-voice" style="flex:1;"></select></div>
+    <div class="cp-row"><label>Speed</label><input type="range" id="cp-rate" min="0.7" max="1.4" step="0.05" value="1.0"><span class="val-badge" id="cp-rate-val">1.0x</span></div>
+    <div class="cp-row"><label>Mute narration</label><input type="checkbox" id="cp-mute"></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-test-voice" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>Test Voice</button></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Typing</div>
+    <div class="cp-row"><label>Typing speed</label><input type="range" id="cp-typing" min="0.4" max="2.5" step="0.1" value="1.0"><span class="val-badge" id="cp-typing-val">1.0x</span></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Background Music (YouTube)</div>
+    <div class="cp-row"><input type="text" id="cp-music-url" placeholder="https://youtube.com/watch?v=..."></div>
+    <div class="cp-row"><label>Volume</label><input type="range" id="cp-music-vol" min="0" max="100" step="5" value="35"><span class="val-badge" id="cp-music-vol-val">35%</span></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-music-test" style="flex:1;">Test Music</button><button class="cp-btn secondary" id="btn-music-mute" style="flex:1;">Mute</button></div>
+    <div style="font-size:10px; color:#858585; margin-top:4px; line-height:1.4;" id="music-status">No music configured. Tutorial will run without background music.</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Display</div>
+    <div class="cp-row"><label>Captions</label><input type="checkbox" id="cp-captions" checked></div>
+    <div class="cp-row"><label>Visual effects</label><input type="checkbox" id="cp-effects" checked></div>
+    <div class="cp-row"><label>Simulated cursor</label><input type="checkbox" id="cp-cursor" checked></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Navigation</div>
+    <div class="cp-row"><label>Jump to chapter</label></div>
+    <div class="cp-row"><select id="cp-jump" style="flex:1;">
+      <option value="0">Ch 1 — Intro &amp; Project Setup</option>
+      <option value="1">Ch 2 — Dart Fundamentals</option>
+      <option value="2">Ch 3 — Widgets &amp; Layout</option>
+      <option value="3">Ch 4 — State &amp; ListView</option>
+      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
+      <option value="5">Ch 6 — Final App &amp; Walkthrough</option>
+    </select></div>
+    <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
+  </div>
+</div>
+
+<button class="show-controls-btn" id="show-controls-btn" title="Show controls (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+
+<!-- Finish screen -->
+<div class="finish-screen" id="finish-screen">
+  <div class="finish-card">
+    <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Tutorial Complete!</h2>
+    <p>Your Flutter Todo app is written, debugged, and running on the emulator. You learned Dart fundamentals, widgets, layout, state management, ListView, and fixed three real Flutter bugs.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
+      <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+    </div>
+    <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
+  </div>
+</div>
+
+<!-- Start screen -->
+<div class="start-screen" id="start-screen">
+  <div class="start-card">
+    <h1>
+      <svg viewBox="0 0 256 256" width="32" height="32" xmlns="http://www.w3.org/2000/svg"><path d="M144 32L32 144l48 48L240 32z" fill="#54C5F8"/><path d="M208 96l-48 48 48 48 48-48z" fill="#01579B"/><path d="M80 224l48-48-48-48-48 48z" fill="#02569B"/></svg>
+      VS Code Flutter Simulator
+      <span class="py-badge">Flutter 3.16</span>
+    </h1>
+    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live Flutter/Dart coding session in VS Code. Covers Dart fundamentals, widgets, layout, state management, ListView, and three debugging demos.</p>
+    <div class="config-grid">
+      <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
+      <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
+      <div class="config-field"><label>Typing speed</label><select id="ss-typing"><option value="0.6">Calm</option><option value="1.0" selected>Normal</option><option value="1.6">Quick</option><option value="2.2">Rapid</option></select></div>
+      <div class="config-field"><label>Captions</label><select id="ss-captions"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+      <div class="config-field full"><label>Background music (optional YouTube URL)</label><input type="text" id="ss-music" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div class="config-field"><label>Music volume</label><input type="range" id="ss-music-vol" min="0" max="100" value="35" style="width:100%;"></div>
+      <div class="config-field"><label>Visual effects</label><select id="ss-effects"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+    </div>
+    <button class="start-btn" id="btn-start-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="#ff5252" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>START RECORDING</button>
+    <div class="start-hint">Tip: press <kbd>H</kbd> during the tutorial to hide or restore the control panel.<br>Voices load from your browser's Web Speech API. Pick a Google / Microsoft neural voice for best results.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   FLUTTER / DART TUTORIAL SIMULATOR — JavaScript
+   Modules: EditorSimulator, PrismHighlighter, TypingEngine,
+   AutoCompleteEngine, SpeechController, AudioController,
+   TerminalController, PreviewController, VisualEffectsController,
+   TimelineEngine, RecordingControls
+   ============================================================ */
+'use strict';
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+function el(tag, props={}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') node.className = props[k];
+    else if (k === 'style') node.setAttribute('style', props[k]);
+    else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
+    else node[k] = props[k];
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+const STATE = {
+  started: false, paused: false, finished: false,
+  currentChapter: 0, eventIndex: 0, charIndex: 0, elapsedMs: 0,
+  typingSpeedMul: 1.0, speechRate: 1.0, captionsOn: true, effectsOn: true,
+  cursorOn: true, muteNarration: false, musicMuted: false, musicVolume: 0.35,
+};
+
+/* ============================================================
+   1. EDITOR SIMULATOR
+   Maintains the source document as an array of lines.
+   Renders with line numbers + Prism syntax highlighting + cursor.
+   ============================================================ */
+class EditorSimulator {
+  constructor() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.contentEl = $('#editor-content');
+    this.scrollEl = $('#editor-scroll');
+    this.autocompleteEl = $('#autocomplete');
+    this.suggestionDocEl = $('#suggestion-doc');
+    this.tabModified = $('#tab-modified');
+    this.sbCursor = $('#sb-cursor-pos');
+    this.sbLineCount = $('#sb-line-count');
+    this.modified = false;
+    this.highlighter = new PrismHighlighter();
+    this.render();
+  }
+
+  reset() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.modified = false;
+    this.setModified(false);
+    this.render();
+  }
+
+  setModified(m) {
+    this.modified = m;
+    if (m) this.tabModified.classList.remove('hidden');
+    else this.tabModified.classList.add('hidden');
+  }
+
+  getText() { return this.lines.join('\n'); }
+
+  insertText(text) {
+    for (const ch of text) {
+      const line = this.lines[this.cursorLine] || '';
+      if (ch === '\n') {
+        const before = line.slice(0, this.cursorCol);
+        const after = line.slice(this.cursorCol);
+        this.lines[this.cursorLine] = before;
+        this.lines.splice(this.cursorLine + 1, 0, after);
+        this.cursorLine++;
+        this.cursorCol = 0;
+      } else {
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol) + ch + line.slice(this.cursorCol);
+        this.cursorCol++;
+      }
+    }
+    this.setModified(true);
+  }
+
+  backspace(count=1) {
+    for (let i = 0; i < count; i++) {
+      if (this.cursorCol > 0) {
+        const line = this.lines[this.cursorLine];
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol - 1) + line.slice(this.cursorCol);
+        this.cursorCol--;
+      } else if (this.cursorLine > 0) {
+        const prev = this.lines[this.cursorLine - 1];
+        this.cursorCol = prev.length;
+        this.lines[this.cursorLine - 1] = prev + this.lines[this.cursorLine];
+        this.lines.splice(this.cursorLine, 1);
+        this.cursorLine--;
+      }
+    }
+    this.setModified(true);
+  }
+
+  setCursor(line, col) {
+    this.cursorLine = Math.max(0, Math.min(line, this.lines.length - 1));
+    const ll = this.lines[this.cursorLine] || '';
+    this.cursorCol = Math.max(0, Math.min(col, ll.length));
+  }
+
+  setContent(text) {
+    this.lines = text.split('\n');
+    if (this.lines.length === 0) this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.setModified(false);
+  }
+
+  render() {
+    const frag = document.createDocumentFragment();
+    const total = this.lines.length;
+    for (let i = 0; i < total; i++) {
+      const lineDiv = el('div', { class: 'line' + (i === this.cursorLine ? ' active-line' : '') });
+      const num = el('span', { class: 'line-num' }, String(i + 1));
+      const code = el('span', { class: 'line-code' });
+      if (i === this.cursorLine) {
+        code.innerHTML = this._insertCursorHtml(this.lines[i] || '');
+      } else {
+        code.innerHTML = this.highlighter.highlight(this.lines[i] || '');
+      }
+      lineDiv.appendChild(num);
+      lineDiv.appendChild(code);
+      frag.appendChild(lineDiv);
+    }
+    this.contentEl.innerHTML = '';
+    this.contentEl.appendChild(frag);
+    this.sbCursor.textContent = `Ln ${this.cursorLine + 1}, Col ${this.cursorCol + 1}`;
+    this.sbLineCount.textContent = `${total} lines`;
+    this._scrollToCursor();
+  }
+
+  _insertCursorHtml(line) {
+    // Highlight before/after the cursor position, drop the cursor span in between.
+    const before = line.slice(0, this.cursorCol);
+    const after = line.slice(this.cursorCol);
+    const beforeHtml = this.highlighter.highlight(before);
+    const afterHtml = this.highlighter.highlight(after);
+    return beforeHtml + '<span class="cursor"></span>' + afterHtml;
+  }
+
+  _scrollToCursor() {
+    const lineHeight = 19;
+    const targetTop = this.cursorLine * lineHeight;
+    const viewH = this.scrollEl.clientHeight;
+    if (targetTop < this.scrollEl.scrollTop + 40) {
+      this.scrollEl.scrollTop = Math.max(0, targetTop - 40);
+    } else if (targetTop > this.scrollEl.scrollTop + viewH - 80) {
+      this.scrollEl.scrollTop = targetTop - viewH + 80;
+    }
+    const approxColWidth = 7.8;
+    const targetLeft = this.cursorCol * approxColWidth;
+    if (targetLeft < this.scrollEl.scrollLeft + 80) {
+      this.scrollEl.scrollLeft = Math.max(0, targetLeft - 80);
+    } else if (targetLeft > this.scrollEl.scrollLeft + this.scrollEl.clientWidth - 100) {
+      this.scrollEl.scrollLeft = targetLeft - this.scrollEl.clientWidth + 100;
+    }
+  }
+
+  getLineRect(line) {
+    const lineDivs = this.contentEl.querySelectorAll('.line');
+    const lineDiv = lineDivs[line];
+    if (!lineDiv) return null;
+    return lineDiv.getBoundingClientRect();
+  }
+
+  getTokenRect(line, startCol, endCol) {
+    const lineRect = this.getLineRect(line);
+    if (!lineRect) return null;
+    const charWidth = 7.8;
+    return {
+      left: lineRect.left + 60 + startCol * charWidth,
+      top: lineRect.top,
+      right: lineRect.left + 60 + endCol * charWidth,
+      bottom: lineRect.bottom,
+      width: (endCol - startCol) * charWidth,
+      height: lineRect.height,
+    };
+  }
+}
+
+/* ============================================================
+   2. PRISM HIGHLIGHTER
+   Wraps Prism.js to highlight a single line of Dart (or yaml/bash)
+   safely, preserving character offsets for cursor insertion.
+   ============================================================ */
+class PrismHighlighter {
+  constructor() {
+    this.lang = 'dart';
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages.dart) || null;
+    this.ready = !!(window.Prism && this.grammar);
+  }
+
+  // Switch language by file extension or name. Returns true if a grammar loaded.
+  setLanguageByFile(filename) {
+    if (!filename) return this.setLanguage('dart');
+    if (/\.dart$/i.test(filename)) return this.setLanguage('dart');
+    if (/\.ya?ml$/i.test(filename)) return this.setLanguage('yaml');
+    if (/\.(sh|bash)$/i.test(filename)) return this.setLanguage('bash');
+    return this.setLanguage('dart');
+  }
+
+  setLanguage(lang) {
+    this.lang = lang;
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages[lang]) || null;
+    this.ready = !!(window.Prism && this.grammar);
+    return this.ready;
+  }
+
+  highlight(line) {
+    if (!line) return '';
+    if (!this.ready) return this._escape(line);
+    try {
+      // Prism.highlight returns HTML with token spans. Prism does its own
+      // escaping internally when tokenizing — passing the raw string is correct.
+      return window.Prism.highlight(line, this.grammar, this.lang);
+    } catch (e) {
+      return this._escape(line);
+    }
+  }
+
+  _escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+}
+
+/* ============================================================
+   3. TYPING ENGINE
+   Character-by-character typing with realistic human cadence.
+   ============================================================ */
+class TypingEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.paused = false;
+    this.cancelled = false;
+    this._pauseResolve = null;
+  }
+
+  reset() { this.cancelled = true; this._breakPause(); }
+  pause() { this.paused = true; }
+  resume() { this.paused = false; this._breakPause(); }
+  _breakPause() { if (this._pauseResolve) { const r = this._pauseResolve; this._pauseResolve = null; r(); } }
+
+  async _wait(ms) {
+    const slice = 30;
+    let remaining = ms;
+    while (remaining > 0 && !this.cancelled) {
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const step = Math.min(slice, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+
+  _charDelay(ch, prevCh, nextCh) {
+    const mul = 1 / STATE.typingSpeedMul;
+    let base = rand(40, 90);
+    if (prevCh === '(' || prevCh === ')' || prevCh === '[' || prevCh === ']' || prevCh === '{' || prevCh === '}' || prevCh === '=' || prevCh === ':') base += rand(30, 70);
+    if (ch === '\n') base = rand(120, 220);
+    if (prevCh === ',' || prevCh === ';') base += rand(30, 80);
+    if (ch === ' ' && nextCh === ' ') base = Math.min(base, 30);
+    // Brief hesitation after indentation (4 spaces)
+    return Math.max(20, base * mul);
+  }
+
+  async type(text) {
+    this.cancelled = false;
+    for (let i = 0; i < text.length; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const ch = text[i];
+      const prevCh = i > 0 ? text[i-1] : '';
+      const nextCh = i < text.length - 1 ? text[i+1] : '';
+      this.editor.insertText(ch);
+      this.editor.render();
+      await this._wait(this._charDelay(ch, prevCh, nextCh));
+    }
+  }
+
+  async typeLine(text, indent='') { await this.type('\n' + indent + text); }
+
+  async backspace(count=1) {
+    this.cancelled = false;
+    for (let i = 0; i < count; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      this.editor.backspace(1);
+      this.editor.render();
+      await this._wait(rand(45, 90));
+    }
+  }
+
+  async moveTo(line, col) {
+    this.editor.setCursor(line, col);
+    this.editor.render();
+    await this._wait(rand(120, 220));
+  }
+
+  async hesitate(ms) { await this._wait(ms || rand(300, 700)); }
+}
+
+/* ============================================================
+   4. AUTOCOMPLETE ENGINE
+   IntelliSense-style Dart/Flutter suggestions.
+   ============================================================ */
+class AutoCompleteEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.popup = $('#autocomplete');
+    this.docEl = $('#suggestion-doc');
+    this.visible = false;
+    this.selectedIdx = 0;
+    this.items = [];
+    this.suggestions = {
+      builtins: [
+        { label: 'print', detail: 'function', icon: 'fn' },
+        { label: 'debugPrint', detail: 'function', icon: 'fn' },
+        { label: 'toString', detail: 'method', icon: 'fn' },
+        { label: 'int', detail: 'type', icon: 'class' },
+        { label: 'double', detail: 'type', icon: 'class' },
+        { label: 'String', detail: 'type', icon: 'class' },
+        { label: 'bool', detail: 'type', icon: 'class' },
+        { label: 'num', detail: 'type', icon: 'class' },
+        { label: 'List', detail: 'class', icon: 'class' },
+        { label: 'Map', detail: 'class', icon: 'class' },
+        { label: 'Set', detail: 'class', icon: 'class' },
+        { label: 'Object', detail: 'class', icon: 'class' },
+        { label: 'dynamic', detail: 'type', icon: 'class' },
+        { label: 'Future', detail: 'class', icon: 'class' },
+        { label: 'Stream', detail: 'class', icon: 'class' },
+        { label: 'DateTime', detail: 'class', icon: 'class' },
+      ],
+      keywords: [
+        { label: 'void', detail: 'keyword', icon: 'kw' },
+        { label: 'var', detail: 'keyword', icon: 'kw' },
+        { label: 'final', detail: 'keyword', icon: 'kw' },
+        { label: 'const', detail: 'keyword', icon: 'kw' },
+        { label: 'late', detail: 'keyword', icon: 'kw' },
+        { label: 'static', detail: 'keyword', icon: 'kw' },
+        { label: 'class', detail: 'keyword', icon: 'kw' },
+        { label: 'extends', detail: 'keyword', icon: 'kw' },
+        { label: 'implements', detail: 'keyword', icon: 'kw' },
+        { label: 'with', detail: 'keyword', icon: 'kw' },
+        { label: 'enum', detail: 'keyword', icon: 'kw' },
+        { label: 'if', detail: 'keyword', icon: 'kw' },
+        { label: 'else', detail: 'keyword', icon: 'kw' },
+        { label: 'for', detail: 'keyword', icon: 'kw' },
+        { label: 'while', detail: 'keyword', icon: 'kw' },
+        { label: 'return', detail: 'keyword', icon: 'kw' },
+        { label: 'async', detail: 'keyword', icon: 'kw' },
+        { label: 'await', detail: 'keyword', icon: 'kw' },
+        { label: 'yield', detail: 'keyword', icon: 'kw' },
+        { label: 'true', detail: 'constant', icon: 'const' },
+        { label: 'false', detail: 'constant', icon: 'const' },
+        { label: 'null', detail: 'constant', icon: 'const' },
+        { label: 'this', detail: 'keyword', icon: 'kw' },
+        { label: 'super', detail: 'keyword', icon: 'kw' },
+        { label: 'new', detail: 'keyword', icon: 'kw' },
+      ],
+      dart: [
+        { label: 'void', detail: 'keyword', icon: 'kw' },
+        { label: 'int', detail: 'type', icon: 'class' },
+        { label: 'double', detail: 'type', icon: 'class' },
+        { label: 'String', detail: 'type', icon: 'class' },
+        { label: 'bool', detail: 'type', icon: 'class' },
+        { label: 'var', detail: 'keyword', icon: 'kw' },
+        { label: 'final', detail: 'keyword', icon: 'kw' },
+        { label: 'const', detail: 'keyword', icon: 'kw' },
+        { label: 'late', detail: 'keyword', icon: 'kw' },
+        { label: 'static', detail: 'keyword', icon: 'kw' },
+        { label: 'class', detail: 'keyword', icon: 'kw' },
+        { label: 'extends', detail: 'keyword', icon: 'kw' },
+        { label: 'implements', detail: 'keyword', icon: 'kw' },
+        { label: 'enum', detail: 'keyword', icon: 'kw' },
+        { label: 'Future', detail: 'class', icon: 'class' },
+        { label: 'Stream', detail: 'class', icon: 'class' },
+        { label: 'async', detail: 'keyword', icon: 'kw' },
+        { label: 'await', detail: 'keyword', icon: 'kw' },
+        { label: 'List', detail: 'class', icon: 'class' },
+        { label: 'Map', detail: 'class', icon: 'class' },
+        { label: 'Set', detail: 'class', icon: 'class' },
+      ],
+      flutter: [
+        { label: 'runApp', detail: 'function', icon: 'fn' },
+        { label: 'MaterialApp', detail: 'widget', icon: 'class' },
+        { label: 'Scaffold', detail: 'widget', icon: 'class' },
+        { label: 'AppBar', detail: 'widget', icon: 'class' },
+        { label: 'FloatingActionButton', detail: 'widget', icon: 'class' },
+        { label: 'Center', detail: 'widget', icon: 'class' },
+        { label: 'Column', detail: 'widget', icon: 'class' },
+        { label: 'Row', detail: 'widget', icon: 'class' },
+        { label: 'Text', detail: 'widget', icon: 'class' },
+        { label: 'TextField', detail: 'widget', icon: 'class' },
+        { label: 'ElevatedButton', detail: 'widget', icon: 'class' },
+        { label: 'ListView', detail: 'widget', icon: 'class' },
+        { label: 'ListTile', detail: 'widget', icon: 'class' },
+        { label: 'Icon', detail: 'widget', icon: 'class' },
+        { label: 'IconButton', detail: 'widget', icon: 'class' },
+        { label: 'StatelessWidget', detail: 'class', icon: 'class' },
+        { label: 'StatefulWidget', detail: 'class', icon: 'class' },
+        { label: 'State', detail: 'class', icon: 'class' },
+        { label: 'Widget', detail: 'type', icon: 'class' },
+        { label: 'BuildContext', detail: 'type', icon: 'class' },
+        { label: 'setState', detail: 'method', icon: 'fn' },
+      ],
+      methods: [
+        { label: 'build', detail: 'Widget method', icon: 'fn' },
+        { label: 'createState', detail: 'StatefulWidget method', icon: 'fn' },
+        { label: 'initState', detail: 'State method', icon: 'fn' },
+        { label: 'dispose', detail: 'State method', icon: 'fn' },
+        { label: 'setState', detail: 'State method', icon: 'fn' },
+        { label: 'add', detail: 'List method', icon: 'fn' },
+        { label: 'removeAt', detail: 'List method', icon: 'fn' },
+        { label: 'insert', detail: 'List method', icon: 'fn' },
+        { label: 'clear', detail: 'List method', icon: 'fn' },
+        { label: 'length', detail: 'List property', icon: 'fn' },
+        { label: 'isEmpty', detail: 'List property', icon: 'fn' },
+        { label: 'controller', detail: 'property', icon: 'fn' },
+        { label: 'toString', detail: 'Object method', icon: 'fn' },
+        { label: 'print', detail: 'function', icon: 'fn' },
+        { label: 'debugPrint', detail: 'function', icon: 'fn' },
+        { label: 'onPressed', detail: 'callback', icon: 'fn' },
+        { label: 'itemCount', detail: 'ListView property', icon: 'fn' },
+        { label: 'itemBuilder', detail: 'ListView callback', icon: 'fn' },
+      ],
+    };
+  }
+
+  _iconSvg(type) {
+    const colors = { fn: '#dcdcaa', class: '#4ec9b0', kw: '#c586c0', const: '#4fc1ff', mod: '#dcdcaa' };
+    const c = colors[type] || '#d4d4d4';
+    if (type === 'fn') return `<svg viewBox="0 0 16 16" fill="${c}"><path d="M2 8h12M8 2v12"/></svg>`;
+    if (type === 'class') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>`;
+    if (type === 'kw') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>`;
+    if (type === 'const') return `<svg viewBox="0 0 16 16" fill="${c}"><circle cx="8" cy="8" r="4"/></svg>`;
+    if (type === 'mod') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><path d="M2 4l6-2 6 2v8l-6 2-6-2z"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10"/></svg>`;
+  }
+
+  async show(listType='builtins', filter='', selectLabel=null) {
+    let list = this.suggestions[listType] || this.suggestions.builtins;
+    if (filter) list = list.filter(it => it.label.startsWith(filter));
+    if (list.length === 0) return;
+    this.items = list.slice(0, 8);
+    this.selectedIdx = 0;
+    if (selectLabel) {
+      const idx = this.items.findIndex(it => it.label === selectLabel);
+      if (idx !== -1) this.selectedIdx = idx;
+    }
+    this._render();
+    this._position();
+    this.popup.classList.add('visible');
+    this.visible = true;
+    await sleep(rand(350, 650));
+  }
+
+  _render() {
+    this.popup.innerHTML = '';
+    this.items.forEach((it, idx) => {
+      const item = el('div', { class: 'ac-item' + (idx === this.selectedIdx ? ' selected' : '') });
+      item.innerHTML = `<span class="ac-icon">${this._iconSvg(it.icon)}</span><span class="ac-label">${it.label}</span><span class="ac-detail">${it.detail}</span>`;
+      this.popup.appendChild(item);
+    });
+  }
+
+  _position() {
+    const rect = this.editor.getTokenRect(this.editor.cursorLine, this.editor.cursorCol, this.editor.cursorCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    let top = rect.bottom - editorRect.top + 4;
+    let left = rect.left - editorRect.left + 20;
+    const ph = this.popup.offsetHeight || 160;
+    const pw = this.popup.offsetWidth || 260;
+    if (top + ph > editorRect.height) top = rect.top - editorRect.top - ph - 4;
+    if (left + pw > editorRect.width) left = editorRect.width - pw - 10;
+    this.popup.style.top = top + 'px';
+    this.popup.style.left = left + 'px';
+  }
+
+  async showDoc(text) {
+    if (!text) return;
+    this.docEl.textContent = text;
+    this.docEl.classList.add('visible');
+    const acRect = this.popup.getBoundingClientRect();
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.docEl.style.top = (acRect.top - editorRect.top) + 'px';
+    this.docEl.style.left = (acRect.right - editorRect.left + 6) + 'px';
+    await sleep(rand(500, 900));
+  }
+
+  async moveDown() {
+    this.selectedIdx = (this.selectedIdx + 1) % this.items.length;
+    this._render();
+    await sleep(rand(80, 150));
+  }
+
+  async accept(typingEngine) {
+    if (!this.visible || this.items.length === 0) return;
+    const item = this.items[this.selectedIdx];
+    this.hide();
+    await typingEngine.type(item.label);
+    await sleep(rand(120, 220));
+  }
+
+  hide() {
+    this.popup.classList.remove('visible');
+    this.docEl.classList.remove('visible');
+    this.visible = false;
+  }
+}
+
+/* ============================================================
+   5. SPEECH CONTROLLER — Web Speech API with fallback timing
+   ============================================================ */
+class SpeechController {
+  constructor() {
+    this.synth = window.speechSynthesis;
+    this.voices = [];
+    this.selectedVoice = null;
+    this.muted = false;
+    this.rate = 1.0;
+    this.supported = !!this.synth;
+    this._loadVoices();
+    if (this.supported) this.synth.onvoiceschanged = () => this._loadVoices();
+  }
+
+  _loadVoices() {
+    if (!this.supported) return;
+    this.voices = this.synth.getVoices() || [];
+    if (!this.selectedVoice && this.voices.length) {
+      const prefs = [
+        v => /Google.*US.*English/i.test(v.name) && v.localService,
+        v => /Google.*English/i.test(v.name),
+        v => /Microsoft.*Aria|Microsoft.*Jenny|Microsoft.*Guy/i.test(v.name),
+        v => /Microsoft.*English/i.test(v.name),
+        v => /Samantha|Alex|Daniel|Karen/i.test(v.name),
+        v => v.lang && v.lang.startsWith('en') && v.localService,
+        v => v.lang && v.lang.startsWith('en'),
+      ];
+      for (const pred of prefs) {
+        const v = this.voices.find(pred);
+        if (v) { this.selectedVoice = v; break; }
+      }
+      if (!this.selectedVoice) this.selectedVoice = this.voices[0];
+    }
+  }
+
+  setVoice(uri) { const v = this.voices.find(v => v.voiceURI === uri); if (v) this.selectedVoice = v; }
+  setRate(r) { this.rate = r; }
+  setMuted(m) { this.muted = m; if (m) this.cancel(); }
+
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!text || !text.trim()) { resolve(); return; }
+      if (this.muted || !this.supported) {
+        const words = text.split(/\s+/).length;
+        const ms = Math.min(12000, Math.max(1500, words * 380 / this.rate));
+        sleep(ms).then(resolve);
+        return;
+      }
+      try {
+        this.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        if (this.selectedVoice) u.voice = this.selectedVoice;
+        u.rate = this.rate; u.pitch = 1.0; u.volume = 1.0;
+        const words = text.split(/\s+/).length;
+        const safetyMs = Math.min(20000, Math.max(4000, words * 600 / this.rate));
+        let done = false;
+        const safety = setTimeout(() => { if (!done) { done = true; this.cancel(); resolve(); } }, safetyMs);
+        u.onend = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        u.onerror = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        this.synth.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+
+  cancel() { if (this.supported) { try { this.synth.cancel(); } catch (e) {} } }
+  test() { this.speak("Hey there! This is your friendly Flutter instructor. Let's build an app together."); }
+}
+
+/* ============================================================
+   6. AUDIO CONTROLLER — YouTube background music
+   ============================================================ */
+class AudioController {
+  constructor() {
+    this.videoId = null; this.player = null; this.playerReady = false;
+    this.targetVolume = 35; this.ducked = false; this.apiLoading = false; this.apiLoaded = false;
+    this.containerEl = null; this.statusEl = $('#music-status');
+  }
+
+  _extractVideoId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  setUrl(url) {
+    const id = this._extractVideoId(url);
+    if (!id) { this.videoId = null; this._setStatus('Invalid or missing URL. Tutorial will run without music.'); return false; }
+    this.videoId = id;
+    this._setStatus('Music URL loaded. Click "Test Music" or start the tutorial to embed the player.');
+    return true;
+  }
+
+  setVolume(v) {
+    this.targetVolume = v;
+    if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.ducked ? Math.floor(v * 0.25) : v);
+  }
+
+  _setStatus(msg) { if (this.statusEl) this.statusEl.textContent = msg; }
+
+  _loadApi() {
+    if (this.apiLoaded || this.apiLoading) return Promise.resolve();
+    this.apiLoading = true;
+    return new Promise((resolve) => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.onerror = () => { this.apiLoading = false; resolve(); };
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => { this.apiLoaded = true; this.apiLoading = false; resolve(); };
+      setTimeout(() => { this.apiLoading = false; resolve(); }, 4000);
+    });
+  }
+
+  async initPlayer() {
+    if (!this.videoId) return false;
+    await this._loadApi();
+    if (!this.apiLoaded || !window.YT || !window.YT.Player) { this._setStatus('YouTube API could not be loaded. Running without background music.'); return false; }
+    if (!this.containerEl) {
+      this.containerEl = el('div', { id: 'yt-player-container', style: 'position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; opacity:0; pointer-events:none;' });
+      document.body.appendChild(this.containerEl);
+      const inner = el('div', { id: 'yt-player-inner' });
+      this.containerEl.appendChild(inner);
+    }
+    return new Promise((resolve) => {
+      try {
+        this.player = new window.YT.Player('yt-player-inner', {
+          width: '200', height: '120', videoId: this.videoId,
+          playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => { this.playerReady = true; this.setVolume(this.targetVolume); this._setStatus('Background music player ready.'); resolve(true); },
+            onError: () => { this._setStatus('This video cannot be embedded as background music. Running without music.'); resolve(false); },
+          },
+        });
+        setTimeout(() => resolve(this.playerReady), 5000);
+      } catch (e) { this._setStatus('Player init failed. Running without music.'); resolve(false); }
+    });
+  }
+
+  async play() { if (!this.playerReady || !this.player) { const ok = await this.initPlayer(); if (!ok) return; } try { this.player.setVolume(this.ducked ? Math.floor(this.targetVolume * 0.25) : this.targetVolume); if (this.player.playVideo) this.player.playVideo(); } catch (e) {} }
+  pause() { if (this.playerReady && this.player && this.player.pauseVideo) { try { this.player.pauseVideo(); } catch (e) {} } }
+  duck() { this.ducked = true; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(Math.floor(this.targetVolume * 0.25)); }
+  unduck() { this.ducked = false; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.targetVolume); }
+  stop() { this.pause(); }
+  async test() { if (!this.videoId) { this._setStatus('Enter a YouTube URL first.'); return; } await this.play(); }
+}
+
+/* ============================================================
+   7. TERMINAL CONTROLLER
+   Simulated integrated terminal showing commands + output.
+   ============================================================ */
+class TerminalController {
+  constructor() {
+    this.body = $('#terminal-body');
+    this.indicator = $('#run-indicator');
+    this.history = [];
+  }
+
+  reset() {
+    this.body.innerHTML = '';
+    this.history = [];
+    this._printPrompt();
+  }
+
+  _printPrompt(path='~/todo_app') {
+    const line = el('div', { class: 'term-line' });
+    line.innerHTML = `<span class="term-prompt">(todo_app) </span><span class="term-prompt-path">${path}</span> <span class="term-prompt-arrow">$</span> `;
+    this.body.appendChild(line);
+    this._scroll();
+    return line;
+  }
+
+  _scroll() { this.body.scrollTop = this.body.scrollHeight; }
+
+  async typeCommand(cmd, path='~/todo_app') {
+    const line = this._printPrompt(path);
+    const cmdSpan = el('span', { class: 'term-cmd' });
+    line.appendChild(cmdSpan);
+    // type character by character
+    for (const ch of cmd) {
+      cmdSpan.textContent += ch;
+      this._scroll();
+      await sleep(rand(40, 90));
+    }
+    await sleep(rand(200, 400));
+  }
+
+  async printOutput(text, cls='term-output') {
+    const lines = text.split('\n');
+    for (const ln of lines) {
+      const line = el('div', { class: 'term-line ' + cls }, ln);
+      this.body.appendChild(line);
+      this._scroll();
+      await sleep(rand(30, 80));
+    }
+  }
+
+  async printError(text) { await this.printOutput(text, 'term-error'); }
+  async printSuccess(text) { await this.printOutput(text, 'term-success'); }
+  async printInfo(text) { await this.printOutput(text, 'term-info'); }
+
+  async showRunIndicator(ms) {
+    this.indicator.classList.add('visible', 'running');
+    await sleep(ms || rand(600, 1200));
+    this.indicator.classList.remove('running');
+    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+  }
+
+  async newPrompt(path='~/todo_app') {
+    await sleep(rand(150, 300));
+    this._printPrompt(path);
+  }
+
+  clear() { this.body.innerHTML = ''; this._printPrompt(); }
+}
+
+/* ============================================================
+   8. VISUAL EFFECTS CONTROLLER
+   ============================================================ */
+class VisualEffectsController {
+  constructor(editor) {
+    this.editor = editor;
+    this.overlay = $('#overlay-layer');
+    this.cardOverlay = $('#card-overlay');
+    this.infoCard = $('#info-card');
+    this.chapterTrans = $('#chapter-transition');
+    this.chNumber = $('#ch-number');
+    this.chTitle = $('#ch-title');
+    this.chLogo = $('#ch-flutter-logo');
+    this.captions = $('#captions-bar');
+    this.fakeCursor = $('#fake-cursor');
+    this.cursorRing = $('#fake-cursor-ring');
+    this.subscribeOverlay = $('#subscribe-overlay');
+    this.ytLike = $('#yt-like');
+    this.ytSubscribe = $('#yt-subscribe');
+    this.ytBell = $('#yt-bell');
+    this.activeOverlays = [];
+    this.trailTimer = null;
+    this._injectKeyframes();
+    this._setFlutterLogo();
+  }
+
+  _setFlutterLogo() {
+    // Flutter's stylized "F" logo — two angled blue shapes forming the F.
+    this.chLogo.innerHTML = `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+      <path d="M150 32L32 150l48 48L246 32z" fill="#54C5F8"/>
+      <path d="M200 80l-48 48 48 48 48-48z" fill="#01579B"/>
+      <path d="M80 224l48-48-48-48-48 48z" fill="#02569B"/>
+      <path d="M200 176l-48-48-48 48 48 48z" fill="#027DFD" opacity="0.85"/>
+    </svg>`;
+  }
+
+  _injectKeyframes() {
+    if (document.getElementById('flutterSimKF')) return;
+    const st = el('style', { id: 'flutterSimKF' });
+    st.textContent = '@keyframes dashMove { to { stroke-dashoffset: -20; } }';
+    document.head.appendChild(st);
+  }
+
+  reset() {
+    this.clearOverlays(); this.hideCard(); this.hideChapter();
+    this.hideCaptions(); this.hideCursor(); this.hideSubscribe();
+  }
+
+  showCursor() { if (STATE.cursorOn) this.fakeCursor.classList.add('visible'); }
+  hideCursor() { this.fakeCursor.classList.remove('visible'); }
+  setCursorOn(on) { STATE.cursorOn = on; if (on) this.fakeCursor.classList.add('visible'); else this.fakeCursor.classList.remove('visible'); }
+
+  async moveCursorTo(x, y, smooth=true) {
+    if (!STATE.cursorOn) return;
+    if (!smooth) { this.fakeCursor.style.transition = 'none'; this.cursorRing.style.transition = 'none'; }
+    else { this.fakeCursor.style.transition = ''; }
+    this.fakeCursor.style.left = x + 'px';
+    this.fakeCursor.style.top = y + 'px';
+    this.fakeCursor.classList.add('visible');
+    this.cursorRing.style.left = (x - 4) + 'px';
+    this.cursorRing.style.top = (y - 4) + 'px';
+    this.cursorRing.style.opacity = '0.6';
+    await sleep(smooth ? rand(280, 420) : 50);
+    this.cursorRing.style.opacity = '0';
+  }
+
+  async moveCursorToElement(sel, smooth=true) {
+    const target = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    await this.moveCursorTo(r.left + r.width/2, r.top + r.height/2, smooth);
+  }
+
+  async clickCursor() {
+    this.fakeCursor.classList.add('clicking');
+    await sleep(180);
+    this.fakeCursor.classList.remove('clicking');
+  }
+
+  startTrail() {
+    if (this.trailTimer) return;
+    this.trailTimer = setInterval(() => {
+      if (!STATE.cursorOn) return;
+      const r = this.fakeCursor.getBoundingClientRect();
+      const dot = el('div', { class: 'pointer-trail' });
+      dot.style.left = (r.left + 6) + 'px';
+      dot.style.top = (r.top + 6) + 'px';
+      dot.style.opacity = '0.6';
+      dot.style.transition = 'opacity .6s, transform .6s';
+      document.body.appendChild(dot);
+      requestAnimationFrame(() => { dot.style.opacity = '0'; dot.style.transform = 'scale(0.3)'; });
+      setTimeout(() => dot.remove(), 650);
+    }, 60);
+  }
+  stopTrail() { if (this.trailTimer) { clearInterval(this.trailTimer); this.trailTimer = null; } }
+
+  highlightRect(rect, opts={}) {
+    if (!STATE.effectsOn) return null;
+    const box = el('div', { class: 'overlay-highlight' });
+    box.style.left = (rect.left - 4) + 'px'; box.style.top = (rect.top - 4) + 'px';
+    box.style.width = (rect.width + 8) + 'px'; box.style.height = (rect.height + 8) + 'px';
+    this.overlay.appendChild(box);
+    this.activeOverlays.push(box);
+    return box;
+  }
+  highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+
+  circleRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const c = el('div', { class: 'overlay-circle' });
+    const pad = 8;
+    c.style.left = (rect.left - pad) + 'px'; c.style.top = (rect.top - pad) + 'px';
+    c.style.width = (rect.width + pad*2) + 'px'; c.style.height = (rect.height + pad*2) + 'px';
+    this.overlay.appendChild(c);
+    this.activeOverlays.push(c);
+    return c;
+  }
+
+  drawArrow(from, to, opts={}) {
+    if (!STATE.effectsOn) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'overlay-arrow');
+    svg.style.position = 'fixed'; svg.style.left = '0'; svg.style.top = '0';
+    svg.style.width = '100%'; svg.style.height = '100%'; svg.style.pointerEvents = 'none'; svg.style.zIndex = '9001';
+    const path = document.createElementNS(svgNS, 'path');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - 40;
+    path.setAttribute('d', `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`);
+    path.setAttribute('stroke', opts.color || '#ffcc00'); path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke-dasharray', '6 4');
+    path.style.animation = 'dashMove 0.8s linear infinite';
+    svg.appendChild(path);
+    const head = document.createElementNS(svgNS, 'polygon');
+    const ang = Math.atan2(to.y - my, to.x - mx), sz = 10;
+    head.setAttribute('points', `${to.x},${to.y} ${to.x - sz*Math.cos(ang-0.4)},${to.y - sz*Math.sin(ang-0.4)} ${to.x - sz*Math.cos(ang+0.4)},${to.y - sz*Math.sin(ang+0.4)}`);
+    head.setAttribute('fill', opts.color || '#ffcc00');
+    svg.appendChild(head);
+    document.body.appendChild(svg);
+    this.activeOverlays.push(svg);
+  }
+
+  arrowToToken(lineIdx, startCol, endCol, opts={}) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.drawArrow({ x: editorRect.left + 10, y: rect.top + rect.height/2 }, { x: rect.left, y: rect.top + rect.height/2 }, opts);
+    if (opts.label) this.addLabel(rect.left - 200, rect.top - 24, opts.label);
+  }
+
+  addLabel(x, y, text) {
+    if (!STATE.effectsOn) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = x + 'px'; lbl.style.top = y + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  labelToken(lineIdx, startCol, endCol, text) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = (rect.left + rect.width/2 - 80) + 'px';
+    lbl.style.top = (rect.top - 28) + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  clearOverlays() {
+    this.activeOverlays.forEach(o => { o.classList.add('fade-out'); setTimeout(() => o.remove(), 300); });
+    this.activeOverlays = [];
+  }
+
+  async showCard(opts) {
+    this.infoCard.innerHTML = '';
+    this.infoCard.className = 'info-card' + (opts.type === 'code' ? ' code-card' : '');
+    if (opts.title) this.infoCard.appendChild(el('h3', {}, opts.title));
+    if (opts.svg) { const wrap = el('div', { style: 'text-align:center;' }); wrap.innerHTML = opts.svg; this.infoCard.appendChild(wrap); }
+    else if (opts.imageUrl) { const img = el('img', { src: opts.imageUrl, alt: opts.title || '' }); img.onerror = () => { img.style.display = 'none'; }; this.infoCard.appendChild(img); }
+    if (opts.text) this.infoCard.appendChild(el('p', {}, opts.text));
+    if (opts.code) {
+      opts.code.forEach(c => {
+        this.infoCard.appendChild(el('div', { class: 'code-caption' }, c.caption));
+        const pre = el('pre'); pre.textContent = c.code;
+        this.infoCard.appendChild(pre);
+        if (c.output) this.infoCard.appendChild(el('div', { class: 'code-output' }, c.output));
+      });
+    }
+    this.cardOverlay.classList.add('visible');
+    await sleep(opts.duration || 2400);
+    this.hideCard();
+  }
+  hideCard() { this.cardOverlay.classList.remove('visible'); }
+
+  async showChapter(num, title) {
+    this.chNumber.textContent = 'CHAPTER ' + String(num).padStart(2, '0');
+    this.chTitle.textContent = title;
+    this.chapterTrans.classList.add('visible');
+    await sleep(2000);
+    this.chapterTrans.classList.remove('visible');
+    await sleep(350);
+  }
+  hideChapter() { this.chapterTrans.classList.remove('visible'); }
+
+  showCaption(text) {
+    if (!STATE.captionsOn || !text) { this.hideCaptions(); return; }
+    this.captions.textContent = text;
+    this.captions.classList.add('visible');
+    this.captions.classList.remove('hidden');
+  }
+  hideCaptions() { this.captions.classList.remove('visible'); }
+  setCaptionsOn(on) { STATE.captionsOn = on; if (!on) this.hideCaptions(); }
+  setEffectsOn(on) { STATE.effectsOn = on; if (!on) this.clearOverlays(); }
+
+  async showSubscribe() {
+    this.subscribeOverlay.classList.add('visible');
+    await sleep(400);
+    if (STATE.cursorOn) {
+      await this.moveCursorToElement(this.ytLike); await this.clickCursor();
+      this.ytLike.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytSubscribe); await this.clickCursor();
+      this.ytSubscribe.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytBell); await this.clickCursor();
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    } else {
+      this.ytLike.classList.add('clicked'); await sleep(400);
+      this.ytSubscribe.classList.add('clicked'); await sleep(400);
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    }
+    await sleep(1200);
+    this.subscribeOverlay.classList.remove('visible');
+    await sleep(300);
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+  hideSubscribe() {
+    this.subscribeOverlay.classList.remove('visible');
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+}
+
+/* ============================================================
+   9. PREVIEW CONTROLLER — renders Pygame "output" in iframe
+   ============================================================ */
+class PreviewController {
+  constructor(editor, terminal) {
+    this.editor = editor;
+    this.terminal = terminal;
+    this.iframe = $('#preview-iframe');
+    this.loading = $('#preview-loading');
+  }
+
+  // Render an HTML page that displays the given text output as a console-like view.
+  async renderOutput(outputText, title='Emulator') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 600));
+    const escaped = outputText
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#1e1e1e; color:#d4d4d4; font-family:"SF Mono",Menlo,Monaco,Consolas,monospace; font-size:13px; line-height:1.6; padding:16px; }
+        .console-header { color:#6a9955; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; border-bottom:1px solid #333; padding-bottom:8px; }
+        pre { margin:0; white-space:pre-wrap; word-break:break-word; }
+        .prompt { color:#4ec9b0; }
+      </style></head><body>
+      <div class="console-header">▶ ${title}</div>
+      <pre>${escaped}</pre>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  // Render a live animated game window (canvas). Legacy renderer retained from the
+  // shared engine; the Flutter timeline uses renderPhone instead.
+  // scene: { width, height, bg, player:{x,y,w,h,color}, enemies:[{x,y,w,h,color,dx,dy}],
+  //         coins:[{x,y,r,color}], score, label }
+  async renderGame(scene) {
+    this.loading.classList.add('visible');
+    await sleep(rand(400, 700));
+    const s = Object.assign({ width:480, height:320, bg:'#1a1a2e', score:0, label:'pygame window' }, scene || {});
+    const players = s.player ? [s.player] : [];
+    const enemies = s.enemies || [];
+    const coins = s.coins || [];
+    const esc = (v) => String(v);
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Game Window</title>
+      <style>
+        html,body { margin:0; padding:0; background:#0d0d0d; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:-apple-system,sans-serif; }
+        .gw-title { color:#21A179; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:6px 0; }
+        .gw-frame { border:2px solid #333; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,.6); }
+        canvas { display:block; background:${esc(s.bg)}; }
+        .gw-hud { color:#9cdcfe; font-size:12px; font-family:"SF Mono",monospace; padding:4px 10px; background:#1e1e1e; border-top:1px solid #333; display:flex; justify-content:space-between; }
+      </style></head><body>
+        <div class="gw-title">▶ ${esc(s.label)}</div>
+        <div class="gw-frame">
+          <canvas id="cv" width="${s.width}" height="${s.height}"></canvas>
+          <div class="gw-hud"><span>SCORE: <b id="score">${s.score}</b></span><span style="color:#6a9955;">running…</span></div>
+        </div>
+        <script>
+          (function(){
+            var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+            var W=${s.width}, H=${s.height};
+            var player=${JSON.stringify(players[0]||{x:30,y:140,w:30,h:30,color:'#21A179'})};
+            var enemies=${JSON.stringify(enemies)};
+            var coins=${JSON.stringify(coins)};
+            var score=${s.score};
+            var keys={};
+            window.addEventListener('keydown',function(e){ keys[e.key]=true; });
+            window.addEventListener('keyup',function(e){ keys[e.key]=false; });
+            function rect(a){ ctx.fillStyle=a.color||'#fff'; ctx.fillRect(a.x,a.y,a.w,a.h); }
+            function circle(c){ ctx.beginPath(); ctx.fillStyle=c.color||'#FFD43B'; ctx.arc(c.x,c.y,c.r||8,0,Math.PI*2); ctx.fill(); }
+            var t=0;
+            function loop(){
+              t++;
+              // move player with arrow keys
+              if(keys['ArrowLeft']) player.x-=3;
+              if(keys['ArrowRight']) player.x+=3;
+              if(keys['ArrowUp']) player.y-=3;
+              if(keys['ArrowDown']) player.y+=3;
+              player.x=Math.max(0,Math.min(W-player.w,player.x));
+              player.y=Math.max(0,Math.min(H-player.h,player.y));
+              // clear
+              ctx.fillStyle='${esc(s.bg)}'; ctx.fillRect(0,0,W,H);
+              // grid backdrop
+              ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+              for(var x=0;x<=W;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+              for(var y=0;y<=H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+              // coins (collect)
+              for(var i=coins.length-1;i>=0;i--){
+                circle(coins[i]);
+                coins[i].y+=Math.sin(t/20+i)*0.5;
+                if(player.x<coins[i].x+coins[i].r && player.x+player.w>coins[i].x-coins[i].r &&
+                   player.y<coins[i].y+coins[i].r && player.y+player.h>coins[i].y-coins[i].r){
+                  coins.splice(i,1); score+=10; document.getElementById('score').textContent=score;
+                }
+              }
+              // enemies
+              for(var j=0;j<enemies.length;j++){
+                var e=enemies[j];
+                e.x+=e.dx||0; e.y+=e.dy||0;
+                if(e.x<0||e.x+e.w>W) e.dx*=-1;
+                if(e.y<0||e.y+e.h>H) e.dy*=-1;
+                rect(e);
+              }
+              // player
+              rect(player);
+              requestAnimationFrame(loop);
+            }
+            loop();
+          })();
+        <\/script>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Game render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  // Render a phone/emulator mockup running a Flutter app described by `scene`.
+  // scene: { title, themeColor, items:[{text,done}], input, fab, snackbar }
+  async renderPhone(scene) {
+    this.loading.classList.add('visible');
+    await sleep(rand(400, 700));
+    const s = Object.assign({
+      title: 'Todo App', themeColor: '#02569B', items: [], input: '',
+      fab: true, snackbar: null,
+    }, scene || {});
+    const theme = s.themeColor || '#02569B';
+    const items = Array.isArray(s.items) ? s.items : [];
+    const esc = (v) => String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const itemsHtml = items.length === 0
+      ? `<div class="empty">No tasks yet. Tap + to add one.</div>`
+      : items.map((it) => {
+          const done = !!it.done;
+          const box = done
+            ? `<span class="cb cb-on">\u2713</span>`
+            : `<span class="cb cb-off"></span>`;
+          const txt = done
+            ? `<span class="task done">${esc(it.text)}</span>`
+            : `<span class="task">${esc(it.text)}</span>`;
+          return `<div class="tile">${box}${txt}</div>`;
+        }).join('');
+    const snackbarHtml = s.snackbar
+      ? `<div class="snack">${esc(s.snackbar)}</div>`
+      : '';
+    const fabHtml = s.fab ? `<div class="fab">+</div>` : '';
+    const inputHtml = s.input != null && s.input !== ''
+      ? `<div class="input-row"><span class="input-text">${esc(s.input)}</span><span class="caret"></span></div>`
+      : '';
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Emulator</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+          height: 100%; width: 100%; background: #d7dadf;
+          font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .stage { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .stage-label { color: #555; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+        .device {
+          width: 280px; height: 560px; background: #1c1c1c; border-radius: 36px;
+          padding: 10px; box-shadow: 0 14px 40px rgba(0,0,0,0.45), inset 0 0 0 2px #3a3a3a;
+          position: relative;
+        }
+        .screen {
+          width: 100%; height: 100%; background: #fafafa; border-radius: 28px;
+          overflow: hidden; display: flex; flex-direction: column; position: relative;
+        }
+        .statusbar {
+          height: 22px; background: ${theme}; color: #fff; font-size: 11px;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 12px; flex-shrink: 0; font-weight: 500;
+        }
+        .statusbar .sb-time { font-weight: 600; }
+        .statusbar .sb-icons { display: flex; gap: 4px; align-items: center; }
+        .appbar {
+          background: ${theme}; color: #fff; height: 52px; padding: 0 14px;
+          display: flex; align-items: center; font-size: 18px; font-weight: 500;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.18); flex-shrink: 0; z-index: 2;
+        }
+        .body { flex: 1; overflow-y: auto; background: #fafafa; padding: 6px 0; }
+        .tile {
+          display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+          border-bottom: 1px solid #eee; background: #fff;
+        }
+        .cb {
+          width: 22px; height: 22px; border-radius: 3px; border: 2px solid #bbb;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+          font-size: 14px; color: #fff; font-weight: 700;
+        }
+        .cb-on { background: ${theme}; border-color: ${theme}; }
+        .cb-off { background: transparent; }
+        .task { font-size: 15px; color: #212121; }
+        .task.done { text-decoration: line-through; color: #9e9e9e; }
+        .empty {
+          padding: 32px 16px; text-align: center; color: #9e9e9e; font-size: 13px;
+        }
+        .input-row {
+          background: #fff; border-top: 1px solid #eee; padding: 10px 14px;
+          display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+        }
+        .input-text { color: #757575; font-size: 14px; flex: 1; }
+        .caret { width: 2px; height: 16px; background: ${theme}; animation: blink 1s steps(1) infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .fab {
+          position: absolute; right: 16px; bottom: 16px; width: 52px; height: 52px;
+          border-radius: 50%; background: ${theme}; color: #fff; font-size: 28px;
+          font-weight: 300; display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 6px 14px rgba(0,0,0,0.3); z-index: 5; line-height: 1;
+        }
+        .snack {
+          position: absolute; left: 12px; right: 12px; bottom: 16px;
+          background: #323232; color: #fff; font-size: 13px; padding: 12px 14px;
+          border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.35); z-index: 6;
+        }
+        .nav { height: 0; }
+      </style></head><body>
+        <div class="stage">
+          <div class="stage-label">\u25b6 Pixel 6 \u00b7 API 34</div>
+          <div class="device">
+            <div class="screen">
+              <div class="statusbar"><span class="sb-time">9:41</span><span class="sb-icons">\u25cf\u25cf\u25cf \ud83d\udd0b</span></div>
+              <div class="appbar">${esc(s.title)}</div>
+              <div class="body">${itemsHtml}</div>
+              ${inputHtml}
+              ${fabHtml}
+              ${snackbarHtml}
+            </div>
+          </div>
+        </div>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Phone render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  async renderDocs(docHtml) {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 500));
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Docs</title>
+      <style>
+        body { margin:0; padding:24px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#222; line-height:1.6; font-size:14px; }
+        h1 { color:#02569B; margin-bottom:8px; } h2 { color:#02569B; margin:16px 0 8px; }
+        code { background:#f0f0f0; padding:2px 6px; border-radius:3px; font-family:"SF Mono",monospace; font-size:12px; color:#c7254e; }
+        pre { background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:6px; overflow-x:auto; }
+        pre code { background:transparent; color:inherit; padding:0; }
+      </style></head><body>${docHtml}</body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) {}
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+}
+
+/* ============================================================
+   10. TIMELINE ENGINE
+   Centralized event-driven controller.
+   ============================================================ */
+class TimelineEngine {
+  constructor(editor, typing, autocomplete, speech, audio, preview, terminal, fx) {
+    this.editor = editor; this.typing = typing; this.autocomplete = autocomplete;
+    this.speech = speech; this.audio = audio; this.preview = preview;
+    this.terminal = terminal; this.fx = fx;
+    this.events = []; this.chapterBoundaries = []; this.chapterSnapshots = [];
+    this.eventIdx = 0; this.running = false; this.paused = false; this.finished = false;
+    this.elapsedAccum = 0; this.lastResumeTime = 0; this.tickHandle = null;
+    this.onProgress = null; this.onChapterChange = null; this.onFinish = null; this.onStateChange = null;
+    this._cancelled = false;
+  }
+
+  setEvents(events, chapterBoundaries, snapshots) {
+    this.events = events; this.chapterBoundaries = chapterBoundaries;
+    this.chapterSnapshots = snapshots; this.eventIdx = 0;
+  }
+
+  get currentChapter() {
+    let ch = 0;
+    for (let i = 0; i < this.chapterBoundaries.length; i++) if (this.eventIdx >= this.chapterBoundaries[i]) ch = i;
+    return ch;
+  }
+
+  _emitState() {
+    if (this.onStateChange) this.onStateChange({
+      running: this.running, paused: this.paused, finished: this.finished,
+      eventIdx: this.eventIdx, total: this.events.length, chapter: this.currentChapter,
+      elapsed: this._elapsedMs(),
+    });
+  }
+
+  _elapsedMs() {
+    if (!this.running || this.paused) return this.elapsedAccum;
+    return this.elapsedAccum + (Date.now() - this.lastResumeTime);
+  }
+
+  _startTick() {
+    if (this.tickHandle) return;
+    this.tickHandle = setInterval(() => {
+      if (this.onProgress) this.onProgress({
+        eventIdx: this.eventIdx, total: this.events.length,
+        elapsed: this._elapsedMs(), chapter: this.currentChapter,
+      });
+    }, 250);
+  }
+  _stopTick() { if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; } }
+
+  async start(preserveIndex = false) {
+    if (this.running) return;
+    this.running = true; this.paused = false; this.finished = false; this._cancelled = false;
+    this.lastResumeTime = Date.now();
+    if (!preserveIndex) { this.elapsedAccum = 0; this.eventIdx = 0; }
+    this._startTick(); this._emitState();
+    await this._runLoop();
+  }
+
+  async _runLoop() {
+    while (this.eventIdx < this.events.length && !this._cancelled) {
+      while (this.paused && !this._cancelled) await sleep(80);
+      if (this._cancelled) break;
+      const ev = this.events[this.eventIdx];
+      if (this.onChapterChange && ev._chapterStart) this.onChapterChange(this.currentChapter);
+      await this._executeEvent(ev);
+      if (this._cancelled) break;
+      this.eventIdx++;
+    }
+    this._stopTick();
+    this.running = false;
+    if (!this._cancelled && this.eventIdx >= this.events.length) {
+      this.finished = true;
+      if (this.onFinish) this.onFinish();
+    }
+    this._emitState();
+  }
+
+  async _executeEvent(ev) {
+    if (this.paused) { while (this.paused && !this._cancelled) await sleep(80); if (this._cancelled) return; }
+    switch (ev.type) {
+      case 'SPEAK':
+        if (ev.caption != null) this.fx.showCaption(ev.caption);
+        else if (ev.text) this.fx.showCaption(ev.text);
+        if (this.audio) this.audio.duck();
+        await this.speech.speak(ev.text);
+        if (this.audio) this.audio.unduck();
+        break;
+      case 'TYPE': await this.typing.type(ev.text); break;
+      case 'TYPE_LINE': await this.typing.typeLine(ev.text, ev.indent || ''); break;
+      case 'BACKSPACE': await this.typing.backspace(ev.count || 1); break;
+      case 'MOVE_CURSOR':
+        if (ev.target) await this.fx.moveCursorToElement(ev.target);
+        else if (ev.x != null && ev.y != null) await this.fx.moveCursorTo(ev.x, ev.y);
+        break;
+      case 'EDITOR_CURSOR': await this.typing.moveTo(ev.line, ev.col); break;
+      case 'CLICK': await this.fx.clickCursor(); break;
+      case 'HESITATE': await this.typing.hesitate(ev.ms); break;
+      case 'SLEEP': await sleep(ev.ms || 300); break;
+
+      // --- Robust substring-based cursor positioning ---
+      case 'GOTO_AFTER_SUBSTRING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.substring);if(idx!==-1){foundLine=i;foundCol=idx+ev.substring.length;break;}}
+        if (foundLine!==-1) await this.typing.moveTo(foundLine, foundCol);
+        break;
+      }
+      case 'GOTO_END_OF_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) await this.typing.moveTo(found, this.editor.lines[found].length);
+        break;
+      }
+      case 'GOTO_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'INSERT_BEFORE_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found,0,(ev.indent||'')+ev.text); this.editor.setCursor(found,this.editor.lines[found].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'INSERT_AFTER_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found+1,0,(ev.indent||'')+ev.text); this.editor.setCursor(found+1,this.editor.lines[found+1].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'FIX_TOKEN': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.from);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1) {
+          this.fx.highlightToken(foundLine, foundCol, foundCol + ev.from.length);
+          await sleep(ev.highlightMs || 1500); this.fx.clearOverlays();
+          await this.typing.moveTo(foundLine, foundCol + ev.from.length);
+          await this.typing.backspace(ev.from.length);
+          await this.typing.type(ev.to);
+        }
+        break;
+      }
+
+      // --- Visual effects ---
+      case 'HIGHLIGHT_LINE': this.fx.highlightLine(ev.line); await sleep(ev.duration || 1500); this.fx.clearOverlays(); break;
+      case 'HIGHLIGHT_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1){this.fx.highlightLine(found); await sleep(ev.duration||1500); this.fx.clearOverlays();}
+        break;
+      }
+      case 'CIRCLE_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.circleRect(this.editor.getTokenRect(foundLine,foundCol,foundCol+ev.token.length));if(ev.label)this.fx.labelToken(foundLine,foundCol,foundCol+ev.token.length,ev.label);await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'ARROW_TO_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.arrowToToken(foundLine,foundCol,foundCol+ev.token.length,{label:ev.label});await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'CLEAR_OVERLAYS': this.fx.clearOverlays(); await sleep(150); break;
+      case 'SHOW_CARD': await this.fx.showCard(ev); break;
+      case 'SHOW_CODE_CARD': await this.fx.showCard(Object.assign({type:'code'},ev)); break;
+
+      // --- Autocomplete ---
+      case 'AUTOCOMPLETE':
+        await this.autocomplete.show(ev.listType||'builtins', ev.filter||'', ev.selectLabel||null);
+        if (ev.doc) await this.autocomplete.showDoc(ev.doc);
+        if (ev.moveDown) await this.autocomplete.moveDown();
+        if (ev.accept) await this.autocomplete.accept(this.typing);
+        else this.autocomplete.hide();
+        break;
+
+      // --- Terminal + preview ---
+      case 'TERM_TYPE': await this.terminal.typeCommand(ev.cmd, ev.path); break;
+      case 'TERM_OUTPUT': await this.terminal.printOutput(ev.text, ev.cls||'term-output'); break;
+      case 'TERM_ERROR': await this.terminal.printError(ev.text); break;
+      case 'TERM_SUCCESS': await this.terminal.printSuccess(ev.text); break;
+      case 'TERM_INFO': await this.terminal.printInfo(ev.text); break;
+      case 'TERM_RUN_INDICATOR': await this.terminal.showRunIndicator(ev.ms); break;
+      case 'TERM_NEW_PROMPT': await this.terminal.newPrompt(ev.path); break;
+      case 'TERM_CLEAR': this.terminal.clear(); break;
+      case 'RENDER_OUTPUT': await this.preview.renderOutput(ev.text, ev.title||'Emulator'); break;
+      case 'RENDER_DOCS': await this.preview.renderDocs(ev.html); break;
+      case 'RENDER_GAME': await this.preview.renderGame(ev.scene); break;
+      case 'RENDER_PHONE': await this.preview.renderPhone(ev.scene); break;
+
+      // --- Save / file state ---
+      case 'SAVE': this.editor.setModified(false); await sleep(400); break;
+
+      // --- Chapter / sidebar / music ---
+      case 'CHAPTER_TRANSITION':
+        if (this.audio) this.audio.pause();
+        await this.fx.showChapter(ev.num, ev.title);
+        if (this.audio && !this.paused) this.audio.play();
+        break;
+      case 'COLLAPSE_SIDEBAR': $('#sidebar').classList.add('collapsed'); await sleep(400); break;
+      case 'EXPAND_SIDEBAR': $('#sidebar').classList.remove('collapsed'); await sleep(300); break;
+      case 'START_MUSIC': if (this.audio) await this.audio.play(); break;
+      case 'STOP_MUSIC': if (this.audio) this.audio.pause(); break;
+      case 'DUCK_MUSIC': if (this.audio) this.audio.duck(); break;
+      case 'UNDUCK_MUSIC': if (this.audio) this.audio.unduck(); break;
+
+      case 'SHOW_SUBSCRIBE': await this.fx.showSubscribe(); break;
+      case 'CAPTION': this.fx.showCaption(ev.text); await sleep(ev.duration || 1500); break;
+      case 'HIDE_CAPTIONS': this.fx.hideCaptions(); break;
+      case 'FINISH':
+        if (this.audio) this.audio.stop();
+        this.fx.hideCaptions(); this.fx.clearOverlays();
+        if (this.onFinish) this.onFinish();
+        break;
+      default: break;
+    }
+  }
+
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    this.elapsedAccum += Date.now() - this.lastResumeTime;
+    this.typing.pause();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this._emitState();
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastResumeTime = Date.now();
+    this.typing.resume();
+    if (this.audio) this.audio.play();
+    this._emitState();
+  }
+
+  async restart() {
+    this._cancelled = true; this._stopTick();
+    await sleep(150);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.editor.reset();
+    this.autocomplete.hide();
+    this.terminal.reset();
+    this.preview.renderOutput('', 'Emulator');
+    this.eventIdx = 0; this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start();
+  }
+
+  async jumpToChapter(chIdx) {
+    if (chIdx < 0 || chIdx >= this.chapterBoundaries.length) return;
+    this._cancelled = true; this._stopTick();
+    await sleep(120);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this.fx.reset();
+    this.autocomplete.hide();
+    const snapshot = this.chapterSnapshots[chIdx];
+    if (snapshot != null) { this.editor.setContent(snapshot); this.editor.render(); }
+    else { this.editor.reset(); }
+    this.terminal.reset();
+    this.eventIdx = this.chapterBoundaries[chIdx];
+    this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start(true);
+  }
+
+  stop() {
+    this._cancelled = true; this._stopTick();
+    this.typing.cancelled = true; this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.running = false; this.paused = false;
+    this._emitState();
+  }
+}
+
+/* ============================================================
+   11. RECORDING CONTROLS
+   ============================================================ */
+class RecordingControls {
+  constructor(timeline, speech, audio) {
+    this.timeline = timeline; this.speech = speech; this.audio = audio;
+    this.panel = $('#control-panel'); this.showBtn = $('#show-controls-btn');
+    this.startScreen = $('#start-screen'); this.finishScreen = $('#finish-screen');
+    this._bindControls(); this._bindKeyboard(); this._populateVoices(); this._wireProgress();
+  }
+
+  _bindControls() {
+    $('#btn-start-rec').addEventListener('click', () => this._startFromConfig());
+    $('#btn-start').addEventListener('click', () => this._startFromConfig());
+    $('#btn-pause').addEventListener('click', () => this.timeline.pause());
+    $('#btn-resume').addEventListener('click', () => this.timeline.resume());
+    $('#btn-restart').addEventListener('click', () => this.timeline.restart());
+    $('#cp-collapse').addEventListener('click', () => this.hidePanel());
+    this.showBtn.addEventListener('click', () => this.showPanel());
+    $('#cp-voice').addEventListener('change', e => this.speech.setVoice(e.target.value));
+    $('#cp-rate').addEventListener('input', e => { const v = parseFloat(e.target.value); this.speech.setRate(v); $('#cp-rate-val').textContent = v.toFixed(2) + 'x'; });
+    $('#cp-mute').addEventListener('change', e => this.speech.setMuted(e.target.checked));
+    $('#btn-test-voice').addEventListener('click', () => this.speech.test());
+    $('#cp-typing').addEventListener('input', e => { const v = parseFloat(e.target.value); STATE.typingSpeedMul = v; $('#cp-typing-val').textContent = v.toFixed(1) + 'x'; });
+    $('#cp-music-url').addEventListener('change', e => this.audio.setUrl(e.target.value));
+    $('#cp-music-vol').addEventListener('input', e => { const v = parseInt(e.target.value); this.audio.setVolume(v); $('#cp-music-vol-val').textContent = v + '%'; });
+    $('#btn-music-test').addEventListener('click', () => this.audio.test());
+    $('#btn-music-mute').addEventListener('click', e => {
+      STATE.musicMuted = !STATE.musicMuted;
+      if (STATE.musicMuted) { this.audio.pause(); e.target.textContent = 'Unmute'; }
+      else { this.audio.play(); e.target.textContent = 'Mute'; }
+    });
+    $('#cp-captions').addEventListener('change', e => this.timeline.fx.setCaptionsOn(e.target.checked));
+    $('#cp-effects').addEventListener('change', e => this.timeline.fx.setEffectsOn(e.target.checked));
+    $('#cp-cursor').addEventListener('change', e => this.timeline.fx.setCursorOn(e.target.checked));
+    $('#btn-jump').addEventListener('click', () => { const ch = parseInt($('#cp-jump').value); this.timeline.jumpToChapter(ch); });
+    $('#btn-finish-close').addEventListener('click', () => this.finishScreen.classList.remove('visible'));
+  }
+
+  _bindKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); if (this.panel.classList.contains('hidden')) this.showPanel(); else this.hidePanel(); }
+      else if (e.key === ' ') { e.preventDefault(); if (this.timeline.running && !this.timeline.paused) this.timeline.pause(); else if (this.timeline.paused) this.timeline.resume(); }
+    });
+  }
+
+  hidePanel() { this.panel.classList.add('hidden'); this.showBtn.classList.add('visible'); }
+  showPanel() { this.panel.classList.remove('hidden'); this.showBtn.classList.remove('visible'); }
+
+  _populateVoices() {
+    const sel1 = $('#cp-voice'); const sel2 = $('#ss-voice');
+    const tryFill = () => {
+      const voices = this.speech.voices;
+      if (!voices.length) return false;
+      sel1.innerHTML = ''; sel2.innerHTML = '';
+      voices.forEach(v => {
+        const lbl = `${v.name} (${v.lang})${v.localService ? '' : ' [network]'}`;
+        const o1 = el('option', { value: v.voiceURI }, lbl);
+        const o2 = el('option', { value: v.voiceURI }, lbl);
+        if (this.speech.selectedVoice && v.voiceURI === this.speech.selectedVoice.voiceURI) { o1.selected = true; o2.selected = true; }
+        sel1.appendChild(o1); sel2.appendChild(o2);
+      });
+      return true;
+    };
+    if (!tryFill()) { let tries = 0; const iv = setInterval(() => { if (tryFill() || tries++ > 10) clearInterval(iv); }, 250); }
+    sel1.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel2.value = e.target.value; });
+    sel2.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel1.value = e.target.value; });
+  }
+
+  _wireProgress() {
+    this.timeline.onProgress = p => {
+      const pct = Math.min(100, (p.eventIdx / Math.max(1, p.total)) * 100);
+      $('#cp-progress-fill').style.width = pct + '%';
+      const sec = Math.floor(p.elapsed / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+    this.timeline.onChapterChange = ch => {
+      const names = ['Intro & Project Setup','Dart Fundamentals','Widgets & Layout','State & ListView','Debugging (3 Mistakes)','Final App & Walkthrough'];
+      $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
+      STATE.currentChapter = ch;
+    };
+    this.timeline.onStateChange = s => {
+      const recEl = $('#cp-rec'); const stateEl = $('#cp-state-label');
+      $('#btn-pause').disabled = !(s.running && !s.paused);
+      $('#btn-resume').disabled = !(s.running && s.paused);
+      if (!s.running && !s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> STANDBY';
+        recEl.style.color = '#858585';
+        recEl.querySelector('.rec-dot').style.background = '#858585';
+        stateEl.textContent = 'Not started';
+      } else if (s.paused) {
+        recEl.innerHTML = '<span class="rec-dot"></span> PAUSED';
+        recEl.style.color = '#febc2e';
+        recEl.querySelector('.rec-dot').style.background = '#febc2e';
+        stateEl.textContent = 'Paused';
+      } else if (s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> DONE';
+        recEl.style.color = '#107c10';
+        recEl.querySelector('.rec-dot').style.background = '#107c10';
+        stateEl.textContent = 'Complete';
+      } else {
+        recEl.innerHTML = '<span class="rec-dot"></span> REC';
+        recEl.style.color = '#ff5252';
+        recEl.querySelector('.rec-dot').style.background = '#ff5252';
+        stateEl.textContent = 'Recording';
+      }
+    };
+    this.timeline.onFinish = () => {
+      this.finishScreen.classList.add('visible');
+      const sec = Math.floor(this.timeline._elapsedMs() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#fs-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+  }
+
+  _startFromConfig() {
+    const ssVoice = $('#ss-voice').value;
+    const ssRate = parseFloat($('#ss-rate').value);
+    const ssTyping = parseFloat($('#ss-typing').value);
+    const ssCaptions = $('#ss-captions').value === '1';
+    const ssEffects = $('#ss-effects').value === '1';
+    const ssMusic = $('#ss-music').value;
+    const ssMusicVol = parseInt($('#ss-music-vol').value);
+    if (ssVoice) { $('#cp-voice').value = ssVoice; this.speech.setVoice(ssVoice); }
+    $('#cp-rate').value = ssRate; $('#cp-rate-val').textContent = ssRate.toFixed(2) + 'x'; this.speech.setRate(ssRate);
+    $('#cp-typing').value = ssTyping; $('#cp-typing-val').textContent = ssTyping.toFixed(1) + 'x'; STATE.typingSpeedMul = ssTyping;
+    $('#cp-captions').checked = ssCaptions; $('#cp-effects').checked = ssEffects; $('#cp-cursor').checked = true;
+    this.timeline.fx.setCaptionsOn(ssCaptions); this.timeline.fx.setEffectsOn(ssEffects); this.timeline.fx.setCursorOn(true);
+    if (ssMusic) {
+      $('#cp-music-url').value = ssMusic; this.audio.setUrl(ssMusic);
+      $('#cp-music-vol').value = ssMusicVol; $('#cp-music-vol-val').textContent = ssMusicVol + '%';
+      this.audio.setVolume(ssMusicVol); STATE.musicVolume = ssMusicVol / 100;
+    }
+    this.startScreen.classList.add('hidden');
+    setTimeout(() => this.startScreen.style.display = 'none', 500);
+    this.timeline.editor.reset();
+    this.timeline.terminal.reset();
+    this.timeline.fx.showCursor();
+    this.timeline.start();
+    if (ssMusic) setTimeout(() => this.audio.play(), 800);
+  }
+}
+
+/* ============================================================
+   FLUTTER / DART TUTORIAL TIMELINE DATA
+   6 chapters, ~10 minutes. Builds a Todo app with Flutter:
+   project setup, Dart fundamentals, widgets & layout, state &
+   ListView, 3 deliberate Flutter/Dart errors with fixes, and a
+   final app walkthrough.
+   ============================================================ */
+function buildTutorial() {
+  const events = [];
+  const chapterBoundaries = [];
+  const snapshots = [];
+  const E = (ev) => { events.push(ev); return ev; };
+  const chapterStart = (num, title, snapshot) => {
+    chapterBoundaries.push(events.length);
+    snapshots.push(snapshot || '');
+    E({ type: 'CHAPTER_TRANSITION', num, title, _chapterStart: true });
+  };
+
+  /* ======================================================================
+     CHAPTER 1 — INTRODUCTION & PROJECT SETUP  (0:00–1:30)
+     ====================================================================== */
+  chapterStart(1, 'Intro & Project Setup', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to learn Flutter — Google's UI toolkit for building beautiful native apps from a single Dart codebase. With Flutter you write one app and ship it to iOS, Android, web, and desktop. It uses the Skia rendering engine to draw every pixel itself, so your UI looks identical on every platform, and it has hot reload so you see changes in under a second." });
+  E({ type: 'SHOW_CARD', title: 'What is Flutter?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="M150 32L32 150l48 48L246 32z" fill="#54C5F8"/><path d="M200 80l-48 48 48 48 48-48z" fill="#01579B"/><path d="M80 224l48-48-48-48-48 48z" fill="#02569B"/></svg>`, text: 'Flutter was released by Google in 2017. It compiles Dart to native ARM code with ahead-of-time compilation for fast startup, but uses just-in-time compilation during development to power hot reload. Sound null safety is built into the type system, so null reference errors are caught at compile time. Everything on screen — text, buttons, padding — is a widget, composed into a tree.', duration: 2800 });
+  E({ type: 'SPEAK', text: "So this is VS Code with the Flutter extension installed. On the left is the file explorer with our todo underscore app project — a lib folder for our Dart code, a test folder, the android folder, and a pubspec dot yaml for dependencies. The middle is the editor showing main dot dart, the bottom is the terminal where we run flutter commands, and on the right is the emulator preview." });
+  E({ type: 'MOVE_CURSOR', target: '.sidebar' });
+  E({ type: 'CLICK' });
+  E({ type: 'SPEAK', text: "Let me collapse the sidebar to give us more room." });
+  E({ type: 'COLLAPSE_SIDEBAR' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-area' });
+  E({ type: 'SPEAK', text: "First, let me scaffold a fresh Flutter project from the terminal. The flutter create command generates the whole project structure for us." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter create todo_app' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Creating project todo_app...\n  todo_app/ (root)\n  todo_app/lib/main.dart\n  todo_app/test/widget_test.dart\n  todo_app/pubspec.yaml\nRunning "flutter pub get"...\nWrote 23 files.\nAll done!\nIn order to run your application, type:\n  $ cd todo_app\n  $ flutter run' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'TERM_TYPE', cmd: 'cd todo_app && flutter pub get' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Running "flutter pub get" in todo_app...\n  get dependencies...\nGot dependencies!' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Project created and dependencies fetched. Now let's write our first Flutter app — the smallest possible one. We import the material library, call run app with a widget, and that widget is a stateless MyApp that returns a MaterialApp." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'CLICK' });
+  E({ type: 'TYPE', text: "import 'package:flutter/material.dart';" });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'void main() => runApp(MyApp());', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'class MyApp extends StatelessWidget {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  @override', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  Widget build(BuildContext context) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    return MaterialApp(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      home: Scaffold(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        appBar: AppBar(title: Text(\'Todo\')),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        body: Center(child: Text(\'Hello, Flutter!\')),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    );', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'SPEAK', text: "So import package flutter material dot dart pulls in all the Material Design widgets. The main function is the entry point — the arrow is a shorthand for a one-line function body, so main just calls run app with an instance of MyApp. MyApp extends stateless widget, meaning its UI never changes after it's built. Every widget has a build method that takes a build context and returns a widget tree. Here we return a MaterialApp, which gives us a theme and navigation, with a Scaffold as the home. Scaffold provides the app structure — an app bar at the top and a body. The app bar shows a title Todo, and the body is a Center widget containing a Text widget." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'runApp(MyApp())', label: 'launch the Flutter app', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'extends StatelessWidget', label: 'a widget whose UI never changes', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'Widget build(BuildContext context)', label: 'describe the widget tree', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'Scaffold(', label: 'app structure: app bar + body', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'SPEAK', text: "Let me run it on the emulator." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Launching lib/main.dart on Pixel 6 in debug mode...\nBuilding Flutter app...\nSyncing files to device...\nFlutter run key commands.\nr Hot reload. \ud83d\udd25\ud83d\udd25 To hot reload changes, press "r".\nAn Observatory debugger and profiler is available.\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [], input: '', fab: false, snackbar: null } });
+  E({ type: 'SPEAK', text: "There it is — a phone running our app. A blue Material app bar titled Todo, and the body shows Hello, Flutter centered on the screen. That's the skeleton of every Flutter app. The build method describes the UI declaratively, and Flutter takes care of rendering, layout, and painting." });
+
+  /* ======================================================================
+     CHAPTER 2 — DART FUNDAMENTALS  (1:30–3:00)
+     ====================================================================== */
+  const snapshot2 = "import 'package:flutter/material.dart';\n\nvoid main() => runApp(MyApp());\n\nclass MyApp extends StatelessWidget {\n  @override\n  Widget build(BuildContext context) {\n    return MaterialApp(\n      home: Scaffold(\n        appBar: AppBar(title: Text('Todo')),\n        body: Center(child: Text('Hello, Flutter!')),\n      ),\n    );\n  }\n}\n";
+  chapterStart(2, 'Dart Fundamentals', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two. Dart fundamentals. Before we build a real UI, let's cover the Dart language itself. Dart is Google's language, syntactically similar to Java or JavaScript but with strong types and sound null safety. Get these basics down and the Flutter code reads naturally." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Dart essentials at a glance', code: [
+    { caption: 'Variables: var, final, const', code: "var name = 'Flutter';      // inferred String\nfinal pi = 3.14;          // set once, runtime\nconst speed = 299792458;  // compile-time constant" },
+    { caption: 'Null safety', code: "String? maybeName;        // can be null\nString name = 'Dash';     // cannot be null\nprint(maybeName?.length); // safe access\nprint(maybeName ?? 'none'); // default if null" },
+    { caption: 'Functions & named params', code: "int add(int a, {required int b}) => a + b;\nprint(add(1, b: 2)); // 3" },
+    { caption: 'Classes & constructor', code: "class Todo {\n  String text;\n  bool done;\n  Todo({required this.text, this.done = false});\n}" },
+    { caption: 'Async / await / Future', code: "Future<String> fetch() async {\n  await Future.delayed(Duration(seconds: 1));\n  return 'done';\n}" },
+  ], text: 'Dart uses var for inferred types, final for single-assignment, and const for compile-time constants. A type followed by a question mark is nullable. The fat arrow returns an expression. Named parameters use curly braces and required marks ones you must pass. Classes have a concise constructor syntax. Async code uses Future and await.', duration: 3200 });
+  E({ type: 'SPEAK', text: "Now let me add a Todo model class above MyApp. A Todo has a text string and a done boolean. I'll use a named constructor with required for text and a default of false for done." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'void main()' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: 'class Todo {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  final String text;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  bool done;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  Todo({required this.text, this.done = false});', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'SPEAK', text: "So class Todo defines our model. The fields are final String text — final means it can only be set once, in the constructor — and bool done, which we'll mutate when the user checks it off. The constructor uses Dart's concise syntax: Todo with curly braces for named parameters, required this dot text assigns the text argument directly to the field, and this dot done equals false gives done a default so callers can omit it." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'final String text;', label: 'immutable: set once', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'required this.text', label: 'named, required param', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'this.done = false', label: 'default value', duration: 1800 });
+  E({ type: 'SPEAK', text: "Let me also show null safety quickly. I'll add a couple of demo lines in main, then remove them." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'void main() => runApp(MyApp());' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '// Null safety demo', indent: '' });
+  E({ type: 'TYPE_LINE', text: "String? maybeNote;                 // nullable", indent: '' });
+  E({ type: 'TYPE_LINE', text: "print(maybeNote?.length ?? 0);    // safe: prints 0", indent: '' });
+  E({ type: 'SPEAK', text: "String question mark makes maybe note nullable — it can be null. The question mark dot operator safely accesses length and returns null if maybe note is null. Then double question mark gives a fallback of zero. So this prints zero without crashing. That's sound null safety — the compiler guarantees you never dereference null." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'String? maybeNote;', label: 'nullable type', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '?.length ?? 0', label: 'safe access + fallback', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded app in 412ms.\n0\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [], input: '', fab: false, snackbar: null } });
+  E({ type: 'SPEAK', text: "Hot reload in four hundred milliseconds, and the console printed zero from our null safety demo. The app still shows Hello Flutter. We've got a Todo model and the language basics. Time to build the real UI." });
+
+  /* ======================================================================
+     CHAPTER 3 — WIDGETS & LAYOUT  (3:00–4:30)
+     ====================================================================== */
+  const snapshot3 = snapshot2.replace("void main() => runApp(MyApp());\n", "void main() => runApp(MyApp());\n\n// Null safety demo\nString? maybeNote;                 // nullable\nprint(maybeNote?.length ?? 0);    // safe: prints 0\n");
+  chapterStart(3, 'Widgets & Layout', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three. Widgets and layout. In Flutter, everything is a widget. A button is a widget, padding is a widget, even the whole app is a widget. There are two kinds: stateless widgets, whose UI is fixed once built, and stateful widgets, whose UI can change over time. Every widget implements a build method that returns its child widget tree." });
+  E({ type: 'SHOW_CARD', title: 'StatelessWidget vs StatefulWidget', text: 'StatelessWidget: the build method runs once. The widget shows the same thing until it is recreated with new inputs. Use it for static UI like Text, Icon, or a label that never changes. StatefulWidget: pairs the widget with a State object that holds mutable data. When the data changes, call setState and Flutter re-runs build and repaints. Use it for anything interactive — a counter, a text field, a list that grows.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Let me remove those demo lines and replace MyApp's body with a new TodoHome widget — a StatefulWidget that will own our text field, the add button, and the list. First, clean up main." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: '// Null safety demo' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '// (null safety demo removed)', indent: '' });
+  E({ type: 'SPEAK', text: "Now I'll add the TodoHome widget at the bottom of the file. For now it just has a text field and a floating action button — no list yet. We'll add the list in chapter four." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'class MyApp extends StatelessWidget {' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'class TodoHome extends StatefulWidget {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  @override', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  State<TodoHome> createState() => _TodoHomeState();', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'class _TodoHomeState extends State<TodoHome> {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  final TextEditingController _controller = TextEditingController();', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  @override', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  Widget build(BuildContext context) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    return Scaffold(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      appBar: AppBar(title: Text(\'Todo\')),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      body: Padding(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        padding: EdgeInsets.all(16),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        child: Column(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '          children: [', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            TextField(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '              controller: _controller,', indent: '' });
+  E({ type: 'TYPE_LINE', text: "              decoration: InputDecoration(hintText: 'Add a new task...'),", indent: '' });
+  E({ type: 'TYPE_LINE', text: '            ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '          ],', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      floatingActionButton: FloatingActionButton(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        onPressed: () {},', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        child: Icon(Icons.add),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    );', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  }', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'SPEAK', text: "So TodoHome extends stateful widget. The create state method returns a new instance of the private state class, underscore TodoHome state. The state class holds mutable data — here a text editing controller for the input field. The build method returns a Scaffold with an app bar, a body that's a Padding widget wrapping a Column, and a floating action button. A Column stacks children vertically. Inside it we put a TextField bound to our controller. The floating action button has an on pressed callback — empty for now — and a child Icon widget showing a plus." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'extends StatefulWidget', label: 'UI changes over time', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'createState() => _TodoHomeState()', label: 'create the mutable state', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'TextEditingController', label: 'reads/writes the text field', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'FloatingActionButton(', label: 'the + button', duration: 1800 });
+  E({ type: 'SPEAK', text: "Now point MyApp at TodoHome instead of the placeholder." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: "body: Center(child: Text('Hello, Flutter!'))," });
+  E({ type: 'FIX_TOKEN', from: "Center(child: Text('Hello, Flutter!'))", to: 'TodoHome()', highlightMs: 1500 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [], input: 'Add a new task...', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "Now we have an input field reading Add a new task, and a blue floating action button with a plus in the corner. No list yet — that's next. Widgets compose by nesting: Scaffold contains a body, the body is Padding, Padding is Column, Column holds a TextField. Each widget does one job." });
+
+  /* ======================================================================
+     CHAPTER 4 — STATE & LISTVIEW  (4:30–6:00)
+     ====================================================================== */
+  const snapshot4 = snapshot3
+    .replace("// (null safety demo removed)\n", "")
+    .replace("      body: Center(child: Text('Hello, Flutter!')),\n", "      body: TodoHome(),\n")
+    + "\nclass TodoHome extends StatefulWidget {\n  @override\n  State<TodoHome> createState() => _TodoHomeState();\n}\n\nclass _TodoHomeState extends State<TodoHome> {\n  final TextEditingController _controller = TextEditingController();\n\n  @override\n  Widget build(BuildContext context) {\n    return Scaffold(\n      appBar: AppBar(title: Text('Todo')),\n      body: Padding(\n        padding: EdgeInsets.all(16),\n        child: Column(\n          children: [\n            TextField(\n              controller: _controller,\n              decoration: InputDecoration(hintText: 'Add a new task...'),\n            ),\n          ],\n        ),\n      ),\n      floatingActionButton: FloatingActionButton(\n        onPressed: () {},\n        child: Icon(Icons.add),\n      ),\n    );\n  }\n}\n";
+  chapterStart(4, 'State & ListView', snapshot4);
+  E({ type: 'SPEAK', text: "Chapter four. State and ListView. Right now our add button does nothing. To make the UI update when the user adds a task, we need mutable state and a way to tell Flutter to rebuild. That's what setState is for. And to show the tasks, we'll use a ListView dot builder, the efficient way to render a scrolling list." });
+  E({ type: 'SHOW_CARD', title: 'setState and ListView.builder', text: 'A StatefulWidget holds mutable fields in its State object. To change them and repaint, wrap the change in setState(() { ... }). setState marks the widget dirty, so Flutter re-runs build and diff-renders only what changed. ListView.builder lazily builds list items: give it an itemCount and an itemBuilder callback that returns the widget for each index. It only builds the items visible on screen, so a list of ten thousand scrolls smoothly.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Let me add a list of todos as state, an add item method that uses setState, and a ListView dot builder in the body. I'll insert the list field right after the controller." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'final TextEditingController _controller = TextEditingController();' });
+  E({ type: 'TYPE_LINE', text: '  final List<Todo> _items = [];', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'SPEAK', text: "Now the add item method. It reads the controller's text, creates a Todo, clears the field, and calls setState so the list rebuilds." });
+  E({ type: 'TYPE_LINE', text: '  void _addItem() {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    final text = _controller.text;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if (text.isEmpty) return;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    setState(() {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      _items.add(Todo(text: text));', indent: '' });
+  E({ type: 'TYPE_LINE', text: '      _controller.clear();', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    });', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  }', indent: '' });
+  E({ type: 'SPEAK', text: "Inside setState we mutate the list — add a new Todo — and clear the controller. Flutter sees setState, knows the state changed, and re-runs build. Without setState, the data would change but the UI would never refresh. That's the key idea of Flutter state." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'setState(() {', label: 'tell Flutter to rebuild', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '_items.add(Todo(text: text))', label: 'mutate the list', duration: 2000 });
+  E({ type: 'SPEAK', text: "Now wire the button to add item, and put a ListView dot builder in the body's Column. Let me update the on pressed callback first." });
+  E({ type: 'FIX_TOKEN', from: 'onPressed: () {},', to: 'onPressed: _addItem,', highlightMs: 1500 });
+  E({ type: 'SPEAK', text: "Now add the list below the text field inside the Column. I'll use Expanded so the list fills the remaining vertical space." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: "decoration: InputDecoration(hintText: 'Add a new task...')," });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '            ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            Expanded(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '              child: ListView.builder(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                itemCount: _items.length,', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                itemBuilder: (context, index) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                  final todo = _items[index];', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                  return ListTile(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                    leading: IconButton(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                      icon: Icon(todo.done', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                          ? Icons.check_box', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                          : Icons.check_box_outline_blank),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                      onPressed: () {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                        setState(() {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                          todo.done = !todo.done;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                        });', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                      },', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                    ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                    title: Text(', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                      todo.text,', indent: '' });
+  E({ type: 'TYPE_LINE', text: "                      style: TextStyle(", indent: '' });
+  E({ type: 'TYPE_LINE', text: '                        decoration: todo.done', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                            ? TextDecoration.lineThrough', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                            : TextDecoration.none,', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                      ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                    ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                  );', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                },', indent: '' });
+  E({ type: 'TYPE_LINE', text: '              ),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            ),', indent: '' });
+  E({ type: 'SPEAK', text: "ListView dot builder takes item count — the length of our list — and an item builder callback that receives the context and an index. For each item we return a ListTile. The leading property is an IconButton showing a checked or unchecked box depending on todo dot done, and pressing it toggles done inside setState. The title is a Text widget whose style adds line-through decoration when the todo is done — that's the strikethrough effect." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'ListView.builder(', label: 'lazy scrolling list', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'itemCount: _items.length', label: 'how many items', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'itemBuilder: (context, index)', label: 'build one row', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: "todo.done ? Icons.check_box", label: 'ternary picks the icon', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nItem added: Buy groceries\nItem added: Walk the dog\nItem added: Write tests\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:false}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false} ], input: 'Add a new task...', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "Now the list works. I typed Buy groceries and tapped plus — it appeared. Walk the dog, Write tests — all there. Tap the checkbox on one and it strikes through. State plus ListView plus setState: the foundation of every interactive Flutter screen." });
+
+  /* ======================================================================
+     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (6:00–7:30)
+     ====================================================================== */
+  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  E({ type: 'SPEAK', text: "Chapter five. Three Flutter and Dart mistakes that catch every beginner. I'll make each on purpose so you recognize the symptom and know the fix. Some Dart bugs stop the build with a clear analyzer error. Others are sneakier — the app runs fine, but nothing happens. Let's go." });
+
+  // ===== BUG #1: Forgetting setState() =====
+  E({ type: 'SPEAK', text: "Bug number one. Forgetting to wrap a mutation in setState. This is the classic silent Flutter bug. The app compiles, runs, no error — but when you tap add, nothing appears. Flutter has no idea the data changed, so it never rebuilds." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'void _addItem() {' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '  // BUG: mutates _items but never calls setState', indent: '' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'final text = _controller.text;' });
+  E({ type: 'FIX_TOKEN', from: 'setState(() {', to: '// setState(() {', highlightMs: 1200 });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '_controller.clear();' });
+  E({ type: 'FIX_TOKEN', from: '    });', to: '    // });', highlightMs: 1200 });
+  E({ type: 'SPEAK', text: "I commented out the setState wrapper, but left the add and clear calls. The list is still mutated in memory — but Flutter is never told, so build never re-runs, and the new item is invisible. Let's run it." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '// setState(() {', label: 'no rebuild = silent failure!', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nItem added in memory: Pay bills\n(no rebuild — UI did not update, no error thrown)\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:false}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false} ], input: '', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "See? No error in the console. The terminal even says item added in memory. But the list on screen still shows the same three items. The new one is in the list data, but the widget tree was never rebuilt to show it. Beginners stare at this for ages. The fix: wrap the mutation in setState." });
+  E({ type: 'FIX_TOKEN', from: '// setState(() {', to: 'setState(() {', highlightMs: 1500 });
+  E({ type: 'FIX_TOKEN', from: '    // });', to: '    });', highlightMs: 1500 });
+  E({ type: 'SPEAK', text: "Now Flutter knows the state changed, re-runs build, and the new item appears. Rule one of Flutter state: any change that should affect the UI must happen inside setState. Forget it and you get a silent, broken app." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nItem added: Pay bills\n(UI rebuilt — item now visible)\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:false}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false}, {text:'Pay bills', done:false} ], input: '', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "Fixed. Pay bills now shows up. setState is the bridge between your data and the screen." });
+
+  // ===== BUG #2: Non-nullable field not initialized =====
+  E({ type: 'SPEAK', text: "Bug number two. A non-nullable field with no initializer. Dart's sound null safety means a field declared as String — without a question mark — cannot be null and must be given a value before it's used. Forget to initialize it and the analyzer refuses to build, with a clear error telling you to run dart fix." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'final TextEditingController _controller = TextEditingController();' });
+  E({ type: 'TYPE_LINE', text: '  String newTaskTitle; // BUG: not initialized', indent: '' });
+  E({ type: 'SPEAK', text: "I added a String new task title field with no initializer and no late keyword. Because it's a non-nullable String, Dart demands a value. Let's see the build fail." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'String newTaskTitle; // BUG', label: 'non-nullable, no value!', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "lib/main.dart:42:10: Error: Field 'newTaskTitle' should be initialized because its type 'String' is non-nullable.\n  String newTaskTitle;\n         ^^^^^^^^^^^^^\nTry initializing the field, or making it nullable (String?), or marking it 'late'.\n\nError: Compilation failed.\nRun 'dart fix' to apply available fixes." });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "There it is — a compile error before the app even starts. The field new task title should be initialized because String is non-nullable. Dart gives us three fixes: give it a value, make it nullable with a question mark, or mark it late. I'll give it a default empty string — the simplest fix." });
+  E({ type: 'FIX_TOKEN', from: 'String newTaskTitle; // BUG: not initialized', to: "String newTaskTitle = '';", highlightMs: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:false}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false}, {text:'Pay bills', done:false} ], input: '', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "Builds again. Rule two of Dart: every non-nullable field needs a value. Sound null safety turns a whole class of null crashes into compile errors — annoying in the moment, but they save you from runtime null reference exceptions in production." });
+
+  // ===== BUG #3: build method doesn't return a Widget =====
+  E({ type: 'SPEAK', text: "Bug number three. A build method that doesn't return a Widget. Every build method must return a Widget — that's the whole contract. If you forget the return keyword, or your code path falls through, the analyzer catches it with a clear error about the return type." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'Widget build(BuildContext context) {' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '  // BUG: build does not return a Widget', indent: '' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'return Scaffold(' });
+  E({ type: 'FIX_TOKEN', from: '    return Scaffold(', to: '    Scaffold(', highlightMs: 1200 });
+  E({ type: 'SPEAK', text: "I removed the return keyword before Scaffold. Now build reaches the end without returning anything — which in Dart is implicitly null. But the method signature promises a Widget, a non-nullable type. Let's run it and watch the analyzer complain." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '    Scaffold(', label: 'no return = returns null!', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "lib/main.dart:60:5: Error: A value of type 'Null' can't be returned from method 'build' because it has a return type of 'Widget'.\n  Widget build(BuildContext context) {\n  ^\n\nThe method 'build' must return a Widget.\nTry adding a return statement, or changing the return type.\n\nError: Compilation failed." });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Crystal clear: a value of type Null can't be returned from build because it has a return type of Widget. The fix is to put the return keyword back. Every build method must return exactly one Widget." });
+  E({ type: 'FIX_TOKEN', from: '    Scaffold(', to: '    return Scaffold(', highlightMs: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Reloaded.\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:false}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false}, {text:'Pay bills', done:false} ], input: '', fab: true, snackbar: null } });
+  E({ type: 'SPEAK', text: "Runs again. Rule three of Flutter: every build method returns a Widget. The Dart analyzer is your friend — these three bugs were caught at compile time, not at runtime. The only sneaky one was the missing setState, which compiles fine but breaks the UI silently." });
+  E({ type: 'SPEAK', text: "Three bugs, three fixes. Missing setState is silent — the app runs but the UI never updates. An uninitialized non-nullable field fails the build with a clear analyzer error. A build method with no return fails too, because null can't satisfy the Widget return type. The pattern: trust the analyzer for type errors, and remember setState whenever you change state." });
+
+  /* ======================================================================
+     CHAPTER 6 — FINAL APP & WALKTHROUGH  (7:30–10:00)
+     ====================================================================== */
+  chapterStart(6, 'Final App & Walkthrough', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together into a complete, polished Todo app. It has a themed MaterialApp, a stateful home with a text field, an add button that shows a SnackBar, a ListView of tappable todos with strikethrough, and proper controller cleanup. One clean file, all the concepts: models, widgets, layout, state, ListView, and SnackBars." });
+  E({ type: 'TYPE_FINAL_PROJECT' });
+  E({ type: 'SPEAK', text: "Let me walk you through this. We import the material library and define a Todo model with a text field and a done boolean, plus a named constructor. Main calls run app with MyApp. MyApp is a stateless widget returning a MaterialApp with a blue theme and TodoHome as the home." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'class Todo {', label: 'the data model', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'runApp(MyApp())', label: 'launch the app', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'MaterialApp(', label: 'theme + navigation root', duration: 2000 });
+  E({ type: 'SPEAK', text: "TodoHome is a stateful widget. Its state holds the list of todos and a text editing controller. The add item method reads the controller, creates a Todo, clears the field, calls setState to rebuild, and shows a SnackBar saying Item added via ScaffoldMessenger. The toggle method flips the done flag inside setState so the checkbox and strikethrough update." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'void _addItem() {', label: 'add + rebuild + notify', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'ScaffoldMessenger.of(context)', label: 'show a SnackBar', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'void _toggle(int i) {', label: 'flip done, rebuild', duration: 1800 });
+  E({ type: 'SPEAK', text: "The build method returns a Scaffold with an app bar, a body that's a ListView dot builder — item count is the list length, item builder returns a ListTile per todo. The leading is a Checkbox bound to todo dot done with an onChanged that calls toggle. The title is a Text with line-through decoration when done. The floating action button calls add item. Finally, dispose cleans up the controller when the widget is destroyed — good practice to avoid memory leaks." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'ListView.builder(', label: 'lazy list of todos', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'Checkbox(', label: 'toggle done', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'TextDecoration.lineThrough', label: 'strikethrough when done', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'void dispose() {', label: 'clean up the controller', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+
+  // ===== LIKE & SUBSCRIBE CTA =====
+  E({ type: 'SPEAK', text: "Quick break! If Flutter is clicking for you, smash that like button and subscribe. It genuinely helps the channel reach more people learning mobile dev. Back to the app." });
+  E({ type: 'SHOW_SUBSCRIBE' });
+
+  E({ type: 'SPEAK', text: "Let's run it." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_CLEAR' });
+  E({ type: 'TERM_TYPE', cmd: 'flutter run' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Launching lib/main.dart on Pixel 6 in debug mode...\nSyncing files to device...\nItem added: Buy groceries\nItem added: Walk the dog\nItem added: Write tests\nToggled: Buy groceries\nToggled: Buy groceries\nis running.' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_PHONE', scene: { title: 'Todo', themeColor: '#02569B', items: [ {text:'Buy groceries', done:true}, {text:'Walk the dog', done:false}, {text:'Write tests', done:false} ], input: 'Add a new task...', fab: true, snackbar: 'Item added' } });
+  E({ type: 'SPEAK', text: "There it is — our final Todo app running on the emulator. Three items in the list, Buy groceries checked off with a strikethrough, the input field ready, the blue plus button, and a SnackBar popping up saying Item added. A real, usable mobile app in about ninety lines of Dart." });
+
+  // Final walkthrough
+  E({ type: 'SPEAK', text: "Let's recap the whole journey. We started by scaffolding a project with flutter create, and writing the smallest possible app — import material, run app, a stateless MyApp returning a MaterialApp with a Scaffold, app bar, and centered text. We ran it on the emulator and saw hot reload in action." });
+  E({ type: 'MOVE_CURSOR', target: '.preview-area' });
+  E({ type: 'SLEEP', ms: 1500 });
+  E({ type: 'SPEAK', text: "Then Dart fundamentals — var, final, const, null safety with the question mark and double-question-mark operators, named parameters with required, classes with concise constructors, and async with Future and await. We added a Todo model class. We built the UI with stateless and stateful widgets, a build method, a Padding and Column layout, a TextField with a controller, and a FloatingActionButton." });
+  E({ type: 'SPEAK', text: "We added mutable state — a list of todos — and used setState to rebuild when it changes. We rendered the list with ListView dot builder, ListTile, Checkbox, and strikethrough text. We hit three bugs: a missing setState that silently broke the UI, an uninitialized non-nullable field that failed the build, and a build method with no return that the analyzer rejected. The analyzer caught two at compile time; setState was the sneaky one." });
+  E({ type: 'SPEAK', text: "The mindset with Flutter: everything is a widget, the build method is a pure function of your state, and setState is how you tell Flutter the state changed. Get that mental model right and you can build anything — forms, navigation, animations, networking. The same widget tree scales from a tiny todo to a shipped production app. Hot reload keeps your feedback loop tight, and the Dart analyzer keeps you honest." });
+  E({ type: 'SPEAK', text: "That's it for today. If you followed along, you now know enough Flutter to build your own apps. Start simple — one screen, one list — then add features one at a time. State management, then navigation, then networking, then animations. Ship something small and iterate. That's how every Flutter developer starts. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'FINISH' });
+
+  return { events, chapterBoundaries, snapshots };
+}
+
+/* The final app code — typed out for the last chapter. */
+const FINAL_PROJECT_CODE = `import 'package:flutter/material.dart';
+
+/// A single todo item.
+class Todo {
+  final String text;
+  bool done;
+
+  Todo({required this.text, this.done = false});
+}
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Todo App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: TodoHome(),
+    );
+  }
+}
+
+class TodoHome extends StatefulWidget {
+  @override
+  State<TodoHome> createState() => _TodoHomeState();
+}
+
+class _TodoHomeState extends State<TodoHome> {
+  final List<Todo> _items = [
+    Todo(text: 'Buy groceries'),
+    Todo(text: 'Walk the dog'),
+    Todo(text: 'Write tests'),
+  ];
+  final TextEditingController _controller = TextEditingController();
+
+  void _addItem() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _items.add(Todo(text: text));
+      _controller.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Item added')),
+    );
+  }
+
+  void _toggle(int i) {
+    setState(() {
+      _items[i].done = !_items[i].done;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Todo')),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(12),
+            child: TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: 'Add a new task...',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _addItem(),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _items.length,
+              itemBuilder: (context, index) {
+                final todo = _items[index];
+                return ListTile(
+                  leading: Checkbox(
+                    value: todo.done,
+                    onChanged: (_) => _toggle(index),
+                  ),
+                  title: Text(
+                    todo.text,
+                    style: TextStyle(
+                      decoration: todo.done
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addItem,
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+}
+`;
+
+/* Custom event TYPE_FINAL_PROJECT: replace editor content with the final app. */
+const _origExecuteFlutter = TimelineEngine.prototype._executeEvent;
+TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'TYPE_FINAL_PROJECT') {
+    this.editor.setContent(FINAL_PROJECT_CODE);
+    const lines = FINAL_PROJECT_CODE.split('\n');
+    this.editor.setCursor(lines.length - 2, lines[lines.length - 2].length);
+    this.editor.setModified(true);
+    this.editor.render();
+    await sleep(800);
+    return;
+  }
+  return _origExecuteFlutter.call(this, ev);
+};
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+(function init() {
+  const editor = new EditorSimulator();
+  const typing = new TypingEngine(editor);
+  const autocomplete = new AutoCompleteEngine(editor);
+  const speech = new SpeechController();
+  const audio = new AudioController();
+  const terminal = new TerminalController();
+  const preview = new PreviewController(editor, terminal);
+  const fx = new VisualEffectsController(editor);
+  const timeline = new TimelineEngine(editor, typing, autocomplete, speech, audio, preview, terminal, fx);
+  const controls = new RecordingControls(timeline, speech, audio);
+
+  const tut = buildTutorial();
+  timeline.setEvents(tut.events, tut.chapterBoundaries, tut.snapshots);
+
+  window.__sim = { editor, typing, autocomplete, speech, audio, terminal, preview, fx, timeline, controls };
+})();
+
+</script>
+</body>
+</html>
