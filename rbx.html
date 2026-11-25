@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roblox Studio Simulator — Learn Lua & Build a Game</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a1a;
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif;
+  font-size:13px;color:#333;user-select:none;-webkit-user-select:none;}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;}
+kbd{background:#3a3a3a;border:1px solid #555;border-radius:3px;padding:1px 5px;
+  font-size:11px;color:#ddd;font-family:inherit;}
+
+/* ============================================================
+   STAGE — holds all scenes
+   ============================================================ */
+#stage{position:fixed;inset:0;overflow:hidden;}
+.scene{position:absolute;inset:0;display:none;}
+.scene.active{display:block;}
+
+/* ============================================================
+   BROWSER SCENE (Roblox create page)
+   ============================================================ */
+.browser-bar{height:36px;background:#ddd;display:flex;align-items:center;
+  padding:0 8px;gap:6px;border-bottom:1px solid #bbb;}
+.br-btn{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;background:#bbb;color:#fff;font-size:12px;}
+.br-btn.back{background:#5a9;}
+.url-bar{flex:1;height:24px;background:#fff;border:1px solid #bbb;border-radius:12px;
+  padding:0 12px;display:flex;align-items:center;font-size:12px;color:#555;}
+.roblox-page{position:absolute;inset:36px;background:linear-gradient(180deg,#0066cc 0%,#003d7a 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;overflow:hidden;}
+.roblox-logo{font-size:clamp(28px,6vw,48px);font-weight:900;letter-spacing:-1px;
+  text-shadow:0 2px 8px rgba(0,0,0,0.3);margin-bottom:8px;}
+.roblox-logo .r{display:inline-block;background:#fff;color:#0066cc;padding:2px 10px;
+  border-radius:8px;transform:rotate(-3deg);}
+.roblox-tag{font-size:14px;opacity:0.9;margin-bottom:30px;}
+.create-grid{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:700px;padding:0 20px;}
+.template-card{width:180px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.25);
+  border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;backdrop-filter:blur(4px);}
+.template-card:hover{background:rgba(255,255,255,0.22);border-color:#fff;transform:translateY(-3px);}
+.template-card .icon{font-size:40px;margin-bottom:8px;}
+.template-card .name{font-size:14px;font-weight:700;margin-bottom:4px;}
+.template-card .desc{font-size:11px;opacity:0.8;}
+.template-card.highlighted{border-color:#ffdd44;box-shadow:0 0 20px rgba(255,221,68,0.5);
+  background:rgba(255,221,68,0.15);}
+.cursor-blink::after{content:'▼';color:#ffdd44;font-size:14px;animation:blink 1s steps(2) infinite;
+  margin-left:4px;}
+@keyframes blink{50%{opacity:0;}}
+
+/* ============================================================
+   ROBLOX STUDIO SCENE
+   ============================================================ */
+.studio{position:absolute;inset:0;background:#e8e8e8;display:flex;flex-direction:column;}
+
+/* --- Title bar --- */
+.studio-titlebar{height:30px;background:#007acc;color:#fff;display:flex;align-items:center;
+  padding:0 10px;font-size:12px;flex-shrink:0;gap:10px;}
+.studio-titlebar .tb-icon{width:16px;height:16px;background:#fff;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;color:#007acc;font-weight:900;font-size:10px;}
+.studio-titlebar .tb-title{font-weight:600;}
+.studio-titlebar .tb-tabs{margin-left:auto;display:flex;gap:0;}
+.studio-titlebar .tb-tab{padding:0 12px;height:30px;display:flex;align-items:center;font-size:11px;opacity:0.8;}
+.studio-titlebar .tb-tab.active{background:rgba(255,255,255,0.15);opacity:1;}
+
+/* --- Ribbon / menu tabs --- */
+.ribbon-tabs{height:28px;background:#f0f0f0;display:flex;align-items:flex-end;
+  padding:0 8px;border-bottom:1px solid #ccc;flex-shrink:0;gap:2px;}
+.ribbon-tab{padding:5px 14px;font-size:11px;color:#555;cursor:pointer;border-radius:3px 3px 0 0;
+  border:1px solid transparent;}
+.ribbon-tab.active{background:#fff;border:1px solid #ccc;border-bottom:1px solid #fff;color:#333;font-weight:600;}
+
+/* --- Ribbon toolbar --- */
+.ribbon-toolbar{background:#fff;border-bottom:1px solid #ccc;padding:6px 10px;display:flex;
+  gap:16px;align-items:flex-start;flex-shrink:0;min-height:62px;flex-wrap:wrap;}
+.rbtn-group{display:flex;flex-direction:column;align-items:center;gap:3px;border-right:1px solid #e0e0e0;
+  padding-right:16px;}
+.rbtn-group:last-child{border-right:none;}
+.rbtn-group .grp-label{font-size:9px;color:#888;margin-top:2px;}
+.rbtn-row{display:flex;gap:2px;}
+.rbtn{min-width:28px;height:28px;padding:0 6px;background:#f5f5f5;border:1px solid #ddd;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;color:#555;}
+.rbtn:hover{background:#e0f0ff;border-color:#007acc;}
+.rbtn.play{background:#4caf50;color:#fff;border-color:#4caf50;font-size:12px;font-weight:600;padding:0 10px;}
+.rbtn.play:hover{background:#43a047;}
+.rbtn.stop{background:#f44336;color:#fff;border-color:#f44336;font-size:12px;padding:0 8px;}
+.rbtn.small{font-size:11px;width:auto;padding:0 6px;}
+
+/* --- Main layout --- */
+.studio-body{flex:1;display:flex;overflow:hidden;}
+
+/* Left panel: Explorer */
+.explorer-panel{width:240px;background:#fff;border-right:1px solid #ccc;display:flex;
+  flex-direction:column;flex-shrink:0;}
+.panel-header{height:26px;background:#f5f5f5;border-bottom:1px solid #ddd;display:flex;
+  align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:#333;justify-content:space-between;}
+.panel-header .ph-title{display:flex;align-items:center;gap:4px;}
+.panel-header .ph-close{font-size:14px;color:#999;cursor:pointer;}
+.explorer-tree{flex:1;overflow-y:auto;padding:4px 0;font-size:12px;}
+.tree-item{display:flex;align-items:center;padding:2px 8px;cursor:pointer;gap:2px;
+  padding-left:calc(8px + var(--depth,0) * 14px);white-space:nowrap;line-height:1.8;}
+.tree-item:hover{background:#e8f0fe;}
+.tree-item.selected{background:#cce4ff;}
+.tree-item .twisty{width:10px;font-size:9px;color:#888;text-align:center;flex-shrink:0;}
+.tree-item .twisty.open{transform:rotate(90deg);}
+.tree-item .ticon{width:14px;font-size:12px;text-align:center;flex-shrink:0;margin-right:3px;}
+.tree-item .tname{overflow:hidden;text-overflow:ellipsis;}
+.tree-item.highlighted{background:#fff3cd;box-shadow:inset 3px 0 0 #ffc107;}
+.tree-item .badge{font-size:9px;background:#007acc;color:#fff;border-radius:2px;padding:0 3px;margin-left:4px;}
+.tree-children{overflow:hidden;max-height:0;transition:max-height .2s;}
+.tree-children.open{max-height:2000px;}
+
+/* Center: Viewport */
+.viewport-panel{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
+.viewport-tabs{height:26px;background:#f5f5f5;border-bottom:1px solid #ddd;display:flex;
+  align-items:flex-end;padding:0 6px;gap:2px;}
+.vp-tab{padding:4px 12px;font-size:11px;color:#666;background:#e8e8e8;border:1px solid #ddd;
+  border-bottom:none;border-radius:3px 3px 0 0;cursor:pointer;}
+.vp-tab.active{background:#fff;color:#333;border-bottom:1px solid #fff;margin-bottom:-1px;font-weight:600;}
+.vp-tab .close{margin-left:6px;color:#999;font-size:10px;}
+.viewport-3d{flex:1;position:relative;background:#393939;overflow:hidden;}
+#three-canvas{display:block;width:100%;height:100%;}
+.viewport-overlay{position:absolute;inset:0;pointer-events:none;}
+.viewport-hint{position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.6);color:#fff;
+  padding:4px 8px;border-radius:4px;font-size:11px;display:none;}
+.viewport-hint.visible{display:block;}
+.viewport-badge{position:absolute;top:8px;right:8px;background:rgba(0,122,204,0.85);color:#fff;
+  padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;display:none;}
+.viewport-badge.visible{display:block;}
+.three-fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:#393939;color:#888;font-size:13px;text-align:center;padding:20px;}
+.three-fallback.visible{display:flex;}
+
+/* Right panel: Properties */
+.properties-panel{width:240px;background:#fff;border-left:1px solid #ccc;display:flex;
+  flex-direction:column;flex-shrink:0;}
+.properties-list{flex:1;overflow-y:auto;font-size:11px;}
+.prop-row{display:flex;border-bottom:1px solid #f0f0f0;height:22px;}
+.prop-name{flex:1;padding:0 6px;display:flex;align-items:center;color:#555;background:#fafafa;}
+.prop-val{flex:1.2;padding:0 4px;display:flex;align-items:center;color:#333;overflow:hidden;}
+
+/* Bottom: Output */
+.output-panel{height:140px;background:#1e1e1e;border-top:1px solid #333;display:flex;
+  flex-direction:column;flex-shrink:0;}
+.output-panel.collapsed{height:26px;}
+.output-tabs{height:26px;background:#252525;display:flex;align-items:flex-end;padding:0 4px;gap:1px;}
+.out-tab{padding:4px 10px;font-size:11px;color:#888;cursor:pointer;border-radius:3px 3px 0 0;}
+.out-tab.active{background:#1e1e1e;color:#ccc;}
+.output-body{flex:1;overflow-y:auto;padding:4px 8px;font-family:'Consolas','Menlo',monospace;
+  font-size:12px;line-height:1.5;}
+.output-body.collapsed{display:none;}
+.out-line{color:#cccccc;white-space:pre-wrap;word-break:break-all;}
+.out-line.info{color:#569cd6;}
+.out-line.warn{color:#dcdcaa;}
+.out-line.error{color:#f44747;}
+.out-line.success{color:#4ec9b0;}
+.out-line.system{color:#888;font-style:italic;}
+.out-line .prompt{color:#4ec9b0;}
+
+/* ============================================================
+   SCRIPT EDITOR (overlay on viewport)
+   ============================================================ */
+.script-editor{position:absolute;inset:0;background:#1e1e1e;display:none;flex-direction:column;z-index:50;}
+.script-editor.visible{display:flex;}
+.se-tabs{height:28px;background:#252526;display:flex;align-items:flex-end;padding:0 4px;
+  border-bottom:1px solid #333;}
+.se-tab{padding:5px 14px;font-size:12px;color:#888;cursor:pointer;display:flex;align-items:center;gap:6px;
+  background:#2d2d2d;border-radius:3px 3px 0 0;}
+.se-tab.active{background:#1e1e1e;color:#ccc;}
+.se-tab .script-icon{color:#569cd6;font-size:14px;}
+.se-tab .close{color:#666;margin-left:8px;font-size:14px;}
+.se-tab .close:hover{color:#ccc;}
+.se-body{flex:1;display:flex;overflow:hidden;}
+.se-gutter{width:42px;background:#1e1e1e;color:#858585;font-family:'Consolas','Menlo',monospace;
+  font-size:13px;line-height:1.6;padding:8px 0;text-align:right;overflow:hidden;flex-shrink:0;
+  user-select:none;}
+.se-gutter .gn{padding:0 8px;}
+.se-code{flex:1;overflow:auto;font-family:'Consolas','Menlo',monospace;font-size:13px;line-height:1.6;
+  padding:8px 0;position:relative;}
+.se-code .line{padding:0 12px;white-space:pre;min-height:1.6em;}
+.se-code .line.current{background:rgba(255,255,255,0.04);}
+.se-code .line-code{white-space:pre;}
+/* Lua syntax colors (Monokai-inspired, close to Roblox Studio dark theme) */
+.t-kw{color:#f92672;}       /* keywords: local function if then else end for do while */
+.t-glob{color:#fd971f;}     /* globals: game workspace Instance Vector3 Color3 */
+.t-str{color:#e6db74;}      /* strings */
+.t-num{color:#ae81ff;}      /* numbers */
+.t-cm{color:#75715e;font-style:italic;} /* comments */
+.t-fn{color:#a6e22e;}       /* function calls */
+.t-prop{color:#9cdcfe;}     /* property names after dot */
+.t-op{color:#d4d4d4;}       /* operators */
+.se-cursor{display:inline-block;width:2px;height:1.1em;background:#ccc;vertical-align:text-bottom;
+  animation:curblink 1s steps(2) infinite;}
+@keyframes curblink{50%{opacity:0;}}
+
+/* ============================================================
+   RIGHT-CLICK CONTEXT MENU
+   ============================================================ */
+.ctx-menu{position:absolute;background:#f0f0f0;border:1px solid #999;border-radius:3px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:100;font-size:12px;min-width:180px;
+  padding:3px 0;display:none;}
+.ctx-menu.visible{display:block;}
+.ctx-item{padding:5px 16px;cursor:pointer;color:#333;}
+.ctx-item:hover{background:#cce4ff;}
+.ctx-item.disabled{color:#999;cursor:default;}
+.ctx-item.disabled:hover{background:transparent;}
+.ctx-sep{height:1px;background:#ccc;margin:3px 0;}
+.ctx-item .arrow{float:right;color:#999;}
+.ctx-sub{position:absolute;left:100%;top:0;background:#f0f0f0;border:1px solid #999;
+  border-radius:3px;box-shadow:0 4px 12px rgba(0,0,0,0.2);min-width:160px;padding:3px 0;
+  display:none;}
+.ctx-item:hover>.ctx-sub{display:block;}
+
+/* ============================================================
+   OVERLAYS: Start / Finish / Chapter / Captions / Controls
+   ============================================================ */
+.overlay{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;}
+.overlay.visible{display:flex;}
+.start-overlay,.finish-overlay{background:rgba(20,20,30,0.97);}
+
+/* --- Start screen --- */
+.start-card{background:#fff;border-radius:16px;padding:40px;max-width:560px;width:90%;
+  text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.start-card .sc-logo{font-size:48px;margin-bottom:8px;}
+.start-card h1{font-size:clamp(22px,4vw,30px);font-weight:800;color:#333;margin-bottom:6px;
+  letter-spacing:-0.5px;}
+.start-card .badge{display:inline-block;background:#0066cc;color:#fff;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:10px;vertical-align:middle;margin-left:6px;}
+.start-card .sub{font-size:14px;color:#666;line-height:1.6;margin-bottom:24px;}
+.start-card .sub b{color:#0066cc;}
+.start-card .steps{text-align:left;margin-bottom:24px;}
+.start-card .step{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13px;color:#444;
+  border-bottom:1px solid #f0f0f0;}
+.start-card .step:last-child{border-bottom:none;}
+.start-card .step-num{width:22px;height:22px;background:#0066cc;color:#fff;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.start-card code{background:#f0f4ff;color:#0066cc;padding:1px 5px;border-radius:3px;font-size:12px;
+  font-family:'Consolas','Menlo',monospace;}
+.start-btn{background:#00a2ff;color:#fff;border:none;border-radius:8px;padding:14px 32px;
+  font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:all .15s;
+  box-shadow:0 4px 14px rgba(0,162,255,0.3);}
+.start-btn:hover{background:#0090e0;transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,162,255,0.4);}
+.start-btn svg{width:18px;height:18px;}
+.start-hint{margin-top:16px;font-size:11px;color:#999;line-height:1.6;}
+
+/* --- Finish screen --- */
+.finish-card{background:#fff;border-radius:16px;padding:40px;max-width:480px;width:90%;
+  text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+.finish-card .check{width:64px;height:64px;background:#4caf50;border-radius:50%;margin:0 auto 16px;
+  display:flex;align-items:center;justify-content:center;color:#fff;}
+.finish-card .check svg{width:32px;height:32px;}
+.finish-card h2{font-size:26px;font-weight:800;color:#333;margin-bottom:10px;}
+.finish-card p{font-size:14px;color:#555;line-height:1.6;margin-bottom:20px;}
+.finish-card .stats{display:flex;gap:16px;justify-content:center;margin-bottom:24px;}
+.finish-card .stat-val{font-size:32px;font-weight:800;color:#0066cc;}
+.finish-card .stat-lbl{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;}
+.finish-card .ctrl-btn{background:#0066cc;color:#fff;border:none;border-radius:8px;padding:12px 24px;
+  font-size:14px;font-weight:600;transition:background .15s;}
+.finish-card .ctrl-btn:hover{background:#0055aa;}
+
+/* --- Chapter transition --- */
+.chapter{position:fixed;inset:0;background:#0066cc;z-index:9500;display:none;
+  align-items:center;justify-content:center;opacity:0;transition:opacity .35s;}
+.chapter.visible{display:flex;opacity:1;}
+.chapter-content{text-align:center;color:#fff;padding:30px;}
+.chapter-num{font-size:14px;letter-spacing:6px;color:rgba(255,255,255,0.7);font-weight:600;
+  margin-bottom:14px;text-transform:uppercase;}
+.chapter-title{font-size:clamp(26px,5vw,46px);font-weight:900;letter-spacing:-1px;line-height:1.1;
+  text-transform:uppercase;}
+.chapter-bar{width:56px;height:4px;background:#fff;margin:20px auto 0;opacity:0.8;}
+
+/* --- Captions --- */
+.captions{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.82);color:#fff;padding:10px 22px;border-radius:8px;font-size:15px;
+  max-width:min(80%,720px);text-align:center;z-index:8500;line-height:1.45;display:none;
+  pointer-events:none;}
+.captions.visible{display:block;}
+
+/* --- Controls --- */
+.controls{position:fixed;top:12px;right:12px;z-index:10020;display:flex;flex-wrap:wrap;
+  align-items:center;align-content:flex-start;gap:8px;width:min(420px,calc(100vw - 24px));
+  max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;pointer-events:auto;
+  background:rgba(30,30,30,0.95);border:1px solid #666;border-radius:10px;padding:12px;
+  box-shadow:0 8px 28px rgba(0,0,0,0.65);}
+.ctrl-btn{min-height:38px;background:#0066cc;color:#fff;border:none;border-radius:5px;
+  padding:8px 12px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;
+  touch-action:manipulation;}
+.ctrl-btn:hover{background:#0055aa;}
+.ctrl-btn.secondary{background:#3a3d41;}
+.ctrl-btn.secondary:hover{background:#45494e;}
+.ctrl-btn svg{width:13px;height:13px;}
+.voice-setting{display:flex;align-items:center;gap:5px;color:#d4d4d4;font-size:10px;white-space:nowrap;}
+.voice-setting select{max-width:140px;background:#252526;color:#fff;border:1px solid #555;
+  border-radius:4px;padding:4px;font:inherit;font-size:11px;}
+.voice-setting input[type="range"]{width:68px;accent-color:#0066cc;}
+.rate-value{min-width:22px;color:#ccc;}
+.paused-indicator{position:fixed;top:58px;right:14px;z-index:9800;display:none;
+  background:#6b4f00;color:#fff;border:1px solid #d7a900;border-radius:6px;padding:6px 10px;
+  font-size:11px;font-weight:700;}
+.paused-indicator.visible{display:block;}
+.show-controls{position:fixed;top:14px;right:14px;z-index:10030;display:none;
+  min-height:40px;background:#0066cc;color:#fff;border:2px solid #fff;border-radius:7px;
+  padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;pointer-events:auto;
+  box-shadow:0 3px 14px rgba(0,0,0,0.65);}
+.show-controls:hover{background:#0055aa;}
+.ctrl-progress{position:fixed;top:0;left:0;height:3px;
+  background:linear-gradient(90deg,#0066cc,#00a2ff);width:0%;z-index:9900;transition:width .3s;}
+
+/* --- Highlight pulse --- */
+.highlight-pulse{animation:hpulse 1.2s ease-in-out infinite;}
+@keyframes hpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,193,7,0.6);}
+  50%{box-shadow:0 0 0 6px rgba(255,193,7,0);}}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:900px){
+  .explorer-panel{width:180px;}
+  .properties-panel{width:180px;}
+}
+@media(max-width:700px){
+  .explorer-panel,.properties-panel{width:140px;}
+  .ribbon-toolbar{min-height:50px;}
+  .rbtn-group{padding-right:10px;}
+  .output-panel{height:100px;}
+}
+@media(max-width:520px){
+  .properties-panel{display:none;}
+  .explorer-panel{width:120px;}
+  .start-card{padding:24px;}
+  .start-card .step{font-size:12px;}
+  .ribbon-tab{padding:5px 8px;font-size:10px;}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ============ SCENE 1: BROWSER (Roblox create page) ============ -->
+  <div class="scene" id="scene-browser">
+    <div class="browser-bar">
+      <div class="br-btn back">‹</div>
+      <div class="br-btn">›</div>
+      <div class="url-bar">create.roblox.com/dashboard</div>
+    </div>
+    <div class="roblox-page">
+      <div class="roblox-logo"><span class="r">R</span>OBLOX Studio</div>
+      <div class="roblox-tag">Create a new experience — choose a template to start</div>
+      <div class="create-grid">
+        <div class="template-card" id="tpl-baseplate" data-name="Baseplate">
+          <div class="icon">🗺️</div>
+          <div class="name">Baseplate</div>
+          <div class="desc">A flat world. Perfect for learning.</div>
+        </div>
+        <div class="template-card" data-name="Obby">
+          <div class="icon">🧗</div>
+          <div class="name">Obby</div>
+          <div class="desc">Obstacle course starter.</div>
+        </div>
+        <div class="template-card" data-name="Racing">
+          <div class="icon">🏁</div>
+          <div class="name">Racing</div>
+          <div class="desc">A racing track template.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCENE 2: ROBLOX STUDIO ============ -->
+  <div class="scene" id="scene-studio">
+    <div class="studio">
+      <!-- Title bar -->
+      <div class="studio-titlebar">
+        <div class="tb-icon">R</div>
+        <div class="tb-title">CoinCollector.rbxl — Roblox Studio</div>
+        <div class="tb-tabs">
+          <div class="tb-tab">File</div>
+          <div class="tb-tab active">Home</div>
+          <div class="tb-tab">Model</div>
+          <div class="tb-tab">Test</div>
+          <div class="tb-tab">View</div>
+        </div>
+      </div>
+
+      <!-- Ribbon tabs -->
+      <div class="ribbon-tabs">
+        <div class="ribbon-tab active">HOME</div>
+        <div class="ribbon-tab">MODEL</div>
+        <div class="ribbon-tab">AVATAR</div>
+        <div class="ribbon-tab">TEST</div>
+        <div class="ribbon-tab">VIEW</div>
+        <div class="ribbon-tab">PLUGINS</div>
+      </div>
+
+      <!-- Ribbon toolbar -->
+      <div class="ribbon-toolbar">
+        <div class="rbtn-group">
+          <div class="rbtn-row">
+            <div class="rbtn" id="tool-select">🖱</div>
+            <div class="rbtn" id="tool-move">✥</div>
+            <div class="rbtn" id="tool-scale">⤢</div>
+            <div class="rbtn" id="tool-rotate">⟳</div>
+          </div>
+          <div class="grp-label">Tools</div>
+        </div>
+        <div class="rbtn-group">
+          <div class="rbtn-row">
+            <div class="rbtn small">Part</div>
+            <div class="rbtn small">Script</div>
+          </div>
+          <div class="grp-label">Insert</div>
+        </div>
+        <div class="rbtn-group">
+          <div class="rbtn-row">
+            <div class="rbtn play" id="btn-play">▶ Play</div>
+            <div class="rbtn stop" id="btn-stop" style="display:none;">■ Stop</div>
+          </div>
+          <div class="grp-label">Test</div>
+        </div>
+        <div class="rbtn-group">
+          <div class="rbtn-row">
+            <div class="rbtn small">Explorer</div>
+            <div class="rbtn small">Output</div>
+          </div>
+          <div class="grp-label">View</div>
+        </div>
+      </div>
+
+      <!-- Main body -->
+      <div class="studio-body">
+        <!-- Explorer -->
+        <div class="explorer-panel" id="explorer-panel">
+          <div class="panel-header">
+            <span class="ph-title">📋 Explorer</span>
+            <span class="ph-close">×</span>
+          </div>
+          <div class="explorer-tree" id="explorer-tree"></div>
+        </div>
+
+        <!-- Viewport -->
+        <div class="viewport-panel">
+          <div class="viewport-tabs" id="viewport-tabs">
+            <div class="vp-tab active" data-tab="3d">3D Viewport</div>
+          </div>
+          <div class="viewport-3d" id="viewport-3d">
+            <canvas id="three-canvas"></canvas>
+            <div class="three-fallback" id="three-fallback">
+              Loading 3D viewport…<br>(requires internet for Three.js)
+            </div>
+            <div class="viewport-overlay">
+              <div class="viewport-hint" id="viewport-hint"></div>
+              <div class="viewport-badge" id="viewport-badge"></div>
+            </div>
+            <!-- Script editor overlay -->
+            <div class="script-editor" id="script-editor">
+              <div class="se-tabs">
+                <div class="se-tab active" id="se-tab-name">
+                  <span class="script-icon">📄</span>
+                  <span id="se-tab-text">Script</span>
+                  <span class="close" id="se-close">×</span>
+                </div>
+              </div>
+              <div class="se-body">
+                <div class="se-gutter" id="se-gutter"></div>
+                <div class="se-code" id="se-code"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Properties -->
+        <div class="properties-panel" id="properties-panel">
+          <div class="panel-header">
+            <span class="ph-title">⚙ Properties</span>
+            <span class="ph-close">×</span>
+          </div>
+          <div class="properties-list" id="properties-list">
+            <div class="prop-row"><div class="prop-name">— Select an object —</div><div class="prop-val"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output -->
+      <div class="output-panel" id="output-panel">
+        <div class="output-tabs">
+          <div class="out-tab active" data-out="output">Output</div>
+          <div class="out-tab" data-out="console">Console</div>
+        </div>
+        <div class="output-body" id="output-body"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctx-menu"></div>
+
+<!-- Captions -->
+<div class="captions" id="captions"></div>
+
+<!-- Chapter transition -->
+<div class="chapter" id="chapter">
+  <div class="chapter-content">
+    <div class="chapter-num" id="chapter-num">CHAPTER 1</div>
+    <div class="chapter-title" id="chapter-title">Title</div>
+    <div class="chapter-bar"></div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="ctrl-progress" id="ctrl-progress"></div>
+<div class="controls" id="controls">
+  <button class="ctrl-btn" id="btn-pause">⏸ Pause</button>
+  <button class="ctrl-btn secondary" id="btn-restart">↻ Restart</button>
+  <button class="ctrl-btn secondary" id="btn-skip">⏭ Skip</button>
+  <label class="voice-setting" for="voice-select">Voice
+    <select id="voice-select" aria-label="Narration voice"><option value="">Off</option></select>
+  </label>
+  <label class="voice-setting" for="voice-rate">Speed
+    <input type="range" id="voice-rate" min="0.6" max="1.6" step="0.1" value="1" aria-label="Narration speed">
+    <span class="rate-value" id="rate-value">1.0×</span>
+  </label>
+  <button class="ctrl-btn secondary" id="btn-hide-controls">Hide</button>
+</div>
+<div class="paused-indicator" id="pause-indicator">Paused</div>
+<button class="show-controls" id="btn-show-controls" type="button" style="display:none;">≡ Controls</button>
+
+<!-- Start screen -->
+<div class="overlay start-overlay visible" id="start-screen">
+  <div class="start-card">
+    <div class="sc-logo">🎮</div>
+    <h1>Roblox Studio Simulator <span class="badge">Lua</span></h1>
+    <p class="sub">A friendly, automated walkthrough. We open Roblox Studio, explore the interface, learn <b>Lua</b> basics — <b>print</b>, <b>variables</b>, <b>if/else</b>, <b>Instance.new</b>, and <b>events</b> — then build and play a coin-collecting game in a real 3D viewport.</p>
+    <div class="steps" id="start-steps">
+      <div class="step"><span class="step-num">1</span><span>Open Roblox Studio and create a <b>Baseplate</b> world</span></div>
+      <div class="step"><span class="step-num">2</span><span>Tour the interface: Explorer, Properties, Viewport, Output</span></div>
+      <div class="step"><span class="step-num">3</span><span>Learn <code>print()</code> — Lua's first command</span></div>
+      <div class="step"><span class="step-num">4</span><span>Learn <b>variables</b> and <b>if / then / else</b></span></div>
+      <div class="step"><span class="step-num">5</span><span>Create parts with <code>Instance.new</code> — see them appear in 3D</span></div>
+      <div class="step"><span class="step-num">6</span><span>Learn <b>events</b> — detect when things touch</span></div>
+      <div class="step"><span class="step-num">7</span><span>Build a coin game: spawn, spin, and collect coins</span></div>
+      <div class="step"><span class="step-num">8</span><span>Press Play and watch your character collect coins!</span></div>
+    </div>
+    <button class="start-btn" id="btn-start">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+      Start the walkthrough
+    </button>
+    <div class="start-hint">Tip: press <kbd>Space</kbd> to pause / resume, <kbd>R</kbd> to restart.<br>The whole thing takes about 5–6 minutes.</div>
+  </div>
+</div>
+
+<!-- Finish screen -->
+<div class="overlay finish-overlay" id="finish-screen">
+  <div class="finish-card">
+    <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>You made a game!</h2>
+    <p>You opened Roblox Studio, learned <b>Lua</b> — print, variables, if/else, Instance.new, and events — and built a working coin-collecting game with a 3D character. That's real Roblox game development!</p>
+    <div class="stats">
+      <div><div class="stat-val">5</div><div class="stat-lbl">Lessons</div></div>
+      <div><div class="stat-val">1</div><div class="stat-lbl">Game Built</div></div>
+    </div>
+    <button class="ctrl-btn" id="btn-finish-restart" style="width:100%;justify-content:center;">Run it again</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = (s) => document.querySelector(s);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const rand = (a, b) => Math.random() * (b - a) + a;
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============================================================
+   Controller — pause / cancel / skip / progress
+   ============================================================ */
+const CTL = {
+  running:false, paused:false, cancelled:false, skipRequested:false,
+  async wait(ms){
+    let elapsed=0; const step=50;
+    while(elapsed<ms){
+      if(this.cancelled) throw new Error('cancelled');
+      while(this.paused && !this.cancelled) await sleep(80);
+      if(this.cancelled) throw new Error('cancelled');
+      if(this.skipRequested){ this.skipRequested=false; return; }
+      const w=Math.min(step, ms-elapsed); await sleep(w); elapsed+=w;
+    }
+  },
+  cancel(){ this.cancelled=true; this.paused=false; },
+  reset(){ this.running=false; this.paused=false; this.cancelled=false; this.skipRequested=false; },
+};
+
+/* ============================================================
+   Three.js 3D Viewport — baseplate, R6 character, coins
+   ============================================================ */
+const VP = {
+  scene:null, camera:null, renderer:null,
+  character:null, coins:[], baseplate:null,
+  animState:'idle', walkQueue:[], walkCurrent:null, walkProgress:0,
+  walkFrom:null, walkTo:null, walkDuration:1.6,
+  armL:null, armR:null, legL:null, legR:null,
+  onCollectCb:null, onCompleteCb:null, collectedCount:0, lastFrame:0,
+
+  init(){
+    if(typeof THREE==='undefined'){
+      $('#three-fallback').classList.add('visible');
+      $('#three-canvas').style.display='none';
+      return;
+    }
+    const canvas=$('#three-canvas'), c=$('#viewport-3d');
+    const w=c.clientWidth||800, h=c.clientHeight||400;
+    this.scene=new THREE.Scene();
+    this.scene.background=new THREE.Color(0x9EC9FF);
+    this.scene.fog=new THREE.Fog(0x9EC9FF, 80, 250);
+    this.camera=new THREE.PerspectiveCamera(45, w/h, 0.1, 500);
+    this.camera.position.set(22,26,30); this.camera.lookAt(0,2,-8);
+    this.renderer=new THREE.WebGLRenderer({canvas, antialias:true});
+    this.renderer.setSize(w,h); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const sun=new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(30,50,20);
+    this.scene.add(sun);
+    this.showBaseplate();
+    this.lastFrame=performance.now();
+    this.animate();
+    window.addEventListener('resize', ()=>this.resize());
+  },
+
+  resize(){
+    if(!this.renderer) return;
+    const c=$('#viewport-3d'), w=c.clientWidth, h=c.clientHeight;
+    if(w<1||h<1) return;
+    this.camera.aspect=w/h; this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w,h);
+  },
+
+  showBaseplate(){
+    const geo=new THREE.BoxGeometry(512,1,512);
+    const mat=new THREE.MeshLambertMaterial({color:0x8C8C8C});
+    this.baseplate=new THREE.Mesh(geo,mat);
+    this.baseplate.position.set(0,-0.5,0);
+    this.scene.add(this.baseplate);
+    const grid=new THREE.GridHelper(512, 64, 0x555555, 0x666666);
+    grid.position.set(0,0.02,0);
+    this.scene.add(grid);
+  },
+
+  spawnCoin(x,z,index){
+    const grp=new THREE.Group();
+    const geo=new THREE.CylinderGeometry(1.8,1.8,0.35,20);
+    const mat=new THREE.MeshLambertMaterial({color:0xFFD700, emissive:0x553300});
+    const coin=new THREE.Mesh(geo,mat);
+    coin.rotation.x=Math.PI/2;
+    grp.add(coin);
+    grp.position.set(x,3,z);
+    grp.userData={index, collected:false};
+    this.scene.add(grp);
+    while(this.coins.length<=index) this.coins.push(null);
+    this.coins[index]=grp;
+  },
+
+  spawnCoins(n){
+    this.clearCoins();
+    const spread=6, startX=-(n-1)/2*spread;
+    for(let i=0;i<n;i++) this.spawnCoin(startX+i*spread, -12, i);
+  },
+
+  clearCoins(){
+    this.coins.forEach(c=>{ if(c) this.scene.remove(c); });
+    this.coins=[];
+  },
+
+  buildCharacter(){
+    const grp=new THREE.Group();
+    const Y=0xF5CD30, B=0x0055A0, G=0x4B974B;
+    const head=new THREE.Mesh(new THREE.BoxGeometry(2,1,1), new THREE.MeshLambertMaterial({color:Y}));
+    head.position.set(0,4.5,0); grp.add(head);
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(2,2,1), new THREE.MeshLambertMaterial({color:B}));
+    torso.position.set(0,3,0); grp.add(torso);
+    const armGeo=new THREE.BoxGeometry(1,2,1); armGeo.translate(0,-1,0);
+    const armMat=new THREE.MeshLambertMaterial({color:Y});
+    this.armL=new THREE.Mesh(armGeo,armMat); this.armL.position.set(-1.5,4,0); grp.add(this.armL);
+    this.armR=new THREE.Mesh(armGeo.clone(),armMat); this.armR.position.set(1.5,4,0); grp.add(this.armR);
+    const legGeo=new THREE.BoxGeometry(1,2,1); legGeo.translate(0,-1,0);
+    const legMat=new THREE.MeshLambertMaterial({color:G});
+    this.legL=new THREE.Mesh(legGeo,legMat); this.legL.position.set(-0.5,2,0); grp.add(this.legL);
+    this.legR=new THREE.Mesh(legGeo.clone(),legMat); this.legR.position.set(0.5,2,0); grp.add(this.legR);
+    this.character=grp;
+  },
+
+  spawnCharacter(){
+    if(!this.character) this.buildCharacter();
+    this.character.visible=true;
+    this.character.position.set(0,0,8);
+    this.character.rotation.y=Math.PI;
+    this.animState='idle';
+    this.scene.add(this.character);
+  },
+
+  playGame(onCollect, onComplete){
+    return new Promise((resolve)=>{
+      this.spawnCharacter();
+      this.animState='playing';
+      this.onCollectCb=onCollect;
+      this.onCompleteCb=()=>{ if(onComplete) onComplete(); resolve(); };
+      this.collectedCount=0;
+      this.walkQueue=this.coins.filter(c=>c&&!c.userData.collected).map(c=>({
+        x:c.position.x, z:c.position.z, index:c.userData.index
+      }));
+      this.startNextWalk();
+    });
+  },
+
+  startNextWalk(){
+    if(this.walkQueue.length===0){
+      this.animState='idle';
+      if(this.onCompleteCb) this.onCompleteCb();
+      return;
+    }
+    const t=this.walkQueue.shift();
+    this.walkCurrent=t;
+    this.walkFrom={x:this.character.position.x, z:this.character.position.z};
+    this.walkTo={x:t.x, z:t.z};
+    this.walkProgress=0;
+    const dist=Math.hypot(t.x-this.walkFrom.x, t.z-this.walkFrom.z);
+    this.walkDuration=Math.max(0.9, dist/12);
+    this.character.rotation.y=Math.atan2(t.x-this.walkFrom.x, t.z-this.walkFrom.z);
+  },
+
+  animate(){
+    requestAnimationFrame(()=>this.animate());
+    if(!this.scene||!this.renderer) return;
+    const now=performance.now();
+    const dt=this.lastFrame?Math.min((now-this.lastFrame)/1000,0.1):0;
+    this.lastFrame=now;
+    if(CTL.paused){ this.renderer.render(this.scene,this.camera); return; }
+    // Spin coins
+    this.coins.forEach(c=>{ if(c&&!c.userData.collected) c.rotation.y+=dt*3; });
+    // Character
+    if(this.character&&this.character.visible){
+      if(this.animState==='playing'&&this.walkCurrent){
+        this.walkProgress+=dt/this.walkDuration;
+        const t=Math.min(this.walkProgress,1);
+        this.character.position.x=this.walkFrom.x+(this.walkTo.x-this.walkFrom.x)*t;
+        this.character.position.z=this.walkFrom.z+(this.walkTo.z-this.walkFrom.z)*t;
+        const cyc=t*Math.PI*6*this.walkDuration;
+        this.character.position.y=Math.abs(Math.sin(cyc*2))*0.2;
+        const sw=Math.sin(cyc)*0.5;
+        if(this.armL) this.armL.rotation.x=sw;
+        if(this.armR) this.armR.rotation.x=-sw;
+        if(this.legL) this.legL.rotation.x=-sw;
+        if(this.legR) this.legR.rotation.x=sw;
+        if(t>=1){
+          const coin=this.coins[this.walkCurrent.index];
+          if(coin&&!coin.userData.collected){ coin.userData.collected=true; coin.visible=false; }
+          this.collectedCount++;
+          if(this.onCollectCb) this.onCollectCb(this.collectedCount);
+          this.walkCurrent=null;
+          this.startNextWalk();
+        }
+      } else if(this.animState==='idle'){
+        this.character.position.y=Math.sin(now*0.002)*0.08;
+        if(this.armL) this.armL.rotation.x=Math.sin(now*0.001)*0.05;
+        if(this.armR) this.armR.rotation.x=-Math.sin(now*0.001)*0.05;
+      }
+    }
+    this.renderer.render(this.scene,this.camera);
+  },
+
+  showBadge(t){ const b=$('#viewport-badge'); b.textContent=t; b.classList.add('visible'); },
+  hideBadge(){ $('#viewport-badge').classList.remove('visible'); },
+};
+
+/* ============================================================
+   Lua syntax highlighter (Monokai-inspired)
+   ============================================================ */
+const LUA_KW=new Set(['local','function','end','if','then','elseif','else','for','do','while','return','break','in','not','and','or','nil','repeat','until','true','false']);
+const LUA_GLOB=new Set(['game','workspace','Instance','Vector3','Color3','CFrame','Enum','task','script','math','table','string','pairs','ipairs','print','warn','wait','spawn','tick','typeof','type','tostring','tonumber','require','pcall','error','assert','next','select','unpack','setmetatable','getmetatable','rawget','rawset','os','coroutine']);
+
+function highlightLua(line){
+  if(!line) return '&nbsp;';
+  let out='', i=0; const n=line.length;
+  while(i<n){
+    const ch=line[i];
+    // Comment
+    if(ch==='-'&&line[i+1]==='-'){
+      out+='<span class="t-cm">'+esc(line.slice(i))+'</span>'; break;
+    }
+    // String
+    if(ch==='"'||ch==="'"){
+      const q=ch; let j=i+1;
+      while(j<n&&line[j]!==q){ if(line[j]==='\\') j++; j++; }
+      out+='<span class="t-str">'+esc(line.slice(i,Math.min(j+1,n)))+'</span>';
+      i=j+1; continue;
+    }
+    // Number
+    if(ch>='0'&&ch<='9'){
+      let j=i;
+      while(j<n&&((line[j]>='0'&&line[j]<='9')||line[j]==='.')) j++;
+      out+='<span class="t-num">'+esc(line.slice(i,j))+'</span>';
+      i=j; continue;
+    }
+    // Identifier
+    if((ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z')||ch==='_'){
+      let j=i;
+      while(j<n&&((line[j]>='a'&&line[j]<='z')||(line[j]>='A'&&line[j]<='Z')||(line[j]>='0'&&line[j]<='9')||line[j]==='_')) j++;
+      const word=line.slice(i,j);
+      const prev=i>0?line[i-1]:'';
+      let k=j; while(k<n&&line[k]===' ') k++;
+      const isCall=line[k]==='(';
+      if(LUA_KW.has(word)) out+='<span class="t-kw">'+esc(word)+'</span>';
+      else if(prev==='.') out+='<span class="t-prop">'+esc(word)+'</span>';
+      else if(prev===':') out+='<span class="t-fn">'+esc(word)+'</span>';
+      else if(LUA_GLOB.has(word)) out+='<span class="t-glob">'+esc(word)+'</span>';
+      else if(isCall) out+='<span class="t-fn">'+esc(word)+'</span>';
+      else out+=esc(word);
+      i=j; continue;
+    }
+    out+=esc(ch); i++;
+  }
+  return out;
+}
+
+/* ============================================================
+   Explorer — game hierarchy tree
+   ============================================================ */
+const Explorer = {
+  data:[
+    {name:'Workspace', icon:'🌐', expanded:true, children:[
+      {name:'Baseplate', icon:'⬜'},
+      {name:'Camera', icon:'📷'},
+    ]},
+    {name:'Players', icon:'👥'},
+    {name:'Lighting', icon:'💡'},
+    {name:'ReplicatedFirst', icon:'📡'},
+    {name:'ReplicatedStorage', icon:'📦'},
+    {name:'ServerScriptService', icon:'📜', expanded:true, children:[]},
+    {name:'ServerStorage', icon:'🗄'},
+    {name:'StarterGui', icon:'🖥'},
+    {name:'StarterPack', icon:'🎒'},
+    {name:'StarterPlayer', icon:'🚶', expanded:false, children:[
+      {name:'StarterPlayerScripts', icon:'📄'},
+    ]},
+    {name:'SoundService', icon:'🔊'},
+    {name:'Teams', icon:'🏁'},
+  ],
+
+  render(){
+    const tree=$('#explorer-tree'); tree.innerHTML='';
+    this._renderLevel(this.data, tree, 0);
+  },
+  _renderLevel(items, container, depth){
+    for(const item of items){
+      const div=document.createElement('div');
+      div.className='tree-item'; div.dataset.name=item.name;
+      div.style.setProperty('--depth', depth);
+      const hasCh=item.children&&item.children.length>0;
+      div.innerHTML=`<span class="twisty ${item.expanded?'open':''}">${hasCh?'▶':''}</span>`+
+        `<span class="ticon">${item.icon}</span><span class="tname">${esc(item.name)}</span>`;
+      container.appendChild(div);
+      if(hasCh&&item.expanded) this._renderLevel(item.children, container, depth+1);
+    }
+  },
+  highlight(name){
+    document.querySelectorAll('.tree-item.highlighted').forEach(e=>e.classList.remove('highlighted'));
+    const it=document.querySelector(`.tree-item[data-name="${name}"]`);
+    if(it){ it.classList.add('highlighted'); it.scrollIntoView({block:'nearest'}); }
+  },
+  select(name){
+    document.querySelectorAll('.tree-item.selected').forEach(e=>e.classList.remove('selected'));
+    const it=document.querySelector(`.tree-item[data-name="${name}"]`);
+    if(it){ it.classList.add('selected'); Properties.show(name); }
+  },
+  addItem(parentName, item){
+    const p=this._findItem(this.data, parentName);
+    if(p){ if(!p.children) p.children=[]; p.children.push(item); p.expanded=true; this.render(); }
+  },
+  _findItem(items, name){
+    for(const it of items){
+      if(it.name===name) return it;
+      if(it.children){ const f=this._findItem(it.children, name); if(f) return f; }
+    }
+    return null;
+  },
+};
+
+/* ============================================================
+   Properties panel
+   ============================================================ */
+const Properties = {
+  presets:{
+    'Baseplate':[['ClassName','Part'],['Name','Baseplate'],['Anchored','true'],['Size','512, 1, 512'],['Material','Plastic'],['Color','[163, 162, 165]']],
+    'Script':[['ClassName','Script'],['Name','Script'],['Enabled','true'],['RunContext','Legacy']],
+    'Coin':[['ClassName','Part'],['Name','Coin'],['Anchored','true'],['Size','2, 0.2, 2'],['Material','Neon'],['Color','[255, 215, 0]']],
+  },
+  show(name){
+    const list=$('#properties-list'); const props=this.presets[name];
+    if(!props){ list.innerHTML='<div class="prop-row"><div class="prop-name">— Select an object —</div><div class="prop-val"></div></div>'; return; }
+    list.innerHTML='';
+    for(const [k,v] of props){
+      const r=document.createElement('div'); r.className='prop-row';
+      r.innerHTML=`<div class="prop-name">${esc(k)}</div><div class="prop-val">${esc(v)}</div>`;
+      list.appendChild(r);
+    }
+  },
+};
+
+/* ============================================================
+   Output window
+   ============================================================ */
+const Output = {
+  clear(){ $('#output-body').innerHTML=''; },
+  print(text, type=''){
+    const body=$('#output-body');
+    const line=document.createElement('div'); line.className='out-line '+type;
+    line.textContent=text;
+    body.appendChild(line); body.scrollTop=body.scrollHeight;
+  },
+};
+
+/* ============================================================
+   Script Editor
+   ============================================================ */
+const Editor = {
+  lines:[''], cursorLine:0, cursorCol:0, visible:false,
+  open(name='Script'){
+    this.lines=['']; this.cursorLine=0; this.cursorCol=0;
+    $('#se-tab-text').textContent=name;
+    $('#script-editor').classList.add('visible');
+    this.visible=true; this.render();
+  },
+  close(){ $('#script-editor').classList.remove('visible'); this.visible=false; },
+  reset(){ this.lines=['']; this.cursorLine=0; this.cursorCol=0; this.render(); },
+  render(){
+    const gutter=$('#se-gutter'); gutter.innerHTML='';
+    for(let i=0;i<this.lines.length;i++){
+      const g=document.createElement('div'); g.className='gn'; g.textContent=(i+1);
+      gutter.appendChild(g);
+    }
+    const code=$('#se-code'); code.innerHTML='';
+    for(let i=0;i<this.lines.length;i++){
+      const line=document.createElement('div');
+      line.className='line'+(i===this.cursorLine?' current':'');
+      const lc=document.createElement('span'); lc.className='line-code';
+      const text=this.lines[i]||'';
+      const html=highlightLua(text);
+      if(i===this.cursorLine) lc.innerHTML=html+'<span class="se-cursor"></span>';
+      else lc.innerHTML=html||'&nbsp;';
+      line.appendChild(lc); code.appendChild(line);
+    }
+    code.scrollTop=code.scrollHeight;
+  },
+  insertText(t){
+    let line=this.lines[this.cursorLine]||'';
+    const before=line.slice(0,this.cursorCol), after=line.slice(this.cursorCol);
+    this.lines[this.cursorLine]=before+t+after; this.cursorCol+=t.length; this.render();
+  },
+  newLine(){
+    const line=this.lines[this.cursorLine]||'';
+    const before=line.slice(0,this.cursorCol), after=line.slice(this.cursorCol);
+    this.lines[this.cursorLine]=before;
+    this.lines.splice(this.cursorLine+1,0,after);
+    this.cursorLine++; this.cursorCol=0; this.render();
+  },
+};
+
+/* ============================================================
+   Typer — types code into the script editor
+   ============================================================ */
+const Typer = {
+  async type(text){
+    for(const ch of text){
+      if(ch==='\n') Editor.newLine();
+      else Editor.insertText(ch);
+      await CTL.wait(rand(12,38));
+    }
+  },
+  async typeLine(text='', indent=''){
+    Editor.newLine();
+    if(indent) Editor.insertText(indent);
+    if(text){
+      for(const ch of text){ Editor.insertText(ch); await CTL.wait(rand(12,38)); }
+    }
+  },
+  async hesitate(ms){ await CTL.wait(ms); },
+};
+
+/* ============================================================
+   Cursor — moves and clicks UI elements
+   ============================================================ */
+const Cursor = {
+  el:null,
+  init(){
+    this.el=document.createElement('div'); this.el.id='sim-cursor';
+    this.el.style.cssText='position:fixed;width:18px;height:22px;z-index:10050;pointer-events:none;display:none;left:0;top:0;transition:transform .1s;';
+    this.el.innerHTML='<svg width="18" height="22" viewBox="0 0 18 22"><path d="M2 2 L2 16 L6 12.5 L9 20 L11.5 19 L8.5 11.5 L15 11.5 Z" fill="white" stroke="black" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    document.body.appendChild(this.el);
+  },
+  show(){ if(this.el) this.el.style.display='block'; },
+  hide(){ if(this.el) this.el.style.display='none'; },
+  async moveTo(sel){
+    const target=typeof sel==='string'?$(sel):sel; if(!target) return;
+    const r=target.getBoundingClientRect();
+    const tx=r.left+r.width/2-9, ty=r.top+r.height/2-11;
+    const sx=parseFloat(this.el.style.left)||tx, sy=parseFloat(this.el.style.top)||ty;
+    const dur=500, t0=performance.now();
+    return new Promise(res=>{
+      const step=()=>{
+        const t=Math.min((performance.now()-t0)/dur,1), e=1-Math.pow(1-t,3);
+        this.el.style.left=(sx+(tx-sx)*e)+'px'; this.el.style.top=(sy+(ty-sy)*e)+'px';
+        if(t<1) requestAnimationFrame(step); else res();
+      };
+      step();
+    });
+  },
+  async click(){
+    if(!this.el) return;
+    this.el.style.transform='scale(0.7)'; await CTL.wait(120); this.el.style.transform='';
+  },
+};
+
+/* ============================================================
+   Caption — narration + on-screen text
+   ============================================================ */
+const Caption = {
+  narrate:false, voice:null, rate:1,
+  async say(text, duration=2500){
+    const el=$('#captions'); el.textContent=text; el.classList.add('visible');
+    if(this.narrate&&'speechSynthesis' in window){
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      if(this.voice) u.voice=this.voice;
+      u.rate=this.rate; u.lang='en-US';
+      speechSynthesis.speak(u);
+    }
+    await CTL.wait(duration);
+    el.classList.remove('visible');
+    if('speechSynthesis' in window) speechSynthesis.cancel();
+  },
+  hide(){
+    $('#captions').classList.remove('visible');
+    if('speechSynthesis' in window) speechSynthesis.cancel();
+  },
+};
+
+/* ============================================================
+   Chapter transition + scene management
+   ============================================================ */
+async function chapter(num, title){
+  $('#chapter-num').textContent='CHAPTER '+num;
+  $('#chapter-title').textContent=title;
+  $('#chapter').classList.add('visible');
+  await CTL.wait(1600);
+  $('#chapter').classList.remove('visible');
+  await CTL.wait(300);
+}
+function showScene(name){
+  document.querySelectorAll('.scene').forEach(s=>s.classList.remove('active'));
+  $('#scene-'+name).classList.add('active');
+  if(name==='studio') setTimeout(()=>VP.resize(), 50);
+}
+
+/* ============================================================
+   Highlight a UI panel briefly
+   ============================================================ */
+async function highlightPanel(sel, duration=2500){
+  const el=$(sel); if(!el) return;
+  el.classList.add('highlight-pulse');
+  await CTL.wait(duration);
+  el.classList.remove('highlight-pulse');
+}
+
+/* ============================================================
+   Context menu (for inserting objects)
+   ============================================================ */
+function showContextMenu(x, y, items){
+  const menu=$('#ctx-menu'); menu.innerHTML='';
+  for(const item of items){
+    const el=document.createElement('div');
+    el.className='ctx-item'+(item.disabled?' disabled':'');
+    el.textContent=item.label;
+    if(item.sub){
+      const sub=document.createElement('div'); sub.className='ctx-sub';
+      for(const si of item.sub){
+        const se=document.createElement('div'); se.className='ctx-item'; se.textContent=si.label;
+        se.onclick=()=>{ menu.classList.remove('visible'); if(si.action) si.action(); };
+        sub.appendChild(se);
+      }
+      el.appendChild(sub);
+      const ar=document.createElement('span'); ar.className='arrow'; ar.textContent='▶';
+      el.appendChild(ar);
+    } else if(!item.disabled){
+      el.onclick=()=>{ menu.classList.remove('visible'); if(item.action) item.action(); };
+    }
+    menu.appendChild(el);
+  }
+  menu.style.left=Math.min(x, window.innerWidth-200)+'px';
+  menu.style.top=Math.min(y, window.innerHeight-300)+'px';
+  menu.classList.add('visible');
+}
+function hideContextMenu(){ $('#ctx-menu').classList.remove('visible'); }
+
+/* ============================================================
+   runScript — simulate running Lua code
+   ============================================================ */
+async function runScript(opts={}){
+  // Flash Play button
+  const playBtn=$('#btn-play');
+  playBtn.classList.add('highlight-pulse');
+  Cursor.show(); await Cursor.moveTo('#btn-play'); await Cursor.click();
+  playBtn.classList.remove('highlight-pulse');
+  await CTL.wait(400);
+  Output.print('The current identity is 8 (Game)', 'warn');
+  await CTL.wait(250);
+  if(opts.output){
+    for(let i=0;i<opts.output.length;i++){
+      await CTL.wait(280);
+      Output.print(opts.output[i], (opts.outputTypes&&opts.outputTypes[i])||'');
+    }
+  }
+  if(opts.spawnSingleCoin){
+    VP.spawnCoin(0, -12, 0);
+    VP.showBadge('Part added to Workspace');
+    await CTL.wait(900); VP.hideBadge();
+  }
+  if(opts.spawnCoins>0){
+    VP.spawnCoins(opts.spawnCoins);
+    VP.showBadge(opts.spawnCoins+' coins spawned in 3D world');
+    await CTL.wait(900); VP.hideBadge();
+  }
+  if(opts.playGame){
+    Editor.close(); await CTL.wait(400);
+    Output.clear(); Output.print('The current identity is 8 (Game)', 'warn');
+    await CTL.wait(300);
+    VP.showBadge('▶ Game running');
+    await VP.playGame(
+      (score)=>Output.print('Coin collected! Score: '+score, 'success'),
+      ()=>Output.print(opts.winMsg||'You collected all coins! You win!', 'success')
+    );
+    await CTL.wait(1200); VP.hideBadge();
+  }
+  if(opts.caption) await Caption.say(opts.caption, opts.duration||3000);
+}
+
+/* ============================================================
+   Timeline — the full tutorial
+   ============================================================ */
+async function timeline(){
+  CTL.running=true;
+  setProgress(0);
+  Cursor.init();
+  Explorer.render();
+
+  /* ===== Scene 1: Browser — open Roblox Studio ===== */
+  showScene('browser');
+  await Caption.say("Welcome! Let's build a game in Roblox Studio. First, we open the Studio dashboard.", 3400);
+
+  await chapter(1, 'OPEN ROBLOX STUDIO');
+  await Caption.say("This is the Roblox create page. We pick a template to start a new game.", 3200);
+  await Caption.say("The Baseplate is a flat world with a solid floor — perfect for learning.", 3200);
+
+  $('#tpl-baseplate').classList.add('highlighted');
+  await CTL.wait(700);
+  Cursor.show();
+  await Cursor.moveTo('#tpl-baseplate');
+  await CTL.wait(300);
+  await Cursor.click();
+  Cursor.hide();
+  $('#tpl-baseplate').classList.remove('highlighted');
+  await CTL.wait(600);
+  await Caption.say("Studio creates the world and opens the editor...", 2400);
+
+  /* ===== Scene 2: Roblox Studio ===== */
+  showScene('studio');
+  Explorer.render();
+  await CTL.wait(600);
+
+  await chapter(2, 'THE INTERFACE');
+  await Caption.say("This is Roblox Studio. Four panels do most of the work.", 2800);
+
+  await Caption.say("The Explorer shows every object in your game as a tree.", 2800);
+  Explorer.highlight('Workspace');
+  await highlightPanel('#explorer-panel', 2200);
+  await CTL.wait(300);
+
+  await Caption.say("The Properties panel shows settings for whatever you selected.", 3000);
+  await highlightPanel('#properties-panel', 2200);
+  await CTL.wait(300);
+
+  await Caption.say("The 3D Viewport is your game world. That gray plate is the Baseplate.", 3200);
+  VP.showHint("Baseplate — your game floor");
+  await highlightPanel('#viewport-3d', 2200);
+  await CTL.wait(400);
+  VP.hideHint();
+
+  await Caption.say("The Output window shows messages and errors from your code.", 3000);
+  await highlightPanel('#output-panel', 2200);
+  await CTL.wait(300);
+
+  /* ===== Chapter 3: Create a Script ===== */
+  await chapter(3, 'CREATE A SCRIPT');
+  await Caption.say("Scripts hold your Lua code. Let's add one to the game.", 2800);
+  await Caption.say("ServerScriptService holds scripts that run on the server — the game's brain.", 3400);
+  Explorer.highlight('ServerScriptService');
+  await CTL.wait(700);
+
+  // Right-click ServerScriptService
+  Cursor.show();
+  const sssEl=document.querySelector('.tree-item[data-name="ServerScriptService"]');
+  await Cursor.moveTo(sssEl);
+  await CTL.wait(300);
+  await Cursor.click();
+  Cursor.hide();
+
+  // Show context menu
+  const sssRect=sssEl.getBoundingClientRect();
+  showContextMenu(sssRect.right-120, sssRect.bottom+4, [
+    {label:'Insert Object', sub:[
+      {label:'Script', action:()=>{}},
+      {label:'LocalScript'},
+      {label:'ModuleScript'},
+    ]},
+    {label:'Insert'},
+    {label:'Copy', disabled:true},
+    {label:'Paste'},
+    {label:'Delete', disabled:true},
+  ]);
+  // Force-show the submenu
+  const insertItem=document.querySelector('#ctx-menu > .ctx-item');
+  if(insertItem){ const sub=insertItem.querySelector('.ctx-sub'); if(sub) sub.style.display='block'; }
+  await CTL.wait(400);
+  await Caption.say("Right-click and choose Insert Object, then Script.", 2800);
+
+  // Move cursor to Script in submenu
+  Cursor.show();
+  const scriptItem=document.querySelector('#ctx-menu .ctx-sub .ctx-item');
+  await Cursor.moveTo(scriptItem);
+  await CTL.wait(300);
+  await Cursor.click();
+  Cursor.hide();
+  hideContextMenu();
+  await CTL.wait(200);
+
+  // Add Script to explorer and open editor
+  Explorer.addItem('ServerScriptService', {name:'Script', icon:'📄'});
+  Explorer.select('Script');
+  await CTL.wait(300);
+  Editor.open('Script');
+  await CTL.wait(400);
+  await Caption.say("A Script opened in the editor. This is where we write Lua code.", 3000);
+
+  /* ===== Chapter 4: print() ===== */
+  await chapter(4, 'print()');
+  await Caption.say("Lesson 1: print. print() sends text to the Output window.", 3000);
+  await Caption.say("Lua uses print just like Python — parentheses, quotes, your message.", 2800);
+
+  Cursor.show();
+  await Cursor.moveTo('#se-code');
+  Cursor.hide();
+  await Typer.type('print("Hello, Roblox!")');
+  await Typer.hesitate(500);
+
+  await Caption.say("Click Play to run the game and see what happens.", 2400);
+  await runScript({
+    output:['Hello, Roblox!'],
+    caption:"The Output window shows our message. You just wrote your first Lua code!",
+    duration:3200,
+  });
+  await Typer.hesitate(500);
+
+  /* ===== Chapter 5: Variables ===== */
+  await chapter(5, 'VARIABLES');
+  await Caption.say("Lesson 2: variables. A local variable stores a value with a name.", 3000);
+  await Caption.say("In Lua, we write 'local' before the variable name.", 2600);
+
+  await Typer.typeLine('');
+  await Typer.typeLine('local playerName = "Builder"');
+  await Typer.typeLine('local score = 0');
+  await Typer.hesitate(400);
+
+  await Caption.say("playerName holds text. score holds a number. Now we print them.", 3000);
+  await Typer.typeLine('');
+  await Typer.typeLine('print(playerName)');
+  await Typer.typeLine('print(score)');
+  await Typer.hesitate(500);
+
+  await runScript({
+    output:['Builder','0'],
+    caption:"print used the values stored in our variables. Easy!",
+    duration:3000,
+  });
+  await Typer.hesitate(500);
+
+  /* ===== Chapter 6: if / then / else ===== */
+  await chapter(6, 'IF / THEN / ELSE');
+  await Caption.say("Lesson 3: if, then, else. These let your code make decisions.", 3000);
+  await Caption.say("Lua uses 'then' and 'end' instead of colons and braces.", 2800);
+
+  await Typer.typeLine('');
+  await Typer.typeLine('local age = 15');
+  await Typer.typeLine('');
+  await Typer.typeLine('if age < 13 then');
+  await Typer.typeLine('print("You are a kid")', '    ');
+  await Typer.typeLine('elseif age < 18 then');
+  await Typer.typeLine('print("You are a teen")', '    ');
+  await Typer.typeLine('else');
+  await Typer.typeLine('print("You are an adult")', '    ');
+  await Typer.typeLine('end');
+  await Typer.hesitate(500);
+
+  await Caption.say("Run it. 15 is not under 13, but it is under 18, so 'teen' prints.", 2800);
+  await runScript({
+    output:['You are a teen'],
+    caption:"Lua's if / elseif / else / end makes decisions, just like Python's if / elif / else.",
+    duration:3400,
+  });
+  await Typer.hesitate(600);
+
+  /* ===== Chapter 7: Instance.new — Create Parts ===== */
+  await chapter(7, 'INSTANCE.NEW');
+  await Caption.say("Lesson 4: Instance.new. This creates objects in your game world.", 3000);
+  await Caption.say("We make a Part, set its size, position, and color, then parent it to workspace.", 3400);
+
+  Editor.reset();
+  await Typer.type('local coin = Instance.new("Part")');
+  await Typer.typeLine('coin.Size = Vector3.new(2, 0.2, 2)');
+  await Typer.typeLine('coin.Position = Vector3.new(0, 1, -12)');
+  await Typer.typeLine('coin.Color = Color3.fromRGB(255, 215, 0)');
+  await Typer.typeLine('coin.Material = Enum.Material.Neon');
+  await Typer.typeLine('coin.Anchored = true');
+  await Typer.typeLine('coin.Parent = workspace');
+  await Typer.hesitate(500);
+
+  await Caption.say("Run it. Parenting to workspace makes the part appear in the 3D world!", 3000);
+  await runScript({
+    spawnSingleCoin:true,
+    output:['Coin created and added to Workspace'],
+    caption:"A gold coin just appeared in the 3D viewport! You created a game object with code.",
+    duration:3600,
+  });
+  // Add coin to explorer for authenticity
+  Explorer.addItem('Workspace', {name:'Coin', icon:'🪙'});
+  await Typer.hesitate(500);
+
+  /* ===== Chapter 8: Events — Touched ===== */
+  await chapter(8, 'EVENTS');
+  await Caption.say("Lesson 5: Events. Parts can detect when something touches them.", 3000);
+  await Caption.say("We connect a function to the Touched event. It runs automatically on contact.", 3400);
+
+  await Typer.typeLine('');
+  await Typer.typeLine('coin.Touched:Connect(function(hit)');
+  await Typer.typeLine('local character = hit.Parent', '    ');
+  await Typer.typeLine('local humanoid = character:FindFirstChild("Humanoid")', '    ');
+  await Typer.typeLine('if humanoid then', '    ');
+  await Typer.typeLine('coin:Destroy()', '        ');
+  await Typer.typeLine('print("Coin collected!")', '        ');
+  await Typer.typeLine('end', '    ');
+  await Typer.typeLine('end)');
+  await Typer.hesitate(500);
+
+  await Caption.say("When a player touches the coin, the function runs. Destroy removes it.", 3200);
+  await Caption.say("FindFirstChild checks if the touching part belongs to a player character.", 3400);
+  await Typer.hesitate(600);
+
+  /* ===== Chapter 9: Build the Game ===== */
+  await chapter(9, 'BUILD THE GAME');
+  await Caption.say("Now let's build the full game. We'll spawn 5 coins and track a score.", 3200);
+
+  Editor.reset();
+  await Caption.say("First, set up a list for our coins and a score variable.", 2800);
+  await Typer.type('local coins = {}');
+  await Typer.typeLine('local score = 0');
+  await Typer.hesitate(400);
+
+  await Caption.say("A for loop creates 5 coins. Each gets a position spread across the world.", 3400);
+  await Typer.typeLine('');
+  await Typer.typeLine('for i = 1, 5 do');
+  await Typer.typeLine('local coin = Instance.new("Part")', '    ');
+  await Typer.typeLine('coin.Name = "Coin"', '    ');
+  await Typer.typeLine('coin.Size = Vector3.new(2, 0.2, 2)', '    ');
+  await Typer.typeLine('coin.Position = Vector3.new((i - 3) * 6, 1, -12)', '    ');
+  await Typer.typeLine('coin.Color = Color3.fromRGB(255, 215, 0)', '    ');
+  await Typer.typeLine('coin.Material = Enum.Material.Neon', '    ');
+  await Typer.typeLine('coin.Anchored = true', '    ');
+  await Typer.typeLine('coin.Parent = workspace', '    ');
+  await Typer.hesitate(400);
+
+  await Caption.say("Each coin gets a Touched event. On contact, the coin vanishes and score goes up.", 3600);
+  await Typer.typeLine('');
+  await Typer.typeLine('coin.Touched:Connect(function(hit)', '    ');
+  await Typer.typeLine('local character = hit.Parent', '        ');
+  await Typer.typeLine('local humanoid = character:FindFirstChild("Humanoid")', '        ');
+  await Typer.typeLine('if humanoid then', '        ');
+  await Typer.typeLine('coin:Destroy()', '            ');
+  await Typer.typeLine('score = score + 1', '            ');
+  await Typer.typeLine('print("Coin collected! Score: " .. score)', '            ');
+  await Typer.typeLine('end', '        ');
+  await Typer.typeLine('end)', '    ');
+  await Typer.hesitate(300);
+
+  await Caption.say("Finally, add each coin to our list and close the loop with 'end'.", 2800);
+  await Typer.typeLine('');
+  await Typer.typeLine('table.insert(coins, coin)', '    ');
+  await Typer.typeLine('end');
+  await Typer.hesitate(600);
+
+  await Caption.say("That's a complete game script. Let's run it!", 2400);
+  await runScript({
+    spawnCoins:5,
+    caption:"Five gold coins spawned in the 3D world! The for loop created each one and wired up its event.",
+    duration:3600,
+  });
+  await Typer.hesitate(600);
+
+  /* ===== Chapter 10: Play Your Game ===== */
+  await chapter(10, 'PLAY YOUR GAME');
+  await Caption.say("Time to play! Click Play and your character spawns into the world.", 3400);
+  await Caption.say("Watch the character walk to each coin and collect them one by one.", 3200);
+
+  await runScript({
+    playGame:true,
+    winMsg:'You collected all 5 coins! You win!',
+    caption:"Your character walked to every coin and collected them all. You just made a game!",
+    duration:3800,
+  });
+
+  await CTL.wait(900);
+  setProgress(100);
+  Caption.hide();
+  showFinish();
+  CTL.running=false;
+}
+
+/* ============================================================
+   Progress bar
+   ============================================================ */
+let _totalSteps=95, _step=0;
+function bumpProgress(){ _step++; setProgress(Math.min(99, Math.round((_step/_totalSteps)*100))); }
+function setProgress(pct){ $('#ctrl-progress').style.width=pct+'%'; }
+setInterval(()=>{ if(CTL.running&&!CTL.paused&&!CTL.cancelled) bumpProgress(); }, 2000);
+
+/* ============================================================
+   Explorer reset (for restart)
+   ============================================================ */
+Explorer.resetData=function(){
+  const ws=this._findItem(this.data,'Workspace');
+  if(ws) ws.children=[{name:'Baseplate',icon:'⬜'},{name:'Camera',icon:'📷'}];
+  const sss=this._findItem(this.data,'ServerScriptService');
+  if(sss) sss.children=[];
+  this.render();
+};
+
+/* ============================================================
+   Show finish
+   ============================================================ */
+function showFinish(){
+  $('#finish-screen').classList.add('visible');
+  CTL.running=false;
+}
+
+/* ============================================================
+   Voice loading
+   ============================================================ */
+function loadVoices(){
+  if(!('speechSynthesis' in window)) return;
+  const voices=speechSynthesis.getVoices();
+  const sel=$('#voice-select'); const cur=sel.value;
+  sel.innerHTML='<option value="">Off</option><option value="default">System default</option>';
+  voices.forEach(v=>{
+    if(!v.lang||!v.lang.startsWith('en')) return;
+    const o=document.createElement('option'); o.value=v.name; o.textContent=v.name;
+    sel.appendChild(o);
+  });
+  sel.value=cur||'default';
+}
+if('speechSynthesis' in window){
+  loadVoices();
+  speechSynthesis.onvoiceschanged=loadVoices;
+}
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+// Default narration on with system default voice
+Caption.narrate=true; Caption.voice=null;
+
+$('#voice-select').addEventListener('change', e=>{
+  const v=e.target.value;
+  if(!v){ Caption.narrate=false; return; }
+  Caption.narrate=true;
+  if(v==='default'){ Caption.voice=null; return; }
+  if('speechSynthesis' in window){
+    const voices=speechSynthesis.getVoices();
+    Caption.voice=voices.find(x=>x.name===v)||null;
+  }
+});
+
+$('#voice-rate').addEventListener('input', e=>{
+  Caption.rate=parseFloat(e.target.value);
+  $('#rate-value').textContent=Caption.rate.toFixed(1)+'×';
+});
+
+// Start button
+$('#btn-start').addEventListener('click', async ()=>{
+  $('#start-screen').classList.remove('visible');
+  CTL.reset();
+  await sleep(300);
+  try { await timeline(); } catch(e){ console.log('Timeline ended:', e.message); }
+});
+
+// Pause
+$('#btn-pause').addEventListener('click', ()=>{
+  if(!CTL.running) return;
+  CTL.paused=!CTL.paused;
+  $('#btn-pause').textContent=CTL.paused?'▶ Resume':'⏸ Pause';
+  $('#pause-indicator').classList.toggle('visible', CTL.paused);
+  if(CTL.paused){ if('speechSynthesis' in window) speechSynthesis.pause(); }
+  else { if('speechSynthesis' in window) speechSynthesis.resume(); }
+});
+
+// Restart
+function doRestart(){
+  CTL.cancel();
+  setTimeout(()=>{
+    CTL.reset();
+    Caption.hide();
+    hideContextMenu();
+    Editor.close(); Editor.reset();
+    Output.clear();
+    VP.clearCoins();
+    if(VP.character) VP.character.visible=false;
+    Explorer.resetData();
+    Properties.show(null);
+    $('#pause-indicator').classList.remove('visible');
+    $('#btn-pause').textContent='⏸ Pause';
+    $('#finish-screen').classList.remove('visible');
+    $('#start-screen').classList.add('visible');
+    setProgress(0);
+  }, 250);
+}
+$('#btn-restart').addEventListener('click', doRestart);
+$('#btn-finish-restart').addEventListener('click', doRestart);
+
+// Skip
+$('#btn-skip').addEventListener('click', ()=>{ CTL.skipRequested=true; });
+
+// Hide/show controls
+$('#btn-hide-controls').addEventListener('click', ()=>{
+  $('#controls').style.display='none';
+  $('#btn-show-controls').style.display='block';
+});
+$('#btn-show-controls').addEventListener('click', ()=>{
+  $('#controls').style.display='flex';
+  $('#btn-show-controls').style.display='none';
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='SELECT'||e.target.tagName==='INPUT') return;
+  if(e.code==='Space'){ e.preventDefault(); $('#btn-pause').click(); }
+  else if(e.key==='r'||e.key==='R'){ doRestart(); }
+  else if(e.key==='s'||e.key==='S'){ CTL.skipRequested=true; }
+});
+
+/* ============================================================
+   Initialize
+   ============================================================ */
+VP.init();
+Explorer.render();
+
+</script>
+</body>
+</html>
