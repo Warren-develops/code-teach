@@ -1,0 +1,2804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VS Code Live-Coding Tutorial Simulator — Pygame</title>
+<!-- Prism.js for syntax highlighting (loaded from CDN) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<style>
+/* ============================================================
+   VS CODE DARK+ PYGAME TUTORIAL SIMULATOR
+   Single-file application — Prism.js syntax highlighting
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #1e1e1e; color: #d4d4d4; font-size: 13px;
+  user-select: none; -webkit-user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --vs-editor: #1e1e1e;
+  --vs-sidebar: #252526;
+  --vs-activity: #333333;
+  --vs-statusbar: #007acc;
+  --vs-tab-active: #1e1e1e;
+  --vs-tab-inactive: #2d2d2d;
+  --vs-border: #3c3c3c;
+  --vs-titlebar: #3c3c3c;
+  --vs-text: #d4d4d4;
+  --vs-muted: #858585;
+  --vs-line-active: rgba(255,255,255,0.06);
+  --vs-line-num: #858585;
+  --vs-line-num-active: #c6c6c6;
+  --vs-cursor: #aeafad;
+  --vs-terminal: #1e1e1e;
+  --py-blue: #4ec9b0;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--vs-editor); }
+
+/* ---------- Title bar ---------- */
+.titlebar {
+  height: 30px; background: var(--vs-titlebar); display: flex; align-items: center;
+  font-size: 12px; color: #cccccc; flex-shrink: 0;
+}
+.titlebar-left, .titlebar-right { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.titlebar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.tb-menu-item { padding: 4px 8px; border-radius: 3px; cursor: default; }
+.tb-menu-item:hover { background: rgba(255,255,255,0.08); }
+.tb-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.tb-dot.red { background: #ff5f57; }
+.tb-dot.yellow { background: #febc2e; }
+.tb-dot.green { background: #28c840; }
+.tb-title { color: #cccccc; font-size: 12px; }
+
+/* ---------- Main body ---------- */
+.main-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ---------- Activity bar ---------- */
+.activity-bar {
+  width: 48px; background: var(--vs-activity); display: flex; flex-direction: column;
+  align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0;
+}
+.activity-icon {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  color: #858585; cursor: pointer; position: relative; transition: color .15s;
+}
+.activity-icon:hover { color: #fff; }
+.activity-icon.active { color: #fff; }
+.activity-icon.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.activity-icon svg { width: 24px; height: 24px; }
+.activity-spacer { flex: 1; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; background: var(--vs-sidebar); display: flex; flex-direction: column;
+  flex-shrink: 0; transition: width .25s ease; overflow: hidden;
+}
+.sidebar.collapsed { width: 0; }
+.sidebar-header {
+  height: 35px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font-size: 11px; letter-spacing: 0.5px; color: #bbbbbb;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.sidebar-header-actions { display: flex; gap: 6px; color: #858585; }
+.sidebar-header-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.sidebar-header-actions svg:hover { color: #fff; }
+.explorer { flex: 1; overflow-y: auto; font-size: 13px; padding-bottom: 12px; }
+.explorer-project { padding: 4px 14px; color: #cccccc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.tree-node {
+  display: flex; align-items: center; height: 22px; padding: 0 8px; cursor: pointer;
+  color: #cccccc; white-space: nowrap; position: relative;
+}
+.tree-node:hover { background: rgba(255,255,255,0.05); }
+.tree-node.active { background: #37373d; }
+.tree-chevron { width: 12px; display: inline-flex; align-items: center; justify-content: center; color: #858585; }
+.tree-chevron svg { width: 10px; height: 10px; transition: transform .15s; }
+.tree-chevron.collapsed svg { transform: rotate(-90deg); }
+.tree-icon { width: 16px; height: 16px; margin-right: 6px; flex-shrink: 0; }
+.tree-label { font-size: 13px; }
+
+/* ---------- Editor + Terminal split ---------- */
+.editor-area {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--vs-editor);
+}
+.tab-bar {
+  height: 35px; background: var(--vs-sidebar); display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--vs-border); flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--vs-tab-inactive); color: #969696; border-right: 1px solid #252526;
+  font-size: 13px; cursor: pointer; white-space: nowrap; position: relative; min-width: 120px;
+}
+.tab.active { background: var(--vs-tab-active); color: #fff; }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: #fff; }
+.tab-icon { width: 16px; height: 16px; }
+.tab-modified { width: 8px; height: 8px; border-radius: 50%; background: #c5c5c5; margin-left: auto; }
+.tab-modified.hidden { display: none; }
+.tab-close { color: #858585; opacity: 0; transition: opacity .1s; margin-left: 4px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+
+.editor-breadcrumbs {
+  height: 22px; background: var(--vs-editor); display: flex; align-items: center;
+  padding: 0 14px; font-size: 12px; color: #858585; border-bottom: 1px solid #252526; flex-shrink: 0; gap: 4px;
+}
+.editor-breadcrumbs svg { width: 12px; height: 12px; }
+.crumb-sep { color: #5a5a5a; }
+
+/* Editor takes top portion, terminal takes bottom */
+.editor-terminal-split {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.editor-scroll {
+  flex: 1; overflow: auto; position: relative; background: var(--vs-editor);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 14px; line-height: 19px; min-height: 0;
+}
+.editor-content { position: relative; min-width: 100%; min-height: 100%; padding: 8px 0 200px 0; }
+.line {
+  display: flex; align-items: flex-start; height: 19px; white-space: pre; position: relative;
+}
+.line.active-line { background: var(--vs-line-active); }
+.line-num {
+  width: 60px; text-align: right; padding-right: 16px; color: var(--vs-line-num);
+  user-select: none; flex-shrink: 0; font-size: 13px;
+}
+.line.active-line .line-num { color: var(--vs-line-num-active); }
+.line-code { position: relative; white-space: pre; flex: 1; padding-right: 14px; }
+.cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--vs-cursor);
+  vertical-align: text-bottom; margin-left: -1px; animation: blink 1s steps(1) infinite;
+  position: relative; top: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Prism override: token spans inherit our font */
+.line-code code, .line-code pre { background: transparent !important; font-family: inherit !important; font-size: inherit !important; padding: 0 !important; margin: 0 !important; }
+.line-code .token { background: transparent !important; }
+
+/* Autocomplete */
+.autocomplete {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  min-width: 260px; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 50; display: none; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+}
+.autocomplete.visible { display: block; }
+.ac-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; color: #cccccc;
+}
+.ac-item.selected { background: #04395e; }
+.ac-icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.ac-label { flex: 1; }
+.ac-detail { color: #858585; font-size: 11px; }
+.suggestion-doc {
+  position: absolute; background: #252526; border: 1px solid #454545; border-radius: 3px;
+  padding: 8px 12px; font-size: 12px; color: #cccccc; max-width: 320px; z-index: 60;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.suggestion-doc.visible { display: block; }
+
+/* ---------- Terminal panel ---------- */
+.terminal-panel {
+  height: 220px; min-height: 80px; background: var(--vs-terminal); border-top: 1px solid var(--vs-border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.terminal-header {
+  height: 30px; background: #252526; display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #cccccc;
+  border-bottom: 1px solid #1a1a1a; gap: 14px; flex-shrink: 0;
+}
+.terminal-tab { padding: 3px 8px; border-radius: 3px; cursor: pointer; color: #858585; }
+.terminal-tab.active { color: #fff; background: rgba(255,255,255,0.08); }
+.terminal-tab.active::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ec9b0; margin-right: 6px; vertical-align: middle; }
+.terminal-actions { margin-left: auto; display: flex; gap: 8px; color: #858585; }
+.terminal-actions svg { width: 14px; height: 14px; cursor: pointer; }
+.terminal-actions svg:hover { color: #fff; }
+.terminal-body {
+  flex: 1; overflow-y: auto; padding: 6px 12px; font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px; line-height: 18px; color: #cccccc;
+}
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-prompt { color: #4ec9b0; }
+.term-prompt-path { color: #9cdcfe; }
+.term-prompt-arrow { color: #dcdcaa; }
+.term-cmd { color: #d4d4d4; }
+.term-output { color: #cccccc; }
+.term-error { color: #f48771; }
+.term-success { color: #6a9955; }
+.term-info { color: #569cd6; }
+.term-cursor {
+  display: inline-block; width: 7px; height: 15px; background: #aeafad; vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite; margin-left: 2px;
+}
+.terminal-body .spinner-term { display: inline-block; color: #dcdcaa; }
+
+/* ---------- Status bar ---------- */
+.statusbar {
+  height: 22px; background: var(--vs-statusbar); display: flex; align-items: center;
+  color: #fff; font-size: 12px; padding: 0 8px; gap: 14px; flex-shrink: 0;
+}
+.statusbar-item { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.statusbar-item svg { width: 14px; height: 14px; }
+.statusbar-spacer { flex: 1; }
+.statusbar-remote { background: #007acc; }
+
+/* ============================================================
+   PREVIEW / DOCS PANEL (right side, ~40%)
+   Shows rendered Python output or rich-text docs
+   ============================================================ */
+.preview-area {
+  width: 40%; min-width: 320px; background: #ffffff; display: flex; flex-direction: column;
+  border-left: 1px solid var(--vs-border); flex-shrink: 0;
+}
+.preview-header {
+  height: 35px; background: #ececec; display: flex; align-items: center; padding: 0 10px; gap: 8px;
+  border-bottom: 1px solid #d0d0d0; flex-shrink: 0;
+}
+.preview-title {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #555;
+}
+.preview-title svg { width: 16px; height: 16px; color: #3776ab; }
+.preview-tabs { display: flex; gap: 4px; margin-left: auto; }
+.preview-tab {
+  padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; color: #555; background: transparent; border: 1px solid transparent;
+}
+.preview-tab.active { background: #fff; border-color: #d0d0d0; color: #007acc; font-weight: 600; }
+.preview-viewport {
+  flex: 1; position: relative; background: #fff; overflow: hidden;
+}
+.preview-iframe { width: 100%; height: 100%; border: none; background: #fff; display: block; }
+.preview-loading-overlay {
+  position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: none;
+  align-items: center; justify-content: center; z-index: 5;
+}
+.preview-loading-overlay.visible { display: flex; }
+.preview-loading-overlay .spinner {
+  width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: #007acc; border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-indicator {
+  font-size: 11px; color: #555; opacity: 0; transition: opacity .3s; padding: 0 6px; display: flex; align-items: center; gap: 4px;
+}
+.run-indicator.visible { opacity: 1; }
+.run-indicator svg { width: 12px; height: 12px; }
+.run-indicator.running svg { animation: spin 0.8s linear infinite; }
+
+/* ============================================================
+   SIMULATED MOUSE CURSOR
+   ============================================================ */
+.fake-cursor {
+  position: fixed; width: 22px; height: 22px; z-index: 9999; pointer-events: none;
+  transform: translate(-2px, -2px); transition: left .25s cubic-bezier(.4,0,.2,1), top .25s cubic-bezier(.4,0,.2,1), opacity .2s; opacity: 0;
+}
+.fake-cursor.visible { opacity: 1; }
+.fake-cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.fake-cursor.clicking { animation: clickPulse .25s ease; }
+@keyframes clickPulse { 0% { transform: translate(-2px,-2px) scale(1); } 50% { transform: translate(-2px,-2px) scale(0.75); } 100% { transform: translate(-2px,-2px) scale(1); } }
+.fake-cursor-ring { position: fixed; width: 30px; height: 30px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; z-index: 9998; pointer-events: none; opacity: 0; transition: opacity .2s; }
+
+/* ============================================================
+   VISUAL OVERLAYS
+   ============================================================ */
+.overlay-layer { position: fixed; inset: 0; pointer-events: none; z-index: 9000; }
+.overlay-arrow { position: absolute; pointer-events: none; transition: opacity .3s; }
+.overlay-arrow.fade-out { opacity: 0; }
+.overlay-circle {
+  position: absolute; border: 2px solid #ffcc00; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.4); animation: pulseCircle 1.4s ease-in-out infinite;
+}
+@keyframes pulseCircle { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.7; } }
+.overlay-highlight {
+  position: absolute; background: rgba(255, 204, 0, 0.18); border: 1px solid rgba(255,204,0,0.7);
+  border-radius: 3px; pointer-events: none; box-shadow: 0 0 14px rgba(255,204,0,0.35); animation: highlightPulse 1.4s ease-in-out infinite;
+}
+@keyframes highlightPulse { 0%,100% { box-shadow: 0 0 14px rgba(255,204,0,0.35); } 50% { box-shadow: 0 0 22px rgba(255,204,0,0.6); } }
+.overlay-label {
+  position: absolute; background: rgba(40,40,40,0.95); color: #ffcc00; padding: 5px 10px; border-radius: 4px;
+  font-size: 12px; font-weight: 500; pointer-events: none; white-space: nowrap; border: 1px solid rgba(255,204,0,0.4);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); max-width: 260px;
+}
+.pointer-trail { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,204,0,0.6); pointer-events: none; z-index: 8999; }
+
+/* ============================================================
+   FLOATING CARDS
+   ============================================================ */
+.card-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9500; display: none;
+  align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity .3s;
+}
+.card-overlay.visible { display: flex; opacity: 1; }
+.info-card {
+  background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px; padding: 18px; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6); color: #d4d4d4; font-size: 13px; transform: scale(0.92);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.card-overlay.visible .info-card { transform: scale(1); }
+.info-card img, .info-card svg { width: 100%; max-height: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 8px; margin-bottom: 10px; }
+.info-card h3 { color: #fff; font-size: 16px; margin-bottom: 6px; font-weight: 600; }
+.info-card p { color: #cccccc; line-height: 1.5; }
+.code-card { font-family: "SF Mono", Menlo, monospace; }
+.code-card pre {
+  background: #0d0d0d; border: 1px solid #333; border-radius: 4px; padding: 10px; color: #d4d4d4;
+  font-size: 12px; overflow-x: auto; margin: 6px 0; white-space: pre;
+}
+.code-card .code-caption { color: #9cdcfe; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+.code-card .code-output { color: #6a9955; font-size: 11px; font-style: italic; margin-top: 4px; }
+
+/* ============================================================
+   CHAPTER TRANSITION
+   ============================================================ */
+.chapter-transition {
+  position: fixed; inset: 0; background: #fff; z-index: 9700; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .35s;
+}
+.chapter-transition.visible { display: flex; opacity: 1; }
+.chapter-transition .ch-content { text-align: center; color: #000; padding: 40px; }
+.chapter-transition .ch-number { font-size: 18px; letter-spacing: 8px; color: #888; font-weight: 600; margin-bottom: 18px; text-transform: uppercase; }
+.chapter-transition .ch-title { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1.1; text-transform: uppercase; }
+.chapter-transition .ch-bar { width: 60px; height: 4px; background: #000; margin: 24px auto 0; }
+.chapter-transition .ch-pygame-logo { margin-bottom: 18px; }
+.chapter-transition .ch-pygame-logo svg { width: 80px; height: 80px; }
+
+/* ============================================================
+   CAPTIONS
+   ============================================================ */
+.captions-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.78);
+  color: #fff; padding: 10px 22px; border-radius: 6px; font-size: 16px; max-width: 70%; text-align: center;
+  z-index: 8500; display: none; pointer-events: none; line-height: 1.4;
+}
+.captions-bar.visible { display: block; }
+.captions-bar.hidden { display: none !important; }
+
+/* ============================================================
+   LIKE & SUBSCRIBE
+   ============================================================ */
+.subscribe-overlay {
+  position: fixed; top: 80px; right: 60px; z-index: 9600; display: none; flex-direction: column; gap: 10px;
+  align-items: flex-end; opacity: 0; transition: opacity .3s, transform .3s; transform: translateY(-10px);
+}
+.subscribe-overlay.visible { display: flex; opacity: 1; transform: translateY(0); }
+.sub-btn-row { display: flex; gap: 10px; align-items: center; }
+.yt-like { display: flex; align-items: center; gap: 6px; background: #fff; color: #0f0f0f; border: none; border-radius: 18px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+.yt-like svg { width: 20px; height: 20px; }
+.yt-like.clicked { background: #065fd4; color: #fff; animation: btnClick .4s; }
+.yt-subscribe { display: flex; align-items: center; gap: 6px; background: #ff0000; color: #fff; border: none; border-radius: 18px; padding: 9px 16px; font-size: 14px; font-weight: 600; }
+.yt-subscribe.clicked { background: #1c1c1c; animation: btnClick .4s; }
+.yt-subscribe.clicked::after { content: ' \2714'; }
+.yt-bell { background: #fff; color: #0f0f0f; border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.yt-bell svg { width: 22px; height: 22px; }
+.yt-bell.clicked { animation: bellRing .6s ease; }
+@keyframes btnClick { 0% { transform: scale(1); } 50% { transform: scale(0.88); } 100% { transform: scale(1); } }
+@keyframes bellRing { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(5deg); } }
+
+/* ============================================================
+   CONTROL PANEL
+   ============================================================ */
+.control-panel {
+  position: fixed; top: 50px; right: 16px; width: 320px; background: rgba(30,30,30,0.96);
+  border: 1px solid #3c3c3c; border-radius: 8px; z-index: 9800; box-shadow: 0 10px 32px rgba(0,0,0,0.5);
+  font-size: 12px; color: #d4d4d4; max-height: calc(100vh - 80px); overflow-y: auto;
+  transition: transform .25s, opacity .25s;
+}
+.control-panel.hidden { transform: translateX(340px); opacity: 0; pointer-events: none; }
+.cp-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;
+  background: #252526; border-bottom: 1px solid #3c3c3c; border-radius: 8px 8px 0 0; position: sticky; top: 0; z-index: 1;
+}
+.cp-title { font-weight: 600; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.cp-title svg { width: 16px; height: 16px; color: #3776ab; }
+.cp-collapse { background: transparent; border: none; color: #858585; cursor: pointer; padding: 2px; border-radius: 3px; }
+.cp-collapse:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.cp-collapse svg { width: 14px; height: 14px; }
+.cp-section { padding: 12px 14px; border-bottom: 1px solid #2a2a2a; }
+.cp-section:last-child { border-bottom: none; }
+.cp-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #858585; margin-bottom: 8px; font-weight: 600; }
+.cp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cp-row:last-child { margin-bottom: 0; }
+.cp-row label { flex: 1; color: #cccccc; font-size: 12px; }
+.cp-row input[type="range"] { width: 100px; accent-color: #007acc; }
+.cp-row input[type="text"], .cp-row select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 3px 6px; border-radius: 3px; font-size: 12px; flex: 1; min-width: 0; }
+.cp-row input[type="checkbox"] { accent-color: #007acc; width: 14px; height: 14px; }
+.cp-row .val-badge { background: #3c3c3c; color: #d4d4d4; border-radius: 3px; padding: 1px 6px; font-size: 11px; min-width: 32px; text-align: center; }
+.cp-btn { background: #0e639c; color: #fff; border: none; padding: 6px 10px; border-radius: 3px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.cp-btn:hover { background: #1177bb; }
+.cp-btn.secondary { background: #3a3d41; }
+.cp-btn.secondary:hover { background: #45494e; }
+.cp-btn.danger { background: #5a1d1d; }
+.cp-btn.danger:hover { background: #6e2424; }
+.cp-btn svg { width: 12px; height: 12px; }
+.cp-btn-row { display: flex; gap: 6px; }
+.cp-btn-row .cp-btn { flex: 1; }
+.cp-progress-section { padding: 10px 14px; background: #252526; }
+.cp-progress-bar { height: 6px; background: #3c3c3c; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.cp-progress-fill { height: 100%; background: linear-gradient(90deg, #3776ab, #ffd43b); width: 0%; transition: width .3s; }
+.cp-time-display { display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-top: 4px; }
+.cp-chapter-display { font-size: 11px; color: #9cdcfe; margin-top: 4px; }
+.cp-rec-indicator { display: inline-flex; align-items: center; gap: 4px; color: #ff5252; font-size: 11px; font-weight: 600; }
+.cp-rec-indicator .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff5252; animation: recBlink 1.2s infinite; }
+@keyframes recBlink { 50% { opacity: 0.3; } }
+
+.show-controls-btn {
+  position: fixed; top: 50px; right: 16px; width: 36px; height: 36px; background: rgba(30,30,30,0.95);
+  border: 1px solid #3c3c3c; border-radius: 50%; color: #fff; z-index: 9800; display: none;
+  align-items: center; justify-content: center; cursor: pointer;
+}
+.show-controls-btn.visible { display: flex; }
+.show-controls-btn:hover { background: #3a3d41; }
+.show-controls-btn svg { width: 18px; height: 18px; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-screen {
+  position: fixed; inset: 0; background: #1e1e1e; z-index: 9990; display: flex; align-items: center;
+  justify-content: center; flex-direction: column; padding: 30px; transition: opacity .4s;
+}
+.start-screen.hidden { opacity: 0; pointer-events: none; }
+.start-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 40px;
+  max-width: 640px; width: 100%; box-shadow: 0 16px 60px rgba(0,0,0,0.5);
+}
+.start-card h1 {
+  color: #fff; font-size: 26px; margin-bottom: 6px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+}
+.start-card h1 .py-badge { background: #3776ab; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+.start-card .subtitle { color: #858585; margin-bottom: 24px; font-size: 13px; }
+.start-card .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 24px; }
+.config-field { display: flex; flex-direction: column; gap: 4px; }
+.config-field label { font-size: 11px; color: #858585; text-transform: uppercase; letter-spacing: .5px; }
+.config-field input, .config-field select { background: #3c3c3c; border: 1px solid #555; color: #d4d4d4; padding: 6px 8px; border-radius: 3px; font-size: 13px; outline: none; }
+.config-field input:focus, .config-field select:focus { border-color: #3776ab; }
+.config-field.full { grid-column: 1 / -1; }
+.start-btn {
+  width: 100%; background: #3776ab; color: #fff; border: none; padding: 14px; border-radius: 6px;
+  font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 10px; transition: background .15s;
+}
+.start-btn:hover { background: #4584b6; }
+.start-btn svg { width: 20px; height: 20px; }
+.start-hint { color: #858585; font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+.start-hint kbd { background: #3c3c3c; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 11px; color: #d4d4d4; font-family: inherit; }
+
+/* ============================================================
+   FINISH SCREEN
+   ============================================================ */
+.finish-screen {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9850; display: none;
+  align-items: center; justify-content: center; opacity: 0; transition: opacity .4s;
+}
+.finish-screen.visible { display: flex; opacity: 1; }
+.finish-card {
+  background: #252526; border: 1px solid #3c3c3c; border-radius: 12px; padding: 36px 44px;
+  max-width: 460px; text-align: center; box-shadow: 0 16px 60px rgba(0,0,0,0.6);
+}
+.finish-card .check-circle { width: 64px; height: 64px; background: #107c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.finish-card .check-circle svg { width: 36px; height: 36px; color: #fff; }
+.finish-card h2 { color: #fff; font-size: 22px; margin-bottom: 6px; }
+.finish-card p { color: #cccccc; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+.finish-card .stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.finish-card .stat { text-align: center; }
+.finish-card .stat-val { color: #3776ab; font-size: 22px; font-weight: 700; }
+.finish-card .stat-lbl { color: #858585; font-size: 11px; text-transform: uppercase; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) { .preview-area { width: 38%; min-width: 280px; } .sidebar { width: 200px; } .control-panel { width: 290px; } }
+@media (max-width: 900px) { .preview-area { width: 36%; } .sidebar { width: 180px; } .chapter-transition .ch-title { font-size: 44px; } }
+@media (max-width: 700px) { .sidebar { display: none; } .preview-area { width: 40%; } }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #424242; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span class="tb-dot red"></span><span class="tb-dot yellow"></span><span class="tb-dot green"></span>
+    </div>
+    <div class="titlebar-center">
+      <span class="tb-menu-item">File</span><span class="tb-menu-item">Edit</span><span class="tb-menu-item">Selection</span>
+      <span class="tb-menu-item">View</span><span class="tb-menu-item">Go</span><span class="tb-menu-item">Run</span>
+      <span class="tb-menu-item">Terminal</span><span class="tb-menu-item">Help</span>
+    </div>
+    <div class="titlebar-right"><span class="tb-title">pygame-tutorial — Visual Studio Code</span></div>
+  </div>
+
+  <!-- Main body -->
+  <div class="main-body">
+    <!-- Activity bar -->
+    <div class="activity-bar">
+      <div class="activity-icon active" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></div>
+      <div class="activity-icon" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="activity-icon" title="Source Control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.5 6H15a3 3 0 0 1 3 3v0.5"/></svg></div>
+      <div class="activity-icon" title="Extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 3l3 3-3 3M11 21l-3-3 3-3M3 11h7M21 13h-7M7 7l3 3M17 17l-3-3"/></svg></div>
+      <div class="activity-spacer"></div>
+      <div class="activity-icon" title="Accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div class="activity-icon" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span>Explorer</span>
+        <div class="sidebar-header-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </div>
+      </div>
+      <div class="explorer">
+        <div class="explorer-project">Pygame-Tutorial</div>
+        <div class="file-tree" id="file-tree">
+          <div class="tree-node" data-folder="assets">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">assets</span>
+          </div>
+          <div class="tree-node" data-folder="venv">
+            <span class="tree-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="#dcb67a"><path d="M3 6h7l2 2h9v11H3V6z"/></svg></span>
+            <span class="tree-label">venv</span>
+          </div>
+          <div class="tree-node active" data-file="main.py">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">main.py</span>
+          </div>
+          <div class="tree-node" data-file="player.py">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">player.py</span>
+          </div>
+          <div class="tree-node" data-file="settings.py">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+            <span class="tree-label">settings.py</span>
+          </div>
+          <div class="tree-node" data-file="requirements.txt">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">requirements.txt</span>
+          </div>
+          <div class="tree-node" data-file="README.md">
+            <span class="tree-chevron"></span>
+            <span class="tree-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#519aba" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
+            <span class="tree-label">README.md</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor + Terminal -->
+    <div class="editor-area">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="main.py">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+          <span>main.py</span>
+          <span class="tab-modified hidden" id="tab-modified"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+        <div class="tab" data-tab="player.py">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3776ab" stroke-width="1.4"><path d="M5 3h14v18H5V3z"/><path d="M8 8l2 2-2 2M13 12h3"/></svg></span>
+          <span>player.py</span>
+          <span class="tab-modified hidden"></span>
+          <span class="tab-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+        </div>
+      </div>
+      <div class="editor-breadcrumbs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h7l2 2h9v11H3V6z"/></svg>
+        <span>Pygame-Tutorial</span><span class="crumb-sep">›</span><span>main.py</span>
+      </div>
+      <div class="editor-terminal-split">
+        <div class="editor-scroll" id="editor-scroll">
+          <div class="editor-content" id="editor-content"></div>
+          <div class="autocomplete" id="autocomplete"></div>
+          <div class="suggestion-doc" id="suggestion-doc"></div>
+        </div>
+        <!-- Terminal -->
+        <div class="terminal-panel" id="terminal-panel">
+          <div class="terminal-header">
+            <span class="terminal-tab active">TERMINAL</span>
+            <span class="terminal-tab">PROBLEMS</span>
+            <span class="terminal-tab">OUTPUT</span>
+            <span class="terminal-tab">DEBUG CONSOLE</span>
+            <div class="terminal-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminal-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview / Docs panel -->
+    <div class="preview-area">
+      <div class="preview-header">
+        <div class="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 9l3 3-3 3M13 15h3" stroke="#21A179"/></svg>
+          <span>Game Window</span>
+        </div>
+        <div class="preview-tabs">
+          <div class="preview-tab active" data-ptab="output">Output</div>
+          <div class="preview-tab" data-ptab="docs">Docs</div>
+        </div>
+        <div class="run-indicator" id="run-indicator">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+          Running
+        </div>
+      </div>
+      <div class="preview-viewport">
+        <iframe class="preview-iframe" id="preview-iframe" sandbox="allow-same-origin" title="Pygame window"></iframe>
+        <div class="preview-loading-overlay" id="preview-loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <div class="statusbar-item statusbar-remote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3L4 7l4 4M16 3l4 4-4 4M14 4l-4 16"/></svg><span>Live Share</span></div>
+    <div class="statusbar-item" id="sb-cursor-pos">Ln 1, Col 1</div>
+    <div class="statusbar-item">Spaces: 4</div>
+    <div class="statusbar-item">UTF-8</div>
+    <div class="statusbar-item">Python</div>
+    <div class="statusbar-item">LF</div>
+    <div class="statusbar-spacer"></div>
+    <div class="statusbar-item" id="sb-line-count">0 lines</div>
+    <div class="statusbar-item">Python 3.11.6 · pygame 2.5</div>
+    <div class="statusbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+</div>
+
+<!-- Simulated cursor -->
+<div class="fake-cursor" id="fake-cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M5 3l14 8-6 1 4 7-3 1-4-7-5 4z"/></svg></div>
+<div class="fake-cursor-ring" id="fake-cursor-ring"></div>
+
+<!-- Overlays -->
+<div class="overlay-layer" id="overlay-layer"></div>
+<div class="card-overlay" id="card-overlay"><div class="info-card" id="info-card"></div></div>
+<div class="chapter-transition" id="chapter-transition"><div class="ch-content"><div class="ch-pygame-logo" id="ch-pygame-logo"></div><div class="ch-number" id="ch-number">CHAPTER 01</div><div class="ch-title" id="ch-title">INTRODUCTION</div><div class="ch-bar"></div></div></div>
+<div class="captions-bar hidden" id="captions-bar"></div>
+<div class="subscribe-overlay" id="subscribe-overlay">
+  <div class="sub-btn-row">
+    <button class="yt-like" id="yt-like"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11v9H4V11h3zm14-1l-1 8a2 2 0 0 1-2 2H9V11l4-7c.6 0 1 .4 1 1v4h6a1 1 0 0 1 1 1z"/></svg>Like</button>
+    <button class="yt-subscribe" id="yt-subscribe">Subscribe</button>
+    <button class="yt-bell" id="yt-bell" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0"/></svg></button>
+  </div>
+</div>
+
+<!-- Control panel -->
+<div class="control-panel" id="control-panel">
+  <div class="cp-header">
+    <div class="cp-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg><span>Recording Controls</span></div>
+    <button class="cp-collapse" id="cp-collapse" title="Hide (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="cp-progress-section">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="cp-rec-indicator" id="cp-rec"><span class="rec-dot"></span> STANDBY</span>
+      <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
+    </div>
+    <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Playback</div>
+    <div class="cp-btn-row" style="margin-bottom:6px;">
+      <button class="cp-btn" id="btn-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Start</button>
+      <button class="cp-btn secondary" id="btn-pause" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>Pause</button>
+    </div>
+    <div class="cp-btn-row">
+      <button class="cp-btn secondary" id="btn-resume" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>Resume</button>
+      <button class="cp-btn danger" id="btn-restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 3 6.7M3 4v4h4"/></svg>Restart</button>
+    </div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Voice &amp; Narration</div>
+    <div class="cp-row"><label>Voice</label></div>
+    <div class="cp-row"><select id="cp-voice" style="flex:1;"></select></div>
+    <div class="cp-row"><label>Speed</label><input type="range" id="cp-rate" min="0.7" max="1.4" step="0.05" value="1.0"><span class="val-badge" id="cp-rate-val">1.0x</span></div>
+    <div class="cp-row"><label>Mute narration</label><input type="checkbox" id="cp-mute"></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-test-voice" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/></svg>Test Voice</button></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Typing</div>
+    <div class="cp-row"><label>Typing speed</label><input type="range" id="cp-typing" min="0.4" max="2.5" step="0.1" value="1.0"><span class="val-badge" id="cp-typing-val">1.0x</span></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Background Music (YouTube)</div>
+    <div class="cp-row"><input type="text" id="cp-music-url" placeholder="https://youtube.com/watch?v=..."></div>
+    <div class="cp-row"><label>Volume</label><input type="range" id="cp-music-vol" min="0" max="100" step="5" value="35"><span class="val-badge" id="cp-music-vol-val">35%</span></div>
+    <div class="cp-row"><button class="cp-btn secondary" id="btn-music-test" style="flex:1;">Test Music</button><button class="cp-btn secondary" id="btn-music-mute" style="flex:1;">Mute</button></div>
+    <div style="font-size:10px; color:#858585; margin-top:4px; line-height:1.4;" id="music-status">No music configured. Tutorial will run without background music.</div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Display</div>
+    <div class="cp-row"><label>Captions</label><input type="checkbox" id="cp-captions" checked></div>
+    <div class="cp-row"><label>Visual effects</label><input type="checkbox" id="cp-effects" checked></div>
+    <div class="cp-row"><label>Simulated cursor</label><input type="checkbox" id="cp-cursor" checked></div>
+  </div>
+  <div class="cp-section">
+    <div class="cp-section-title">Navigation</div>
+    <div class="cp-row"><label>Jump to chapter</label></div>
+    <div class="cp-row"><select id="cp-jump" style="flex:1;">
+      <option value="0">Ch 1 — Intro &amp; Pygame Setup</option>
+      <option value="1">Ch 2 — Game Loop &amp; Events</option>
+      <option value="2">Ch 3 — Drawing &amp; Sprites</option>
+      <option value="3">Ch 4 — Movement &amp; Collision</option>
+      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
+      <option value="5">Ch 6 — Final Game &amp; Walkthrough</option>
+    </select></div>
+    <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
+  </div>
+</div>
+
+<button class="show-controls-btn" id="show-controls-btn" title="Show controls (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 12h3M18 12h3M12 3v3M12 18v3"/></svg></button>
+
+<!-- Finish screen -->
+<div class="finish-screen" id="finish-screen">
+  <div class="finish-card">
+    <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
+    <h2>Tutorial Complete!</h2>
+    <p>Your Pygame game is written, debugged, and running. You learned the game loop, event handling, drawing, sprites, movement, collision detection, and fixed three real Pygame bugs.</p>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
+      <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+    </div>
+    <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
+  </div>
+</div>
+
+<!-- Start screen -->
+<div class="start-screen" id="start-screen">
+  <div class="start-card">
+    <h1>
+      <svg viewBox="0 0 256 256" width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect x="32" y="32" width="192" height="192" rx="24" fill="#21A179"/><path d="M76 96h52c14 0 24 10 24 24s-10 24-24 24H96v40H76V96zm20 20v28h28c8 0 14-6 14-14s-6-14-14-14H96z" fill="#fff"/><circle cx="156" cy="170" r="14" fill="#FFD43B"/></svg>
+      VS Code Pygame Simulator
+      <span class="py-badge">pygame 2.5</span>
+    </h1>
+    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live Pygame coding session. Covers the game loop, events, drawing, sprites, movement, collision detection, and three debugging demos.</p>
+    <div class="config-grid">
+      <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
+      <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
+      <div class="config-field"><label>Typing speed</label><select id="ss-typing"><option value="0.6">Calm</option><option value="1.0" selected>Normal</option><option value="1.6">Quick</option><option value="2.2">Rapid</option></select></div>
+      <div class="config-field"><label>Captions</label><select id="ss-captions"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+      <div class="config-field full"><label>Background music (optional YouTube URL)</label><input type="text" id="ss-music" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div class="config-field"><label>Music volume</label><input type="range" id="ss-music-vol" min="0" max="100" value="35" style="width:100%;"></div>
+      <div class="config-field"><label>Visual effects</label><select id="ss-effects"><option value="1" selected>On</option><option value="0">Off</option></select></div>
+    </div>
+    <button class="start-btn" id="btn-start-rec"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="#ff5252" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>START RECORDING</button>
+    <div class="start-hint">Tip: press <kbd>H</kbd> during the tutorial to hide or restore the control panel.<br>Voices load from your browser's Web Speech API. Pick a Google / Microsoft neural voice for best results.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   PYGAME TUTORIAL SIMULATOR — JavaScript
+   Modules: EditorSimulator, PrismHighlighter, TypingEngine,
+   AutoCompleteEngine, SpeechController, AudioController,
+   TerminalController, PreviewController, VisualEffectsController,
+   TimelineEngine, RecordingControls
+   ============================================================ */
+'use strict';
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+function el(tag, props={}, ...children) {
+  const node = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') node.className = props[k];
+    else if (k === 'style') node.setAttribute('style', props[k]);
+    else if (k.startsWith('data-')) node.setAttribute(k, props[k]);
+    else node[k] = props[k];
+  }
+  for (const c of children) {
+    if (c == null) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+const STATE = {
+  started: false, paused: false, finished: false,
+  currentChapter: 0, eventIndex: 0, charIndex: 0, elapsedMs: 0,
+  typingSpeedMul: 1.0, speechRate: 1.0, captionsOn: true, effectsOn: true,
+  cursorOn: true, muteNarration: false, musicMuted: false, musicVolume: 0.35,
+};
+
+/* ============================================================
+   1. EDITOR SIMULATOR
+   Maintains the source document as an array of lines.
+   Renders with line numbers + Prism syntax highlighting + cursor.
+   ============================================================ */
+class EditorSimulator {
+  constructor() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.contentEl = $('#editor-content');
+    this.scrollEl = $('#editor-scroll');
+    this.autocompleteEl = $('#autocomplete');
+    this.suggestionDocEl = $('#suggestion-doc');
+    this.tabModified = $('#tab-modified');
+    this.sbCursor = $('#sb-cursor-pos');
+    this.sbLineCount = $('#sb-line-count');
+    this.modified = false;
+    this.highlighter = new PrismHighlighter();
+    this.render();
+  }
+
+  reset() {
+    this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.modified = false;
+    this.setModified(false);
+    this.render();
+  }
+
+  setModified(m) {
+    this.modified = m;
+    if (m) this.tabModified.classList.remove('hidden');
+    else this.tabModified.classList.add('hidden');
+  }
+
+  getText() { return this.lines.join('\n'); }
+
+  insertText(text) {
+    for (const ch of text) {
+      const line = this.lines[this.cursorLine] || '';
+      if (ch === '\n') {
+        const before = line.slice(0, this.cursorCol);
+        const after = line.slice(this.cursorCol);
+        this.lines[this.cursorLine] = before;
+        this.lines.splice(this.cursorLine + 1, 0, after);
+        this.cursorLine++;
+        this.cursorCol = 0;
+      } else {
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol) + ch + line.slice(this.cursorCol);
+        this.cursorCol++;
+      }
+    }
+    this.setModified(true);
+  }
+
+  backspace(count=1) {
+    for (let i = 0; i < count; i++) {
+      if (this.cursorCol > 0) {
+        const line = this.lines[this.cursorLine];
+        this.lines[this.cursorLine] = line.slice(0, this.cursorCol - 1) + line.slice(this.cursorCol);
+        this.cursorCol--;
+      } else if (this.cursorLine > 0) {
+        const prev = this.lines[this.cursorLine - 1];
+        this.cursorCol = prev.length;
+        this.lines[this.cursorLine - 1] = prev + this.lines[this.cursorLine];
+        this.lines.splice(this.cursorLine, 1);
+        this.cursorLine--;
+      }
+    }
+    this.setModified(true);
+  }
+
+  setCursor(line, col) {
+    this.cursorLine = Math.max(0, Math.min(line, this.lines.length - 1));
+    const ll = this.lines[this.cursorLine] || '';
+    this.cursorCol = Math.max(0, Math.min(col, ll.length));
+  }
+
+  setContent(text) {
+    this.lines = text.split('\n');
+    if (this.lines.length === 0) this.lines = [''];
+    this.cursorLine = 0;
+    this.cursorCol = 0;
+    this.setModified(false);
+  }
+
+  render() {
+    const frag = document.createDocumentFragment();
+    const total = this.lines.length;
+    for (let i = 0; i < total; i++) {
+      const lineDiv = el('div', { class: 'line' + (i === this.cursorLine ? ' active-line' : '') });
+      const num = el('span', { class: 'line-num' }, String(i + 1));
+      const code = el('span', { class: 'line-code' });
+      if (i === this.cursorLine) {
+        code.innerHTML = this._insertCursorHtml(this.lines[i] || '');
+      } else {
+        code.innerHTML = this.highlighter.highlight(this.lines[i] || '');
+      }
+      lineDiv.appendChild(num);
+      lineDiv.appendChild(code);
+      frag.appendChild(lineDiv);
+    }
+    this.contentEl.innerHTML = '';
+    this.contentEl.appendChild(frag);
+    this.sbCursor.textContent = `Ln ${this.cursorLine + 1}, Col ${this.cursorCol + 1}`;
+    this.sbLineCount.textContent = `${total} lines`;
+    this._scrollToCursor();
+  }
+
+  _insertCursorHtml(line) {
+    // Highlight before/after the cursor position, drop the cursor span in between.
+    const before = line.slice(0, this.cursorCol);
+    const after = line.slice(this.cursorCol);
+    const beforeHtml = this.highlighter.highlight(before);
+    const afterHtml = this.highlighter.highlight(after);
+    return beforeHtml + '<span class="cursor"></span>' + afterHtml;
+  }
+
+  _scrollToCursor() {
+    const lineHeight = 19;
+    const targetTop = this.cursorLine * lineHeight;
+    const viewH = this.scrollEl.clientHeight;
+    if (targetTop < this.scrollEl.scrollTop + 40) {
+      this.scrollEl.scrollTop = Math.max(0, targetTop - 40);
+    } else if (targetTop > this.scrollEl.scrollTop + viewH - 80) {
+      this.scrollEl.scrollTop = targetTop - viewH + 80;
+    }
+    const approxColWidth = 7.8;
+    const targetLeft = this.cursorCol * approxColWidth;
+    if (targetLeft < this.scrollEl.scrollLeft + 80) {
+      this.scrollEl.scrollLeft = Math.max(0, targetLeft - 80);
+    } else if (targetLeft > this.scrollEl.scrollLeft + this.scrollEl.clientWidth - 100) {
+      this.scrollEl.scrollLeft = targetLeft - this.scrollEl.clientWidth + 100;
+    }
+  }
+
+  getLineRect(line) {
+    const lineDivs = this.contentEl.querySelectorAll('.line');
+    const lineDiv = lineDivs[line];
+    if (!lineDiv) return null;
+    return lineDiv.getBoundingClientRect();
+  }
+
+  getTokenRect(line, startCol, endCol) {
+    const lineRect = this.getLineRect(line);
+    if (!lineRect) return null;
+    const charWidth = 7.8;
+    return {
+      left: lineRect.left + 60 + startCol * charWidth,
+      top: lineRect.top,
+      right: lineRect.left + 60 + endCol * charWidth,
+      bottom: lineRect.bottom,
+      width: (endCol - startCol) * charWidth,
+      height: lineRect.height,
+    };
+  }
+}
+
+/* ============================================================
+   2. PRISM HIGHLIGHTER
+   Wraps Prism.js to highlight a single line of Python safely,
+   preserving character offsets for cursor insertion.
+   ============================================================ */
+class PrismHighlighter {
+  constructor() {
+    this.grammar = (window.Prism && window.Prism.languages && window.Prism.languages.python) || null;
+    this.ready = !!(window.Prism && this.grammar);
+  }
+
+  highlight(line) {
+    if (!line) return '';
+    if (!this.ready) return this._escape(line);
+    try {
+      // Prism.highlight returns HTML with token spans. We must escape
+      // the raw line first for safety, but Prism does its own escaping
+      // internally when tokenizing — so passing the raw string is correct.
+      return window.Prism.highlight(line, this.grammar, 'python');
+    } catch (e) {
+      return this._escape(line);
+    }
+  }
+
+  _escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+}
+
+/* ============================================================
+   3. TYPING ENGINE
+   Character-by-character typing with realistic human cadence.
+   ============================================================ */
+class TypingEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.paused = false;
+    this.cancelled = false;
+    this._pauseResolve = null;
+  }
+
+  reset() { this.cancelled = true; this._breakPause(); }
+  pause() { this.paused = true; }
+  resume() { this.paused = false; this._breakPause(); }
+  _breakPause() { if (this._pauseResolve) { const r = this._pauseResolve; this._pauseResolve = null; r(); } }
+
+  async _wait(ms) {
+    const slice = 30;
+    let remaining = ms;
+    while (remaining > 0 && !this.cancelled) {
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const step = Math.min(slice, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+
+  _charDelay(ch, prevCh, nextCh) {
+    const mul = 1 / STATE.typingSpeedMul;
+    let base = rand(40, 90);
+    if (prevCh === '(' || prevCh === ')' || prevCh === '[' || prevCh === ']' || prevCh === '{' || prevCh === '}' || prevCh === '=' || prevCh === ':') base += rand(30, 70);
+    if (ch === '\n') base = rand(120, 220);
+    if (prevCh === ',' || prevCh === ';') base += rand(30, 80);
+    if (ch === ' ' && nextCh === ' ') base = Math.min(base, 30);
+    // Brief hesitation after indentation (4 spaces)
+    return Math.max(20, base * mul);
+  }
+
+  async type(text) {
+    this.cancelled = false;
+    for (let i = 0; i < text.length; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      const ch = text[i];
+      const prevCh = i > 0 ? text[i-1] : '';
+      const nextCh = i < text.length - 1 ? text[i+1] : '';
+      this.editor.insertText(ch);
+      this.editor.render();
+      await this._wait(this._charDelay(ch, prevCh, nextCh));
+    }
+  }
+
+  async typeLine(text, indent='') { await this.type('\n' + indent + text); }
+
+  async backspace(count=1) {
+    this.cancelled = false;
+    for (let i = 0; i < count; i++) {
+      if (this.cancelled) return;
+      while (this.paused && !this.cancelled) { await new Promise(r => { this._pauseResolve = r; }); }
+      if (this.cancelled) return;
+      this.editor.backspace(1);
+      this.editor.render();
+      await this._wait(rand(45, 90));
+    }
+  }
+
+  async moveTo(line, col) {
+    this.editor.setCursor(line, col);
+    this.editor.render();
+    await this._wait(rand(120, 220));
+  }
+
+  async hesitate(ms) { await this._wait(ms || rand(300, 700)); }
+}
+
+/* ============================================================
+   4. AUTOCOMPLETE ENGINE
+   IntelliSense-style Python suggestions.
+   ============================================================ */
+class AutoCompleteEngine {
+  constructor(editor) {
+    this.editor = editor;
+    this.popup = $('#autocomplete');
+    this.docEl = $('#suggestion-doc');
+    this.visible = false;
+    this.selectedIdx = 0;
+    this.items = [];
+    this.suggestions = {
+      builtins: [
+        { label: 'print', detail: 'function', icon: 'fn' },
+        { label: 'len', detail: 'function', icon: 'fn' },
+        { label: 'range', detail: 'function', icon: 'fn' },
+        { label: 'input', detail: 'function', icon: 'fn' },
+        { label: 'int', detail: 'class', icon: 'class' },
+        { label: 'str', detail: 'class', icon: 'class' },
+        { label: 'float', detail: 'class', icon: 'class' },
+        { label: 'list', detail: 'class', icon: 'class' },
+        { label: 'dict', detail: 'class', icon: 'class' },
+        { label: 'set', detail: 'class', icon: 'class' },
+        { label: 'enumerate', detail: 'function', icon: 'fn' },
+        { label: 'zip', detail: 'function', icon: 'fn' },
+        { label: 'sorted', detail: 'function', icon: 'fn' },
+        { label: 'sum', detail: 'function', icon: 'fn' },
+        { label: 'max', detail: 'function', icon: 'fn' },
+        { label: 'min', detail: 'function', icon: 'fn' },
+        { label: 'abs', detail: 'function', icon: 'fn' },
+        { label: 'type', detail: 'function', icon: 'fn' },
+        { label: 'isinstance', detail: 'function', icon: 'fn' },
+      ],
+      keywords: [
+        { label: 'def', detail: 'keyword', icon: 'kw' },
+        { label: 'class', detail: 'keyword', icon: 'kw' },
+        { label: 'return', detail: 'keyword', icon: 'kw' },
+        { label: 'if', detail: 'keyword', icon: 'kw' },
+        { label: 'elif', detail: 'keyword', icon: 'kw' },
+        { label: 'else', detail: 'keyword', icon: 'kw' },
+        { label: 'for', detail: 'keyword', icon: 'kw' },
+        { label: 'while', detail: 'keyword', icon: 'kw' },
+        { label: 'import', detail: 'keyword', icon: 'kw' },
+        { label: 'from', detail: 'keyword', icon: 'kw' },
+        { label: 'as', detail: 'keyword', icon: 'kw' },
+        { label: 'with', detail: 'keyword', icon: 'kw' },
+        { label: 'try', detail: 'keyword', icon: 'kw' },
+        { label: 'except', detail: 'keyword', icon: 'kw' },
+        { label: 'finally', detail: 'keyword', icon: 'kw' },
+        { label: 'lambda', detail: 'keyword', icon: 'kw' },
+        { label: 'yield', detail: 'keyword', icon: 'kw' },
+        { label: 'True', detail: 'constant', icon: 'const' },
+        { label: 'False', detail: 'constant', icon: 'const' },
+        { label: 'None', detail: 'constant', icon: 'const' },
+      ],
+      modules: [
+        { label: 'pygame', detail: 'game library', icon: 'mod' },
+        { label: 'os', detail: 'module', icon: 'mod' },
+        { label: 'sys', detail: 'module', icon: 'mod' },
+        { label: 'math', detail: 'module', icon: 'mod' },
+        { label: 'random', detail: 'module', icon: 'mod' },
+        { label: 'datetime', detail: 'module', icon: 'mod' },
+        { label: 'json', detail: 'module', icon: 'mod' },
+        { label: 'collections', detail: 'module', icon: 'mod' },
+        { label: 'itertools', detail: 'module', icon: 'mod' },
+        { label: 'pathlib', detail: 'module', icon: 'mod' },
+        { label: 're', detail: 'module', icon: 'mod' },
+        { label: 'string', detail: 'module', icon: 'mod' },
+      ],
+      pygame: [
+        { label: 'pygame.init', detail: 'initialize pygame', icon: 'fn' },
+        { label: 'pygame.display', detail: 'display module', icon: 'mod' },
+        { label: 'pygame.event', detail: 'event module', icon: 'mod' },
+        { label: 'pygame.time', detail: 'time module', icon: 'mod' },
+        { label: 'pygame.draw', detail: 'draw module', icon: 'mod' },
+        { label: 'pygame.Surface', detail: 'surface class', icon: 'class' },
+        { label: 'pygame.Rect', detail: 'rect class', icon: 'class' },
+        { label: 'pygame.sprite', detail: 'sprite module', icon: 'mod' },
+        { label: 'pygame.font', detail: 'font module', icon: 'mod' },
+        { label: 'pygame.image', detail: 'image module', icon: 'mod' },
+        { label: 'pygame.mixer', detail: 'audio module', icon: 'mod' },
+        { label: 'pygame.K_LEFT', detail: 'key constant', icon: 'const' },
+        { label: 'pygame.K_RIGHT', detail: 'key constant', icon: 'const' },
+        { label: 'pygame.K_SPACE', detail: 'key constant', icon: 'const' },
+        { label: 'pygame.QUIT', detail: 'event type', icon: 'const' },
+        { label: 'pygame.KEYDOWN', detail: 'event type', icon: 'const' },
+      ],
+      methods: [
+        { label: 'append', detail: 'list method', icon: 'fn' },
+        { label: 'extend', detail: 'list method', icon: 'fn' },
+        { label: 'pop', detail: 'list method', icon: 'fn' },
+        { label: 'sort', detail: 'list method', icon: 'fn' },
+        { label: 'split', detail: 'str method', icon: 'fn' },
+        { label: 'join', detail: 'str method', icon: 'fn' },
+        { label: 'strip', detail: 'str method', icon: 'fn' },
+        { label: 'replace', detail: 'str method', icon: 'fn' },
+        { label: 'upper', detail: 'str method', icon: 'fn' },
+        { label: 'lower', detail: 'str method', icon: 'fn' },
+        { label: 'format', detail: 'str method', icon: 'fn' },
+        { label: 'keys', detail: 'dict method', icon: 'fn' },
+        { label: 'values', detail: 'dict method', icon: 'fn' },
+        { label: 'items', detail: 'dict method', icon: 'fn' },
+        { label: 'get', detail: 'dict method', icon: 'fn' },
+        { label: 'set_mode', detail: 'pygame.display method', icon: 'fn' },
+        { label: 'set_caption', detail: 'pygame.display method', icon: 'fn' },
+        { label: 'flip', detail: 'pygame.display method', icon: 'fn' },
+        { label: 'update', detail: 'pygame.display method', icon: 'fn' },
+        { label: 'get', detail: 'pygame.event method', icon: 'fn' },
+        { label: 'get_pressed', detail: 'pygame.key method', icon: 'fn' },
+        { label: 'fill', detail: 'Surface method', icon: 'fn' },
+        { label: 'blit', detail: 'Surface method', icon: 'fn' },
+        { label: 'rect', detail: 'pygame.draw method', icon: 'fn' },
+        { label: 'circle', detail: 'pygame.draw method', icon: 'fn' },
+        { label: 'colliderect', detail: 'Rect method', icon: 'fn' },
+        { label: 'Clock', detail: 'pygame.time class', icon: 'class' },
+        { label: 'tick', detail: 'Clock method', icon: 'fn' },
+        { label: 'SysFont', detail: 'pygame.font method', icon: 'fn' },
+        { label: 'render', detail: 'Font method', icon: 'fn' },
+      ],
+    };
+  }
+
+  _iconSvg(type) {
+    const colors = { fn: '#dcdcaa', class: '#4ec9b0', kw: '#c586c0', const: '#4fc1ff', mod: '#dcdcaa' };
+    const c = colors[type] || '#d4d4d4';
+    if (type === 'fn') return `<svg viewBox="0 0 16 16" fill="${c}"><path d="M2 8h12M8 2v12"/></svg>`;
+    if (type === 'class') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>`;
+    if (type === 'kw') return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>`;
+    if (type === 'const') return `<svg viewBox="0 0 16 16" fill="${c}"><circle cx="8" cy="8" r="4"/></svg>`;
+    if (type === 'mod') return `<svg viewBox="0 0 16 16" fill="none" stroke="${c}" stroke-width="1.5"><path d="M2 4l6-2 6 2v8l-6 2-6-2z"/></svg>`;
+    return `<svg viewBox="0 0 16 16" fill="${c}"><rect x="3" y="3" width="10" height="10"/></svg>`;
+  }
+
+  async show(listType='builtins', filter='', selectLabel=null) {
+    let list = this.suggestions[listType] || this.suggestions.builtins;
+    if (filter) list = list.filter(it => it.label.startsWith(filter));
+    if (list.length === 0) return;
+    this.items = list.slice(0, 8);
+    this.selectedIdx = 0;
+    if (selectLabel) {
+      const idx = this.items.findIndex(it => it.label === selectLabel);
+      if (idx !== -1) this.selectedIdx = idx;
+    }
+    this._render();
+    this._position();
+    this.popup.classList.add('visible');
+    this.visible = true;
+    await sleep(rand(350, 650));
+  }
+
+  _render() {
+    this.popup.innerHTML = '';
+    this.items.forEach((it, idx) => {
+      const item = el('div', { class: 'ac-item' + (idx === this.selectedIdx ? ' selected' : '') });
+      item.innerHTML = `<span class="ac-icon">${this._iconSvg(it.icon)}</span><span class="ac-label">${it.label}</span><span class="ac-detail">${it.detail}</span>`;
+      this.popup.appendChild(item);
+    });
+  }
+
+  _position() {
+    const rect = this.editor.getTokenRect(this.editor.cursorLine, this.editor.cursorCol, this.editor.cursorCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    let top = rect.bottom - editorRect.top + 4;
+    let left = rect.left - editorRect.left + 20;
+    const ph = this.popup.offsetHeight || 160;
+    const pw = this.popup.offsetWidth || 260;
+    if (top + ph > editorRect.height) top = rect.top - editorRect.top - ph - 4;
+    if (left + pw > editorRect.width) left = editorRect.width - pw - 10;
+    this.popup.style.top = top + 'px';
+    this.popup.style.left = left + 'px';
+  }
+
+  async showDoc(text) {
+    if (!text) return;
+    this.docEl.textContent = text;
+    this.docEl.classList.add('visible');
+    const acRect = this.popup.getBoundingClientRect();
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.docEl.style.top = (acRect.top - editorRect.top) + 'px';
+    this.docEl.style.left = (acRect.right - editorRect.left + 6) + 'px';
+    await sleep(rand(500, 900));
+  }
+
+  async moveDown() {
+    this.selectedIdx = (this.selectedIdx + 1) % this.items.length;
+    this._render();
+    await sleep(rand(80, 150));
+  }
+
+  async accept(typingEngine) {
+    if (!this.visible || this.items.length === 0) return;
+    const item = this.items[this.selectedIdx];
+    this.hide();
+    await typingEngine.type(item.label);
+    await sleep(rand(120, 220));
+  }
+
+  hide() {
+    this.popup.classList.remove('visible');
+    this.docEl.classList.remove('visible');
+    this.visible = false;
+  }
+}
+
+/* ============================================================
+   5. SPEECH CONTROLLER — Web Speech API with fallback timing
+   ============================================================ */
+class SpeechController {
+  constructor() {
+    this.synth = window.speechSynthesis;
+    this.voices = [];
+    this.selectedVoice = null;
+    this.muted = false;
+    this.rate = 1.0;
+    this.supported = !!this.synth;
+    this._loadVoices();
+    if (this.supported) this.synth.onvoiceschanged = () => this._loadVoices();
+  }
+
+  _loadVoices() {
+    if (!this.supported) return;
+    this.voices = this.synth.getVoices() || [];
+    if (!this.selectedVoice && this.voices.length) {
+      const prefs = [
+        v => /Google.*US.*English/i.test(v.name) && v.localService,
+        v => /Google.*English/i.test(v.name),
+        v => /Microsoft.*Aria|Microsoft.*Jenny|Microsoft.*Guy/i.test(v.name),
+        v => /Microsoft.*English/i.test(v.name),
+        v => /Samantha|Alex|Daniel|Karen/i.test(v.name),
+        v => v.lang && v.lang.startsWith('en') && v.localService,
+        v => v.lang && v.lang.startsWith('en'),
+      ];
+      for (const pred of prefs) {
+        const v = this.voices.find(pred);
+        if (v) { this.selectedVoice = v; break; }
+      }
+      if (!this.selectedVoice) this.selectedVoice = this.voices[0];
+    }
+  }
+
+  setVoice(uri) { const v = this.voices.find(v => v.voiceURI === uri); if (v) this.selectedVoice = v; }
+  setRate(r) { this.rate = r; }
+  setMuted(m) { this.muted = m; if (m) this.cancel(); }
+
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!text || !text.trim()) { resolve(); return; }
+      if (this.muted || !this.supported) {
+        const words = text.split(/\s+/).length;
+        const ms = Math.min(12000, Math.max(1500, words * 380 / this.rate));
+        sleep(ms).then(resolve);
+        return;
+      }
+      try {
+        this.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        if (this.selectedVoice) u.voice = this.selectedVoice;
+        u.rate = this.rate; u.pitch = 1.0; u.volume = 1.0;
+        const words = text.split(/\s+/).length;
+        const safetyMs = Math.min(20000, Math.max(4000, words * 600 / this.rate));
+        let done = false;
+        const safety = setTimeout(() => { if (!done) { done = true; this.cancel(); resolve(); } }, safetyMs);
+        u.onend = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        u.onerror = () => { if (!done) { done = true; clearTimeout(safety); resolve(); } };
+        this.synth.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+
+  cancel() { if (this.supported) { try { this.synth.cancel(); } catch (e) {} } }
+  test() { this.speak("Hey there! This is your friendly Pygame instructor. Let's build a game together."); }
+}
+
+/* ============================================================
+   6. AUDIO CONTROLLER — YouTube background music
+   ============================================================ */
+class AudioController {
+  constructor() {
+    this.videoId = null; this.player = null; this.playerReady = false;
+    this.targetVolume = 35; this.ducked = false; this.apiLoading = false; this.apiLoaded = false;
+    this.containerEl = null; this.statusEl = $('#music-status');
+  }
+
+  _extractVideoId(url) {
+    if (!url) return null;
+    const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  setUrl(url) {
+    const id = this._extractVideoId(url);
+    if (!id) { this.videoId = null; this._setStatus('Invalid or missing URL. Tutorial will run without music.'); return false; }
+    this.videoId = id;
+    this._setStatus('Music URL loaded. Click "Test Music" or start the tutorial to embed the player.');
+    return true;
+  }
+
+  setVolume(v) {
+    this.targetVolume = v;
+    if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.ducked ? Math.floor(v * 0.25) : v);
+  }
+
+  _setStatus(msg) { if (this.statusEl) this.statusEl.textContent = msg; }
+
+  _loadApi() {
+    if (this.apiLoaded || this.apiLoading) return Promise.resolve();
+    this.apiLoading = true;
+    return new Promise((resolve) => {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.onerror = () => { this.apiLoading = false; resolve(); };
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => { this.apiLoaded = true; this.apiLoading = false; resolve(); };
+      setTimeout(() => { this.apiLoading = false; resolve(); }, 4000);
+    });
+  }
+
+  async initPlayer() {
+    if (!this.videoId) return false;
+    await this._loadApi();
+    if (!this.apiLoaded || !window.YT || !window.YT.Player) { this._setStatus('YouTube API could not be loaded. Running without background music.'); return false; }
+    if (!this.containerEl) {
+      this.containerEl = el('div', { id: 'yt-player-container', style: 'position:fixed; width:1px; height:1px; left:-9999px; top:-9999px; opacity:0; pointer-events:none;' });
+      document.body.appendChild(this.containerEl);
+      const inner = el('div', { id: 'yt-player-inner' });
+      this.containerEl.appendChild(inner);
+    }
+    return new Promise((resolve) => {
+      try {
+        this.player = new window.YT.Player('yt-player-inner', {
+          width: '200', height: '120', videoId: this.videoId,
+          playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: () => { this.playerReady = true; this.setVolume(this.targetVolume); this._setStatus('Background music player ready.'); resolve(true); },
+            onError: () => { this._setStatus('This video cannot be embedded as background music. Running without music.'); resolve(false); },
+          },
+        });
+        setTimeout(() => resolve(this.playerReady), 5000);
+      } catch (e) { this._setStatus('Player init failed. Running without music.'); resolve(false); }
+    });
+  }
+
+  async play() { if (!this.playerReady || !this.player) { const ok = await this.initPlayer(); if (!ok) return; } try { this.player.setVolume(this.ducked ? Math.floor(this.targetVolume * 0.25) : this.targetVolume); if (this.player.playVideo) this.player.playVideo(); } catch (e) {} }
+  pause() { if (this.playerReady && this.player && this.player.pauseVideo) { try { this.player.pauseVideo(); } catch (e) {} } }
+  duck() { this.ducked = true; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(Math.floor(this.targetVolume * 0.25)); }
+  unduck() { this.ducked = false; if (this.playerReady && this.player && this.player.setVolume) this.player.setVolume(this.targetVolume); }
+  stop() { this.pause(); }
+  async test() { if (!this.videoId) { this._setStatus('Enter a YouTube URL first.'); return; } await this.play(); }
+}
+
+/* ============================================================
+   7. TERMINAL CONTROLLER
+   Simulated integrated terminal showing commands + output.
+   ============================================================ */
+class TerminalController {
+  constructor() {
+    this.body = $('#terminal-body');
+    this.indicator = $('#run-indicator');
+    this.history = [];
+  }
+
+  reset() {
+    this.body.innerHTML = '';
+    this.history = [];
+    this._printPrompt();
+  }
+
+  _printPrompt(path='~/pygame-tutorial') {
+    const line = el('div', { class: 'term-line' });
+    line.innerHTML = `<span class="term-prompt">(venv) </span><span class="term-prompt-path">${path}</span> <span class="term-prompt-arrow">$</span> `;
+    this.body.appendChild(line);
+    this._scroll();
+    return line;
+  }
+
+  _scroll() { this.body.scrollTop = this.body.scrollHeight; }
+
+  async typeCommand(cmd, path='~/pygame-tutorial') {
+    const line = this._printPrompt(path);
+    const cmdSpan = el('span', { class: 'term-cmd' });
+    line.appendChild(cmdSpan);
+    // type character by character
+    for (const ch of cmd) {
+      cmdSpan.textContent += ch;
+      this._scroll();
+      await sleep(rand(40, 90));
+    }
+    await sleep(rand(200, 400));
+  }
+
+  async printOutput(text, cls='term-output') {
+    const lines = text.split('\n');
+    for (const ln of lines) {
+      const line = el('div', { class: 'term-line ' + cls }, ln);
+      this.body.appendChild(line);
+      this._scroll();
+      await sleep(rand(30, 80));
+    }
+  }
+
+  async printError(text) { await this.printOutput(text, 'term-error'); }
+  async printSuccess(text) { await this.printOutput(text, 'term-success'); }
+  async printInfo(text) { await this.printOutput(text, 'term-info'); }
+
+  async showRunIndicator(ms) {
+    this.indicator.classList.add('visible', 'running');
+    await sleep(ms || rand(600, 1200));
+    this.indicator.classList.remove('running');
+    setTimeout(() => this.indicator.classList.remove('visible'), 800);
+  }
+
+  async newPrompt(path='~/pygame-tutorial') {
+    await sleep(rand(150, 300));
+    this._printPrompt(path);
+  }
+
+  clear() { this.body.innerHTML = ''; this._printPrompt(); }
+}
+
+/* ============================================================
+   8. VISUAL EFFECTS CONTROLLER
+   ============================================================ */
+class VisualEffectsController {
+  constructor(editor) {
+    this.editor = editor;
+    this.overlay = $('#overlay-layer');
+    this.cardOverlay = $('#card-overlay');
+    this.infoCard = $('#info-card');
+    this.chapterTrans = $('#chapter-transition');
+    this.chNumber = $('#ch-number');
+    this.chTitle = $('#ch-title');
+    this.chLogo = $('#ch-pygame-logo');
+    this.captions = $('#captions-bar');
+    this.fakeCursor = $('#fake-cursor');
+    this.cursorRing = $('#fake-cursor-ring');
+    this.subscribeOverlay = $('#subscribe-overlay');
+    this.ytLike = $('#yt-like');
+    this.ytSubscribe = $('#yt-subscribe');
+    this.ytBell = $('#yt-bell');
+    this.activeOverlays = [];
+    this.trailTimer = null;
+    this._injectKeyframes();
+    this._setPygameLogo();
+  }
+
+  _setPygameLogo() {
+    this.chLogo.innerHTML = `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+      <rect x="28" y="28" width="200" height="200" rx="28" fill="#21A179"/>
+      <path d="M74 94h56c16 0 28 12 28 28s-12 28-28 28H98v44H74V94zm24 22v32h30c9 0 16-7 16-16s-7-16-16-16H98z" fill="#fff"/>
+      <circle cx="158" cy="176" r="16" fill="#FFD43B"/>
+    </svg>`;
+  }
+
+  _injectKeyframes() {
+    if (document.getElementById('pygameSimKF')) return;
+    const st = el('style', { id: 'pygameSimKF' });
+    st.textContent = '@keyframes dashMove { to { stroke-dashoffset: -20; } }';
+    document.head.appendChild(st);
+  }
+
+  reset() {
+    this.clearOverlays(); this.hideCard(); this.hideChapter();
+    this.hideCaptions(); this.hideCursor(); this.hideSubscribe();
+  }
+
+  showCursor() { if (STATE.cursorOn) this.fakeCursor.classList.add('visible'); }
+  hideCursor() { this.fakeCursor.classList.remove('visible'); }
+  setCursorOn(on) { STATE.cursorOn = on; if (on) this.fakeCursor.classList.add('visible'); else this.fakeCursor.classList.remove('visible'); }
+
+  async moveCursorTo(x, y, smooth=true) {
+    if (!STATE.cursorOn) return;
+    if (!smooth) { this.fakeCursor.style.transition = 'none'; this.cursorRing.style.transition = 'none'; }
+    else { this.fakeCursor.style.transition = ''; }
+    this.fakeCursor.style.left = x + 'px';
+    this.fakeCursor.style.top = y + 'px';
+    this.fakeCursor.classList.add('visible');
+    this.cursorRing.style.left = (x - 4) + 'px';
+    this.cursorRing.style.top = (y - 4) + 'px';
+    this.cursorRing.style.opacity = '0.6';
+    await sleep(smooth ? rand(280, 420) : 50);
+    this.cursorRing.style.opacity = '0';
+  }
+
+  async moveCursorToElement(sel, smooth=true) {
+    const target = typeof sel === 'string' ? document.querySelector(sel) : sel;
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    await this.moveCursorTo(r.left + r.width/2, r.top + r.height/2, smooth);
+  }
+
+  async clickCursor() {
+    this.fakeCursor.classList.add('clicking');
+    await sleep(180);
+    this.fakeCursor.classList.remove('clicking');
+  }
+
+  startTrail() {
+    if (this.trailTimer) return;
+    this.trailTimer = setInterval(() => {
+      if (!STATE.cursorOn) return;
+      const r = this.fakeCursor.getBoundingClientRect();
+      const dot = el('div', { class: 'pointer-trail' });
+      dot.style.left = (r.left + 6) + 'px';
+      dot.style.top = (r.top + 6) + 'px';
+      dot.style.opacity = '0.6';
+      dot.style.transition = 'opacity .6s, transform .6s';
+      document.body.appendChild(dot);
+      requestAnimationFrame(() => { dot.style.opacity = '0'; dot.style.transform = 'scale(0.3)'; });
+      setTimeout(() => dot.remove(), 650);
+    }, 60);
+  }
+  stopTrail() { if (this.trailTimer) { clearInterval(this.trailTimer); this.trailTimer = null; } }
+
+  highlightRect(rect, opts={}) {
+    if (!STATE.effectsOn) return null;
+    const box = el('div', { class: 'overlay-highlight' });
+    box.style.left = (rect.left - 4) + 'px'; box.style.top = (rect.top - 4) + 'px';
+    box.style.width = (rect.width + 8) + 'px'; box.style.height = (rect.height + 8) + 'px';
+    this.overlay.appendChild(box);
+    this.activeOverlays.push(box);
+    return box;
+  }
+  highlightLine(lineIdx) { if (!STATE.effectsOn) return; const rect = this.editor.getLineRect(lineIdx); if (rect) this.highlightRect(rect); }
+
+  circleRect(rect) {
+    if (!STATE.effectsOn) return null;
+    const c = el('div', { class: 'overlay-circle' });
+    const pad = 8;
+    c.style.left = (rect.left - pad) + 'px'; c.style.top = (rect.top - pad) + 'px';
+    c.style.width = (rect.width + pad*2) + 'px'; c.style.height = (rect.height + pad*2) + 'px';
+    this.overlay.appendChild(c);
+    this.activeOverlays.push(c);
+    return c;
+  }
+
+  drawArrow(from, to, opts={}) {
+    if (!STATE.effectsOn) return;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'overlay-arrow');
+    svg.style.position = 'fixed'; svg.style.left = '0'; svg.style.top = '0';
+    svg.style.width = '100%'; svg.style.height = '100%'; svg.style.pointerEvents = 'none'; svg.style.zIndex = '9001';
+    const path = document.createElementNS(svgNS, 'path');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2 - 40;
+    path.setAttribute('d', `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`);
+    path.setAttribute('stroke', opts.color || '#ffcc00'); path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('fill', 'none'); path.setAttribute('stroke-dasharray', '6 4');
+    path.style.animation = 'dashMove 0.8s linear infinite';
+    svg.appendChild(path);
+    const head = document.createElementNS(svgNS, 'polygon');
+    const ang = Math.atan2(to.y - my, to.x - mx), sz = 10;
+    head.setAttribute('points', `${to.x},${to.y} ${to.x - sz*Math.cos(ang-0.4)},${to.y - sz*Math.sin(ang-0.4)} ${to.x - sz*Math.cos(ang+0.4)},${to.y - sz*Math.sin(ang+0.4)}`);
+    head.setAttribute('fill', opts.color || '#ffcc00');
+    svg.appendChild(head);
+    document.body.appendChild(svg);
+    this.activeOverlays.push(svg);
+  }
+
+  arrowToToken(lineIdx, startCol, endCol, opts={}) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const editorRect = $('#editor-scroll').getBoundingClientRect();
+    this.drawArrow({ x: editorRect.left + 10, y: rect.top + rect.height/2 }, { x: rect.left, y: rect.top + rect.height/2 }, opts);
+    if (opts.label) this.addLabel(rect.left - 200, rect.top - 24, opts.label);
+  }
+
+  addLabel(x, y, text) {
+    if (!STATE.effectsOn) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = x + 'px'; lbl.style.top = y + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  labelToken(lineIdx, startCol, endCol, text) {
+    const rect = this.editor.getTokenRect(lineIdx, startCol, endCol);
+    if (!rect) return;
+    const lbl = el('div', { class: 'overlay-label' }, text);
+    lbl.style.left = (rect.left + rect.width/2 - 80) + 'px';
+    lbl.style.top = (rect.top - 28) + 'px';
+    this.overlay.appendChild(lbl);
+    this.activeOverlays.push(lbl);
+  }
+
+  clearOverlays() {
+    this.activeOverlays.forEach(o => { o.classList.add('fade-out'); setTimeout(() => o.remove(), 300); });
+    this.activeOverlays = [];
+  }
+
+  async showCard(opts) {
+    this.infoCard.innerHTML = '';
+    this.infoCard.className = 'info-card' + (opts.type === 'code' ? ' code-card' : '');
+    if (opts.title) this.infoCard.appendChild(el('h3', {}, opts.title));
+    if (opts.svg) { const wrap = el('div', { style: 'text-align:center;' }); wrap.innerHTML = opts.svg; this.infoCard.appendChild(wrap); }
+    else if (opts.imageUrl) { const img = el('img', { src: opts.imageUrl, alt: opts.title || '' }); img.onerror = () => { img.style.display = 'none'; }; this.infoCard.appendChild(img); }
+    if (opts.text) this.infoCard.appendChild(el('p', {}, opts.text));
+    if (opts.code) {
+      opts.code.forEach(c => {
+        this.infoCard.appendChild(el('div', { class: 'code-caption' }, c.caption));
+        const pre = el('pre'); pre.textContent = c.code;
+        this.infoCard.appendChild(pre);
+        if (c.output) this.infoCard.appendChild(el('div', { class: 'code-output' }, c.output));
+      });
+    }
+    this.cardOverlay.classList.add('visible');
+    await sleep(opts.duration || 2400);
+    this.hideCard();
+  }
+  hideCard() { this.cardOverlay.classList.remove('visible'); }
+
+  async showChapter(num, title) {
+    this.chNumber.textContent = 'CHAPTER ' + String(num).padStart(2, '0');
+    this.chTitle.textContent = title;
+    this.chapterTrans.classList.add('visible');
+    await sleep(2000);
+    this.chapterTrans.classList.remove('visible');
+    await sleep(350);
+  }
+  hideChapter() { this.chapterTrans.classList.remove('visible'); }
+
+  showCaption(text) {
+    if (!STATE.captionsOn || !text) { this.hideCaptions(); return; }
+    this.captions.textContent = text;
+    this.captions.classList.add('visible');
+    this.captions.classList.remove('hidden');
+  }
+  hideCaptions() { this.captions.classList.remove('visible'); }
+  setCaptionsOn(on) { STATE.captionsOn = on; if (!on) this.hideCaptions(); }
+  setEffectsOn(on) { STATE.effectsOn = on; if (!on) this.clearOverlays(); }
+
+  async showSubscribe() {
+    this.subscribeOverlay.classList.add('visible');
+    await sleep(400);
+    if (STATE.cursorOn) {
+      await this.moveCursorToElement(this.ytLike); await this.clickCursor();
+      this.ytLike.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytSubscribe); await this.clickCursor();
+      this.ytSubscribe.classList.add('clicked'); await sleep(350);
+      await this.moveCursorToElement(this.ytBell); await this.clickCursor();
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    } else {
+      this.ytLike.classList.add('clicked'); await sleep(400);
+      this.ytSubscribe.classList.add('clicked'); await sleep(400);
+      this.ytBell.classList.add('clicked'); await sleep(600);
+    }
+    await sleep(1200);
+    this.subscribeOverlay.classList.remove('visible');
+    await sleep(300);
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+  hideSubscribe() {
+    this.subscribeOverlay.classList.remove('visible');
+    this.ytLike.classList.remove('clicked');
+    this.ytSubscribe.classList.remove('clicked');
+    this.ytBell.classList.remove('clicked');
+  }
+}
+
+/* ============================================================
+   9. PREVIEW CONTROLLER — renders Pygame "output" in iframe
+   ============================================================ */
+class PreviewController {
+  constructor(editor, terminal) {
+    this.editor = editor;
+    this.terminal = terminal;
+    this.iframe = $('#preview-iframe');
+    this.loading = $('#preview-loading');
+  }
+
+  // Render an HTML page that displays the given text output as a console-like view.
+  async renderOutput(outputText, title='Game Window') {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 600));
+    const escaped = outputText
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+      <style>
+        body { margin:0; background:#1e1e1e; color:#d4d4d4; font-family:"SF Mono",Menlo,Monaco,Consolas,monospace; font-size:13px; line-height:1.6; padding:16px; }
+        .console-header { color:#6a9955; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; border-bottom:1px solid #333; padding-bottom:8px; }
+        pre { margin:0; white-space:pre-wrap; word-break:break-word; }
+        .prompt { color:#4ec9b0; }
+      </style></head><body>
+      <div class="console-header">▶ ${title}</div>
+      <pre>${escaped}</pre>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Preview render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  // Render a live animated game window (canvas) that simulates a running Pygame app.
+  // scene: { width, height, bg, player:{x,y,w,h,color}, enemies:[{x,y,w,h,color,dx,dy}],
+  //         coins:[{x,y,r,color}], score, label }
+  async renderGame(scene) {
+    this.loading.classList.add('visible');
+    await sleep(rand(400, 700));
+    const s = Object.assign({ width:480, height:320, bg:'#1a1a2e', score:0, label:'pygame window' }, scene || {});
+    const players = s.player ? [s.player] : [];
+    const enemies = s.enemies || [];
+    const coins = s.coins || [];
+    const esc = (v) => String(v);
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Game Window</title>
+      <style>
+        html,body { margin:0; padding:0; background:#0d0d0d; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:-apple-system,sans-serif; }
+        .gw-title { color:#21A179; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:6px 0; }
+        .gw-frame { border:2px solid #333; border-radius:4px; box-shadow:0 4px 24px rgba(0,0,0,.6); }
+        canvas { display:block; background:${esc(s.bg)}; }
+        .gw-hud { color:#9cdcfe; font-size:12px; font-family:"SF Mono",monospace; padding:4px 10px; background:#1e1e1e; border-top:1px solid #333; display:flex; justify-content:space-between; }
+      </style></head><body>
+        <div class="gw-title">▶ ${esc(s.label)}</div>
+        <div class="gw-frame">
+          <canvas id="cv" width="${s.width}" height="${s.height}"></canvas>
+          <div class="gw-hud"><span>SCORE: <b id="score">${s.score}</b></span><span style="color:#6a9955;">running…</span></div>
+        </div>
+        <script>
+          (function(){
+            var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+            var W=${s.width}, H=${s.height};
+            var player=${JSON.stringify(players[0]||{x:30,y:140,w:30,h:30,color:'#21A179'})};
+            var enemies=${JSON.stringify(enemies)};
+            var coins=${JSON.stringify(coins)};
+            var score=${s.score};
+            var keys={};
+            window.addEventListener('keydown',function(e){ keys[e.key]=true; });
+            window.addEventListener('keyup',function(e){ keys[e.key]=false; });
+            function rect(a){ ctx.fillStyle=a.color||'#fff'; ctx.fillRect(a.x,a.y,a.w,a.h); }
+            function circle(c){ ctx.beginPath(); ctx.fillStyle=c.color||'#FFD43B'; ctx.arc(c.x,c.y,c.r||8,0,Math.PI*2); ctx.fill(); }
+            var t=0;
+            function loop(){
+              t++;
+              // move player with arrow keys
+              if(keys['ArrowLeft']) player.x-=3;
+              if(keys['ArrowRight']) player.x+=3;
+              if(keys['ArrowUp']) player.y-=3;
+              if(keys['ArrowDown']) player.y+=3;
+              player.x=Math.max(0,Math.min(W-player.w,player.x));
+              player.y=Math.max(0,Math.min(H-player.h,player.y));
+              // clear
+              ctx.fillStyle='${esc(s.bg)}'; ctx.fillRect(0,0,W,H);
+              // grid backdrop
+              ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+              for(var x=0;x<=W;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+              for(var y=0;y<=H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+              // coins (collect)
+              for(var i=coins.length-1;i>=0;i--){
+                circle(coins[i]);
+                coins[i].y+=Math.sin(t/20+i)*0.5;
+                if(player.x<coins[i].x+coins[i].r && player.x+player.w>coins[i].x-coins[i].r &&
+                   player.y<coins[i].y+coins[i].r && player.y+player.h>coins[i].y-coins[i].r){
+                  coins.splice(i,1); score+=10; document.getElementById('score').textContent=score;
+                }
+              }
+              // enemies
+              for(var j=0;j<enemies.length;j++){
+                var e=enemies[j];
+                e.x+=e.dx||0; e.y+=e.dy||0;
+                if(e.x<0||e.x+e.w>W) e.dx*=-1;
+                if(e.y<0||e.y+e.h>H) e.dy*=-1;
+                rect(e);
+              }
+              // player
+              rect(player);
+              requestAnimationFrame(loop);
+            }
+            loop();
+          })();
+        <\/script>
+      </body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) { console.warn('Game render failed', e); }
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+
+  async renderDocs(docHtml) {
+    this.loading.classList.add('visible');
+    await sleep(rand(300, 500));
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Docs</title>
+      <style>
+        body { margin:0; padding:24px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#222; line-height:1.6; font-size:14px; }
+        h1 { color:#21A179; margin-bottom:8px; } h2 { color:#21A179; margin:16px 0 8px; }
+        code { background:#f0f0f0; padding:2px 6px; border-radius:3px; font-family:"SF Mono",monospace; font-size:12px; color:#c7254e; }
+        pre { background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:6px; overflow-x:auto; }
+        pre code { background:transparent; color:inherit; padding:0; }
+      </style></head><body>${docHtml}</body></html>`;
+    try { this.iframe.srcdoc = html; } catch (e) {}
+    await sleep(rand(200, 400));
+    this.loading.classList.remove('visible');
+  }
+}
+
+/* ============================================================
+   10. TIMELINE ENGINE
+   Centralized event-driven controller.
+   ============================================================ */
+class TimelineEngine {
+  constructor(editor, typing, autocomplete, speech, audio, preview, terminal, fx) {
+    this.editor = editor; this.typing = typing; this.autocomplete = autocomplete;
+    this.speech = speech; this.audio = audio; this.preview = preview;
+    this.terminal = terminal; this.fx = fx;
+    this.events = []; this.chapterBoundaries = []; this.chapterSnapshots = [];
+    this.eventIdx = 0; this.running = false; this.paused = false; this.finished = false;
+    this.elapsedAccum = 0; this.lastResumeTime = 0; this.tickHandle = null;
+    this.onProgress = null; this.onChapterChange = null; this.onFinish = null; this.onStateChange = null;
+    this._cancelled = false;
+  }
+
+  setEvents(events, chapterBoundaries, snapshots) {
+    this.events = events; this.chapterBoundaries = chapterBoundaries;
+    this.chapterSnapshots = snapshots; this.eventIdx = 0;
+  }
+
+  get currentChapter() {
+    let ch = 0;
+    for (let i = 0; i < this.chapterBoundaries.length; i++) if (this.eventIdx >= this.chapterBoundaries[i]) ch = i;
+    return ch;
+  }
+
+  _emitState() {
+    if (this.onStateChange) this.onStateChange({
+      running: this.running, paused: this.paused, finished: this.finished,
+      eventIdx: this.eventIdx, total: this.events.length, chapter: this.currentChapter,
+      elapsed: this._elapsedMs(),
+    });
+  }
+
+  _elapsedMs() {
+    if (!this.running || this.paused) return this.elapsedAccum;
+    return this.elapsedAccum + (Date.now() - this.lastResumeTime);
+  }
+
+  _startTick() {
+    if (this.tickHandle) return;
+    this.tickHandle = setInterval(() => {
+      if (this.onProgress) this.onProgress({
+        eventIdx: this.eventIdx, total: this.events.length,
+        elapsed: this._elapsedMs(), chapter: this.currentChapter,
+      });
+    }, 250);
+  }
+  _stopTick() { if (this.tickHandle) { clearInterval(this.tickHandle); this.tickHandle = null; } }
+
+  async start(preserveIndex = false) {
+    if (this.running) return;
+    this.running = true; this.paused = false; this.finished = false; this._cancelled = false;
+    this.lastResumeTime = Date.now();
+    if (!preserveIndex) { this.elapsedAccum = 0; this.eventIdx = 0; }
+    this._startTick(); this._emitState();
+    await this._runLoop();
+  }
+
+  async _runLoop() {
+    while (this.eventIdx < this.events.length && !this._cancelled) {
+      while (this.paused && !this._cancelled) await sleep(80);
+      if (this._cancelled) break;
+      const ev = this.events[this.eventIdx];
+      if (this.onChapterChange && ev._chapterStart) this.onChapterChange(this.currentChapter);
+      await this._executeEvent(ev);
+      if (this._cancelled) break;
+      this.eventIdx++;
+    }
+    this._stopTick();
+    this.running = false;
+    if (!this._cancelled && this.eventIdx >= this.events.length) {
+      this.finished = true;
+      if (this.onFinish) this.onFinish();
+    }
+    this._emitState();
+  }
+
+  async _executeEvent(ev) {
+    if (this.paused) { while (this.paused && !this._cancelled) await sleep(80); if (this._cancelled) return; }
+    switch (ev.type) {
+      case 'SPEAK':
+        if (ev.caption != null) this.fx.showCaption(ev.caption);
+        else if (ev.text) this.fx.showCaption(ev.text);
+        if (this.audio) this.audio.duck();
+        await this.speech.speak(ev.text);
+        if (this.audio) this.audio.unduck();
+        break;
+      case 'TYPE': await this.typing.type(ev.text); break;
+      case 'TYPE_LINE': await this.typing.typeLine(ev.text, ev.indent || ''); break;
+      case 'BACKSPACE': await this.typing.backspace(ev.count || 1); break;
+      case 'MOVE_CURSOR':
+        if (ev.target) await this.fx.moveCursorToElement(ev.target);
+        else if (ev.x != null && ev.y != null) await this.fx.moveCursorTo(ev.x, ev.y);
+        break;
+      case 'EDITOR_CURSOR': await this.typing.moveTo(ev.line, ev.col); break;
+      case 'CLICK': await this.fx.clickCursor(); break;
+      case 'HESITATE': await this.typing.hesitate(ev.ms); break;
+      case 'SLEEP': await sleep(ev.ms || 300); break;
+
+      // --- Robust substring-based cursor positioning ---
+      case 'GOTO_AFTER_SUBSTRING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.substring);if(idx!==-1){foundLine=i;foundCol=idx+ev.substring.length;break;}}
+        if (foundLine!==-1) await this.typing.moveTo(foundLine, foundCol);
+        break;
+      }
+      case 'GOTO_END_OF_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) await this.typing.moveTo(found, this.editor.lines[found].length);
+        break;
+      }
+      case 'GOTO_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { const col = ev.col != null ? ev.col : 0; await this.typing.moveTo(found, col); }
+        break;
+      }
+      case 'INSERT_BEFORE_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found,0,(ev.indent||'')+ev.text); this.editor.setCursor(found,this.editor.lines[found].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'INSERT_AFTER_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1) { this.editor.lines.splice(found+1,0,(ev.indent||'')+ev.text); this.editor.setCursor(found+1,this.editor.lines[found+1].length); this.editor.render(); await sleep(rand(150,300)); }
+        break;
+      }
+      case 'FIX_TOKEN': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const idx=this.editor.lines[i].indexOf(ev.from);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1) {
+          this.fx.highlightToken(foundLine, foundCol, foundCol + ev.from.length);
+          await sleep(ev.highlightMs || 1500); this.fx.clearOverlays();
+          await this.typing.moveTo(foundLine, foundCol + ev.from.length);
+          await this.typing.backspace(ev.from.length);
+          await this.typing.type(ev.to);
+        }
+        break;
+      }
+
+      // --- Visual effects ---
+      case 'HIGHLIGHT_LINE': this.fx.highlightLine(ev.line); await sleep(ev.duration || 1500); this.fx.clearOverlays(); break;
+      case 'HIGHLIGHT_LINE_CONTAINING': {
+        let found=-1; for(let i=0;i<this.editor.lines.length;i++){if(this.editor.lines[i].indexOf(ev.substring)!==-1){found=i;break;}}
+        if (found!==-1){this.fx.highlightLine(found); await sleep(ev.duration||1500); this.fx.clearOverlays();}
+        break;
+      }
+      case 'CIRCLE_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.circleRect(this.editor.getTokenRect(foundLine,foundCol,foundCol+ev.token.length));if(ev.label)this.fx.labelToken(foundLine,foundCol,foundCol+ev.token.length,ev.label);await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'ARROW_TO_TOKEN_CONTAINING': {
+        let foundLine=-1, foundCol=-1;
+        for (let i=0;i<this.editor.lines.length;i++){const line=this.editor.lines[i];if(ev.lineSubstring&&line.indexOf(ev.lineSubstring)===-1)continue;const idx=line.indexOf(ev.token);if(idx!==-1){foundLine=i;foundCol=idx;break;}}
+        if (foundLine!==-1){this.fx.arrowToToken(foundLine,foundCol,foundCol+ev.token.length,{label:ev.label});await sleep(ev.duration||1800);this.fx.clearOverlays();}
+        break;
+      }
+      case 'CLEAR_OVERLAYS': this.fx.clearOverlays(); await sleep(150); break;
+      case 'SHOW_CARD': await this.fx.showCard(ev); break;
+      case 'SHOW_CODE_CARD': await this.fx.showCard(Object.assign({type:'code'},ev)); break;
+
+      // --- Autocomplete ---
+      case 'AUTOCOMPLETE':
+        await this.autocomplete.show(ev.listType||'builtins', ev.filter||'', ev.selectLabel||null);
+        if (ev.doc) await this.autocomplete.showDoc(ev.doc);
+        if (ev.moveDown) await this.autocomplete.moveDown();
+        if (ev.accept) await this.autocomplete.accept(this.typing);
+        else this.autocomplete.hide();
+        break;
+
+      // --- Terminal + preview ---
+      case 'TERM_TYPE': await this.terminal.typeCommand(ev.cmd, ev.path); break;
+      case 'TERM_OUTPUT': await this.terminal.printOutput(ev.text, ev.cls||'term-output'); break;
+      case 'TERM_ERROR': await this.terminal.printError(ev.text); break;
+      case 'TERM_SUCCESS': await this.terminal.printSuccess(ev.text); break;
+      case 'TERM_INFO': await this.terminal.printInfo(ev.text); break;
+      case 'TERM_RUN_INDICATOR': await this.terminal.showRunIndicator(ev.ms); break;
+      case 'TERM_NEW_PROMPT': await this.terminal.newPrompt(ev.path); break;
+      case 'TERM_CLEAR': this.terminal.clear(); break;
+      case 'RENDER_OUTPUT': await this.preview.renderOutput(ev.text, ev.title||'Game Window'); break;
+      case 'RENDER_DOCS': await this.preview.renderDocs(ev.html); break;
+      case 'RENDER_GAME': await this.preview.renderGame(ev.scene); break;
+
+      // --- Save / file state ---
+      case 'SAVE': this.editor.setModified(false); await sleep(400); break;
+
+      // --- Chapter / sidebar / music ---
+      case 'CHAPTER_TRANSITION':
+        if (this.audio) this.audio.pause();
+        await this.fx.showChapter(ev.num, ev.title);
+        if (this.audio && !this.paused) this.audio.play();
+        break;
+      case 'COLLAPSE_SIDEBAR': $('#sidebar').classList.add('collapsed'); await sleep(400); break;
+      case 'EXPAND_SIDEBAR': $('#sidebar').classList.remove('collapsed'); await sleep(300); break;
+      case 'START_MUSIC': if (this.audio) await this.audio.play(); break;
+      case 'STOP_MUSIC': if (this.audio) this.audio.pause(); break;
+      case 'DUCK_MUSIC': if (this.audio) this.audio.duck(); break;
+      case 'UNDUCK_MUSIC': if (this.audio) this.audio.unduck(); break;
+
+      case 'SHOW_SUBSCRIBE': await this.fx.showSubscribe(); break;
+      case 'CAPTION': this.fx.showCaption(ev.text); await sleep(ev.duration || 1500); break;
+      case 'HIDE_CAPTIONS': this.fx.hideCaptions(); break;
+      case 'FINISH':
+        if (this.audio) this.audio.stop();
+        this.fx.hideCaptions(); this.fx.clearOverlays();
+        if (this.onFinish) this.onFinish();
+        break;
+      default: break;
+    }
+  }
+
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    this.elapsedAccum += Date.now() - this.lastResumeTime;
+    this.typing.pause();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this._emitState();
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastResumeTime = Date.now();
+    this.typing.resume();
+    if (this.audio) this.audio.play();
+    this._emitState();
+  }
+
+  async restart() {
+    this._cancelled = true; this._stopTick();
+    await sleep(150);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.editor.reset();
+    this.autocomplete.hide();
+    this.terminal.reset();
+    this.preview.renderOutput('', 'Game Window');
+    this.eventIdx = 0; this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start();
+  }
+
+  async jumpToChapter(chIdx) {
+    if (chIdx < 0 || chIdx >= this.chapterBoundaries.length) return;
+    this._cancelled = true; this._stopTick();
+    await sleep(120);
+    this.typing.cancelled = true; this.typing.resume();
+    this.speech.cancel();
+    if (this.audio) this.audio.pause();
+    this.fx.reset();
+    this.autocomplete.hide();
+    const snapshot = this.chapterSnapshots[chIdx];
+    if (snapshot != null) { this.editor.setContent(snapshot); this.editor.render(); }
+    else { this.editor.reset(); }
+    this.terminal.reset();
+    this.eventIdx = this.chapterBoundaries[chIdx];
+    this.paused = false; this.finished = false; this._cancelled = false;
+    this.elapsedAccum = 0; this.running = false;
+    this._emitState();
+    await this.start(true);
+  }
+
+  stop() {
+    this._cancelled = true; this._stopTick();
+    this.typing.cancelled = true; this.speech.cancel();
+    if (this.audio) this.audio.stop();
+    this.fx.reset();
+    this.running = false; this.paused = false;
+    this._emitState();
+  }
+}
+
+/* ============================================================
+   11. RECORDING CONTROLS
+   ============================================================ */
+class RecordingControls {
+  constructor(timeline, speech, audio) {
+    this.timeline = timeline; this.speech = speech; this.audio = audio;
+    this.panel = $('#control-panel'); this.showBtn = $('#show-controls-btn');
+    this.startScreen = $('#start-screen'); this.finishScreen = $('#finish-screen');
+    this._bindControls(); this._bindKeyboard(); this._populateVoices(); this._wireProgress();
+  }
+
+  _bindControls() {
+    $('#btn-start-rec').addEventListener('click', () => this._startFromConfig());
+    $('#btn-start').addEventListener('click', () => this._startFromConfig());
+    $('#btn-pause').addEventListener('click', () => this.timeline.pause());
+    $('#btn-resume').addEventListener('click', () => this.timeline.resume());
+    $('#btn-restart').addEventListener('click', () => this.timeline.restart());
+    $('#cp-collapse').addEventListener('click', () => this.hidePanel());
+    this.showBtn.addEventListener('click', () => this.showPanel());
+    $('#cp-voice').addEventListener('change', e => this.speech.setVoice(e.target.value));
+    $('#cp-rate').addEventListener('input', e => { const v = parseFloat(e.target.value); this.speech.setRate(v); $('#cp-rate-val').textContent = v.toFixed(2) + 'x'; });
+    $('#cp-mute').addEventListener('change', e => this.speech.setMuted(e.target.checked));
+    $('#btn-test-voice').addEventListener('click', () => this.speech.test());
+    $('#cp-typing').addEventListener('input', e => { const v = parseFloat(e.target.value); STATE.typingSpeedMul = v; $('#cp-typing-val').textContent = v.toFixed(1) + 'x'; });
+    $('#cp-music-url').addEventListener('change', e => this.audio.setUrl(e.target.value));
+    $('#cp-music-vol').addEventListener('input', e => { const v = parseInt(e.target.value); this.audio.setVolume(v); $('#cp-music-vol-val').textContent = v + '%'; });
+    $('#btn-music-test').addEventListener('click', () => this.audio.test());
+    $('#btn-music-mute').addEventListener('click', e => {
+      STATE.musicMuted = !STATE.musicMuted;
+      if (STATE.musicMuted) { this.audio.pause(); e.target.textContent = 'Unmute'; }
+      else { this.audio.play(); e.target.textContent = 'Mute'; }
+    });
+    $('#cp-captions').addEventListener('change', e => this.timeline.fx.setCaptionsOn(e.target.checked));
+    $('#cp-effects').addEventListener('change', e => this.timeline.fx.setEffectsOn(e.target.checked));
+    $('#cp-cursor').addEventListener('change', e => this.timeline.fx.setCursorOn(e.target.checked));
+    $('#btn-jump').addEventListener('click', () => { const ch = parseInt($('#cp-jump').value); this.timeline.jumpToChapter(ch); });
+    $('#btn-finish-close').addEventListener('click', () => this.finishScreen.classList.remove('visible'));
+  }
+
+  _bindKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (e.key === 'h' || e.key === 'H') { e.preventDefault(); if (this.panel.classList.contains('hidden')) this.showPanel(); else this.hidePanel(); }
+      else if (e.key === ' ') { e.preventDefault(); if (this.timeline.running && !this.timeline.paused) this.timeline.pause(); else if (this.timeline.paused) this.timeline.resume(); }
+    });
+  }
+
+  hidePanel() { this.panel.classList.add('hidden'); this.showBtn.classList.add('visible'); }
+  showPanel() { this.panel.classList.remove('hidden'); this.showBtn.classList.remove('visible'); }
+
+  _populateVoices() {
+    const sel1 = $('#cp-voice'); const sel2 = $('#ss-voice');
+    const tryFill = () => {
+      const voices = this.speech.voices;
+      if (!voices.length) return false;
+      sel1.innerHTML = ''; sel2.innerHTML = '';
+      voices.forEach(v => {
+        const lbl = `${v.name} (${v.lang})${v.localService ? '' : ' [network]'}`;
+        const o1 = el('option', { value: v.voiceURI }, lbl);
+        const o2 = el('option', { value: v.voiceURI }, lbl);
+        if (this.speech.selectedVoice && v.voiceURI === this.speech.selectedVoice.voiceURI) { o1.selected = true; o2.selected = true; }
+        sel1.appendChild(o1); sel2.appendChild(o2);
+      });
+      return true;
+    };
+    if (!tryFill()) { let tries = 0; const iv = setInterval(() => { if (tryFill() || tries++ > 10) clearInterval(iv); }, 250); }
+    sel1.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel2.value = e.target.value; });
+    sel2.addEventListener('change', e => { this.speech.setVoice(e.target.value); sel1.value = e.target.value; });
+  }
+
+  _wireProgress() {
+    this.timeline.onProgress = p => {
+      const pct = Math.min(100, (p.eventIdx / Math.max(1, p.total)) * 100);
+      $('#cp-progress-fill').style.width = pct + '%';
+      const sec = Math.floor(p.elapsed / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+    this.timeline.onChapterChange = ch => {
+      const names = ['Intro & Pygame Setup','Game Loop & Events','Drawing & Sprites','Movement & Collision','Debugging (3 Mistakes)','Final Game & Walkthrough'];
+      $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
+      STATE.currentChapter = ch;
+    };
+    this.timeline.onStateChange = s => {
+      const recEl = $('#cp-rec'); const stateEl = $('#cp-state-label');
+      $('#btn-pause').disabled = !(s.running && !s.paused);
+      $('#btn-resume').disabled = !(s.running && s.paused);
+      if (!s.running && !s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> STANDBY';
+        recEl.style.color = '#858585';
+        recEl.querySelector('.rec-dot').style.background = '#858585';
+        stateEl.textContent = 'Not started';
+      } else if (s.paused) {
+        recEl.innerHTML = '<span class="rec-dot"></span> PAUSED';
+        recEl.style.color = '#febc2e';
+        recEl.querySelector('.rec-dot').style.background = '#febc2e';
+        stateEl.textContent = 'Paused';
+      } else if (s.finished) {
+        recEl.innerHTML = '<span class="rec-dot"></span> DONE';
+        recEl.style.color = '#107c10';
+        recEl.querySelector('.rec-dot').style.background = '#107c10';
+        stateEl.textContent = 'Complete';
+      } else {
+        recEl.innerHTML = '<span class="rec-dot"></span> REC';
+        recEl.style.color = '#ff5252';
+        recEl.querySelector('.rec-dot').style.background = '#ff5252';
+        stateEl.textContent = 'Recording';
+      }
+    };
+    this.timeline.onFinish = () => {
+      this.finishScreen.classList.add('visible');
+      const sec = Math.floor(this.timeline._elapsedMs() / 1000);
+      const m = Math.floor(sec / 60), s = sec % 60;
+      $('#fs-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
+    };
+  }
+
+  _startFromConfig() {
+    const ssVoice = $('#ss-voice').value;
+    const ssRate = parseFloat($('#ss-rate').value);
+    const ssTyping = parseFloat($('#ss-typing').value);
+    const ssCaptions = $('#ss-captions').value === '1';
+    const ssEffects = $('#ss-effects').value === '1';
+    const ssMusic = $('#ss-music').value;
+    const ssMusicVol = parseInt($('#ss-music-vol').value);
+    if (ssVoice) { $('#cp-voice').value = ssVoice; this.speech.setVoice(ssVoice); }
+    $('#cp-rate').value = ssRate; $('#cp-rate-val').textContent = ssRate.toFixed(2) + 'x'; this.speech.setRate(ssRate);
+    $('#cp-typing').value = ssTyping; $('#cp-typing-val').textContent = ssTyping.toFixed(1) + 'x'; STATE.typingSpeedMul = ssTyping;
+    $('#cp-captions').checked = ssCaptions; $('#cp-effects').checked = ssEffects; $('#cp-cursor').checked = true;
+    this.timeline.fx.setCaptionsOn(ssCaptions); this.timeline.fx.setEffectsOn(ssEffects); this.timeline.fx.setCursorOn(true);
+    if (ssMusic) {
+      $('#cp-music-url').value = ssMusic; this.audio.setUrl(ssMusic);
+      $('#cp-music-vol').value = ssMusicVol; $('#cp-music-vol-val').textContent = ssMusicVol + '%';
+      this.audio.setVolume(ssMusicVol); STATE.musicVolume = ssMusicVol / 100;
+    }
+    this.startScreen.classList.add('hidden');
+    setTimeout(() => this.startScreen.style.display = 'none', 500);
+    this.timeline.editor.reset();
+    this.timeline.terminal.reset();
+    this.timeline.fx.showCursor();
+    this.timeline.start();
+    if (ssMusic) setTimeout(() => this.audio.play(), 800);
+  }
+}
+
+/* ============================================================
+   PYGAME TUTORIAL TIMELINE DATA
+   6 chapters, ~10 minutes. Builds a small coin-collector game:
+   window, game loop, events, drawing, player movement, collision.
+   3 deliberate Pygame errors with fixes.
+   ============================================================ */
+function buildTutorial() {
+  const events = [];
+  const chapterBoundaries = [];
+  const snapshots = [];
+  const E = (ev) => { events.push(ev); return ev; };
+  const chapterStart = (num, title, snapshot) => {
+    chapterBoundaries.push(events.length);
+    snapshots.push(snapshot || '');
+    E({ type: 'CHAPTER_TRANSITION', num, title, _chapterStart: true });
+  };
+
+  /* ======================================================================
+     CHAPTER 1 — INTRODUCTION & PYGAME SETUP  (0:00–1:30)
+     ====================================================================== */
+  chapterStart(1, 'Intro & Pygame Setup', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to learn Pygame — Python's most popular library for making 2D games. With Pygame you can build arcade classics, platformers, puzzles, and even ship them as real executables. It wraps the SDL library, giving you a window, drawing primitives, input handling, audio, and a game loop out of the box." });
+  E({ type: 'SHOW_CARD', title: 'What is Pygame?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect x="28" y="28" width="200" height="200" rx="28" fill="#21A179"/><path d="M74 94h56c16 0 28 12 28 28s-12 28-28 28H98v44H74V94zm24 22v32h30c9 0 16-7 16-16s-7-16-16-16H98z" fill="#fff"/><circle cx="158" cy="176" r="16" fill="#FFD43B"/></svg>`, text: 'Pygame was created by Pete Shinners in 2000, built on top of SDL — the Simple DirectMedia Layer. It handles the boring parts of game development: creating a window, polling for keyboard and mouse events, drawing shapes and images, and playing sounds. You write Python; Pygame talks to the hardware.', duration: 2600 });
+  E({ type: 'SPEAK', text: "So this is VS Code with a virtual environment set up. On the left is the file explorer with our Pygame project — main dot py, player dot py, an assets folder, and a requirements file. The middle is the editor, the bottom is the terminal where we run our game with Python, and on the right is the game window preview." });
+  E({ type: 'MOVE_CURSOR', target: '.sidebar' });
+  E({ type: 'CLICK' });
+  E({ type: 'SPEAK', text: "Let me collapse the sidebar to give us more room." });
+  E({ type: 'COLLAPSE_SIDEBAR' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-area' });
+  E({ type: 'SPEAK', text: "First, let me install Pygame in our virtual environment. The package is called pygame on PyPI." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'pip install pygame' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Collecting pygame\n  Downloading pygame-2.5.0-cp311-cp311-manylinux_2_17_x86_64.whl (12.1 MB)\nInstalling collected packages: pygame\nSuccessfully installed pygame-2.5.0' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Pygame installed. Now let's write our first program — the smallest possible Pygame app. We import pygame, initialize it, create a window, and keep it open." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'CLICK' });
+  E({ type: 'TYPE', text: '# My first Pygame program' });
+  E({ type: 'TYPE_LINE', text: 'import pygame', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'pygame.init()', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'screen = pygame.display.set_mode((640, 480))', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'pygame.display.set_caption("My First Game")', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'running = True', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'while running:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    for event in pygame.event.get():', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        if event.type == pygame.QUIT:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            running = False', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    screen.fill((30, 30, 50))', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    pygame.display.flip()', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'pygame.quit()', indent: '' });
+  E({ type: 'SPEAK', text: "So import pygame. Pygame dot init initializes all the subsystems — audio, display, fonts. Display dot set mode creates the window, six forty by four eighty pixels, and returns a Surface object we call screen. Set caption sets the title bar. Then the heart of every game: the while running loop. Inside, we poll for events with event dot get — if the user clicked the close button, that's a QUIT event, and we set running to False to exit. Then we fill the screen with a dark blue color and call display dot flip to show it. Finally pygame dot quit cleans up." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.init()', label: 'initialize all Pygame subsystems', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'set_mode((640, 480))', label: 'create the game window', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'while running:', label: 'the game loop — runs every frame', duration: 2200 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.QUIT', label: 'the window-close event', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'SPEAK', text: "Let me run it." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game window opened — dark blue background, 640x480)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'My First Game', score:0, player:null, enemies:[], coins:[] } });
+  E({ type: 'SPEAK', text: "There it is — a dark blue window, six forty by four eighty, titled My First Game. It stays open until you click the close button. That's the skeleton of every Pygame game. Boring, but essential — every game you'll ever build starts exactly like this." });
+
+  /* ======================================================================
+     CHAPTER 2 — GAME LOOP & EVENTS  (1:30–3:00)
+     ====================================================================== */
+  const snapshot2 = '# My first Pygame program\nimport pygame\n\npygame.init()\nscreen = pygame.display.set_mode((640, 480))\npygame.display.set_caption("My First Game")\n\nrunning = True\nwhile running:\n    for event in pygame.event.get():\n        if event.type == pygame.QUIT:\n            running = False\n\n    screen.fill((30, 30, 50))\n    pygame.display.flip()\n\npygame.quit()\n';
+  chapterStart(2, 'Game Loop & Events', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two. The game loop and events. Every game has a loop that runs many times per second — typically sixty. Each iteration is one frame. In each frame you do three things: process input, update state, and draw. Get this pattern right and you understand game programming." });
+  E({ type: 'SHOW_CARD', title: 'The game loop — three steps per frame', text: '1. Process input: read keyboard, mouse, and window events. 2. Update: move objects, check collisions, run game logic. 3. Draw: clear the screen, render everything, flip the display. Repeat sixty times per second. The Clock object keeps the frame rate steady.', duration: 2600 });
+  E({ type: 'SPEAK', text: "Let me add a Clock to control the frame rate, and handle a key press — the Escape key to quit. I'll also print the frame rate so you can see the loop in action." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'pygame.display.set_caption("My First Game")' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'clock = pygame.time.Clock()', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'FPS = 60', indent: '' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'if event.type == pygame.QUIT:' });
+  E({ type: 'TYPE_LINE', text: '        if event.type == pygame.KEYDOWN:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '            if event.key == pygame.K_ESCAPE:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                running = False', indent: '' });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'pygame.display.flip()' });
+  E({ type: 'TYPE_LINE', text: '    clock.tick(FPS)', indent: '' });
+  E({ type: 'SPEAK', text: "So pygame dot time dot Clock creates a clock object. We set FPS to sixty. Then in the event loop we check for KEYDOWN events — when a key is pressed. If that key is K_ESCAPE, the Escape key, we quit. Finally, clock dot tick FPS at the bottom of the loop limits the frame rate to sixty per second. Without it, the loop would run as fast as your CPU allows — thousands of frames per second, burning CPU for nothing." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.time.Clock()', label: 'frame-rate controller', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.KEYDOWN', label: 'a key was pressed', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'clock.tick(FPS)', label: 'cap the frame rate at 60 FPS', duration: 2200 });
+  E({ type: 'SPEAK', text: "Now let me show continuous input — holding a key down. KEYDOWN fires once when you press. To detect holding, use pygame dot key dot get_pressed, which returns a dictionary of every key's current state. Let me add arrow-key detection for later." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'screen.fill((30, 30, 50))' });
+  E({ type: 'TYPE_LINE', text: '    keys = pygame.key.get_pressed()', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_LEFT]:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        print("moving left")', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'moving left\nmoving left\nmoving left\n(Escape pressed — exiting)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Game Loop Demo', score:0, player:{x:200,y:140,w:30,h:30,color:'#21A179'}, enemies:[], coins:[] } });
+  E({ type: 'SPEAK', text: "The game runs at a steady sixty frames per second. When I held left arrow, it printed moving left every frame. When I pressed Escape, it quit cleanly. That's the loop — events for discrete actions like pressing a key once, get_pressed for continuous actions like moving. Two complementary input systems." });
+
+  /* ======================================================================
+     CHAPTER 3 — DRAWING & SPRITES  (3:00–4:30)
+     ====================================================================== */
+  const snapshot3 = snapshot2.replace('pygame.display.set_caption("My First Game")\n', 'pygame.display.set_caption("My First Game")\n\nclock = pygame.time.Clock()\nFPS = 60\n').replace('            running = False\n\n    screen.fill((30, 30, 50))', '            running = False\n        if event.type == pygame.KEYDOWN:\n            if event.key == pygame.K_ESCAPE:\n                running = False\n\n    screen.fill((30, 30, 50))\n    keys = pygame.key.get_pressed()\n    if keys[pygame.K_LEFT]:\n        print("moving left")').replace('    pygame.display.flip()\n\npygame.quit()', '    pygame.display.flip()\n    clock.tick(FPS)\n\npygame.quit()');
+  chapterStart(3, 'Drawing & Sprites', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three. Drawing and sprites. A game with just a blue background is boring. Let me draw things — a player rectangle, some coins, and text. Pygame's draw module has primitives: rect, circle, line, polygon. And the font module renders text." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Pygame drawing primitives', code: [
+    { caption: 'Filled rectangle', code: 'pygame.draw.rect(screen, (33, 161, 121), (x, y, w, h))' },
+    { caption: 'Filled circle', code: 'pygame.draw.circle(screen, (255, 212, 59), (x, y), radius)' },
+    { caption: 'Line', code: 'pygame.draw.line(screen, (255,255,255), (x1,y1), (x2,y2), 2)' },
+    { caption: 'Rendered text', code: 'font = pygame.font.SysFont("Arial", 24)\ntext = font.render("Score: 0", True, (255,255,255))\nscreen.blit(text, (10, 10))' },
+  ], text: 'Colors are RGB tuples — (33, 161, 121) is Pygame teal. Rectangles take (x, y, width, height). Circles take (x, y, radius). Text needs a Font object; render produces a Surface you blit (copy) onto the screen.', duration: 3000 });
+  E({ type: 'SPEAK', text: "Let me add a player rectangle and draw it. I'll define the player's position as variables, then draw it inside the loop. I'll also add a coin and a score counter." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'FPS = 60' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# Game objects', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'player_x, player_y = 300, 240', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'player_size = 30', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'coin_x, coin_y = 100, 100', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'coin_radius = 12', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'score = 0', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'font = pygame.font.SysFont("Arial", 24)', indent: '' });
+  E({ type: 'SPEAK', text: "Now the drawing. Inside the loop, after the fill, I draw the player as a green rectangle, the coin as a yellow circle, and the score as text. Let me replace that print statement with actual drawing." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'keys = pygame.key.get_pressed()' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '    # Draw player (green square)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    pygame.draw.rect(screen, (33, 161, 121),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                     (player_x, player_y, player_size, player_size))', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # Draw coin (yellow circle)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    pygame.draw.circle(screen, (255, 212, 59),', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                       (coin_x, coin_y), coin_radius)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # Draw score text', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    score_text = font.render(f"Score: {score}", True, (255, 255, 255))', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    screen.blit(score_text, (10, 10))', indent: '' });
+  E({ type: 'SPEAK', text: "So pygame dot draw dot rect — surface, color tuple, and a rect tuple of x, y, width, height. Circle takes the surface, color, a center point, and radius. For text, font dot render creates a Surface — the f-string interpolates the score, True enables anti-aliasing, and the last tuple is the color. Then screen dot blit copies that surface onto the screen at position ten, ten. Blit is short for bit-block transfer — the fundamental drawing operation." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.draw.rect', label: 'draw a filled rectangle', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.draw.circle', label: 'draw a filled circle', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'font.render', label: 'render text to a Surface', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'screen.blit', label: 'copy a Surface onto the screen', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game window: green player square, yellow coin, "Score: 0" text)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Drawing Demo', score:0, player:{x:280,y:140,w:30,h:30,color:'#21A179'}, enemies:[], coins:[{x:100,y:60,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "Now we have a scene. A green player square in the middle, a yellow coin in the top-left, and Score: 0 text in the corner. Static, but it's real rendering. Next we'll make it move." });
+
+  /* ======================================================================
+     CHAPTER 4 — MOVEMENT & COLLISION  (4:30–6:00)
+     ====================================================================== */
+  chapterStart(4, 'Movement & Collision', '');
+  E({ type: 'SPEAK', text: "Chapter four. Movement and collision. Let's make the player move with the arrow keys, and detect when it touches the coin to collect it. Movement is just updating coordinates each frame based on input. Collision is checking if two shapes overlap." });
+  E({ type: 'SHOW_CARD', title: 'Collision detection with Rect', text: 'Pygame Rect objects have a colliderect method that returns True if two rectangles overlap. Convert your shapes to Rects, then call player_rect.colliderect(coin_rect). For circle-vs-rect, you can approximate by checking the circle center against an expanded rect, or use simple distance checks. Rects are the standard Pygame way.', duration: 2600 });
+  E({ type: 'SPEAK', text: "Let me add movement. I'll read the arrow keys and update player_x and player_y each frame, with a speed variable. Then I'll keep the player inside the window with bounds checking." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'keys = pygame.key.get_pressed()' });
+  E({ type: 'TYPE_LINE', text: '    # Move player with arrow keys', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    speed = 5', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_LEFT]:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        player_x -= speed', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_RIGHT]:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        player_x += speed', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_UP]:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        player_y -= speed', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if keys[pygame.K_DOWN]:', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        player_y += speed', indent: '' });
+  E({ type: 'SPEAK', text: "Speed is five pixels per frame. Each direction checks its key and adds or subtracts from the coordinate. Left and right move x, up and down move y. Now bounds checking — don't let the player leave the window." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # Keep player inside the window', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    player_x = max(0, min(player_x, 640 - player_size))', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    player_y = max(0, min(player_y, 480 - player_size))', indent: '' });
+  E({ type: 'SPEAK', text: "Max of zero prevents going off the left or top. Min with the window size minus the player size prevents going off the right or bottom. Clamping — a common game pattern. Now collision. I'll create Rect objects for the player and coin and check if they overlap." });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # Collision: did the player touch the coin?', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    player_rect = pygame.Rect(player_x, player_y, player_size, player_size)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    coin_rect = pygame.Rect(coin_x - coin_radius, coin_y - coin_radius,', indent: '' });
+  E({ type: 'TYPE_LINE', text: '                           coin_radius * 2, coin_radius * 2)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    if player_rect.colliderect(coin_rect):', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        score += 10', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        coin_x = random.randint(20, 620)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '        coin_y = random.randint(20, 460)', indent: '' });
+  E({ type: 'SPEAK', text: "I build a Rect for the player and an approximate Rect for the coin — a square bounding box around the circle. Then colliderect returns True if they overlap. If so, add ten to the score and teleport the coin to a random new position. I need to import random at the top for that." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'player_x -= speed', label: 'update position each frame', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'max(0, min(', label: 'clamp to window bounds', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.colliderect(', label: 'Rect overlap test', duration: 2200 });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'import pygame' });
+  E({ type: 'TYPE_LINE', text: 'import random', indent: '' });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game window: player moves with arrows, collects coins, score rises)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Coin Collector', score:30, player:{x:220,y:150,w:30,h:30,color:'#21A179'}, enemies:[], coins:[{x:380,y:90,r:12,color:'#FFD43B'},{x:80,y:230,r:12,color:'#FFD43B'},{x:410,y:250,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "Now it's a game. The green square moves with the arrow keys, stays inside the window, and when it touches a coin the score jumps by ten and the coin jumps to a new spot. Three coins on screen, score already at thirty. Movement, bounds, collision — the three pillars of game mechanics." });
+
+  /* ======================================================================
+     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (6:00–7:30)
+     ====================================================================== */
+  chapterStart(5, 'Debugging — 3 Mistakes', '');
+  E({ type: 'SPEAK', text: "Chapter five. Three Pygame mistakes that catch every beginner. I'll make each on purpose so you recognize the symptom and know the fix. Pygame bugs are sneaky — some crash immediately, some silently do nothing, and some make your game unplayable without any error message." });
+  // ===== BUG #1: Forgetting pygame.init() =====
+  E({ type: 'SPEAK', text: "Bug number one. Forgetting to call pygame dot init. Every Pygame program must initialize the library before using it. Skip that line and you get a confusing error the first time you touch the display." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'pygame.init()' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '# BUG: commented out pygame.init()', indent: '' });
+  E({ type: 'TYPE_LINE', text: '# pygame.init()', indent: '' });
+  E({ type: 'SPEAK', text: "I commented out pygame dot init. Now the very next line tries to create a display mode. Let's see what happens." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# pygame.init()', label: 'init missing!', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_ERROR', text: "Traceback (most recent call last):\n  File \"main.py\", line 5, in <module>\n    screen = pygame.display.set_mode((640, 480))\npygame.error: display Surface not created\npygame.error: video system not initialized" });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'SPEAK', text: "Pygame error: video system not initialized. The display module wasn't set up because we skipped init. The fix is obvious — uncomment it. Always start with pygame dot init." });
+  E({ type: 'FIX_TOKEN', from: '# pygame.init()', to: 'pygame.init()', highlightMs: 1500 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game runs normally again)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Fixed: pygame.init() restored', score:0, player:{x:220,y:150,w:30,h:30,color:'#21A179'}, enemies:[], coins:[{x:100,y:80,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "Game runs again. Rule one of Pygame: always call pygame dot init at the start. It initializes the video, audio, font, and joystick subsystems. Without it, nothing works." });
+
+  // ===== BUG #2: Forgetting display.flip() =====
+  E({ type: 'SPEAK', text: "Bug number two. Forgetting to call display dot flip. In Pygame, drawing operations go to an off-screen buffer. Nothing appears on the actual window until you flip — copy the buffer to the visible surface. Forget it and you get a blank or frozen window with no error at all." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'pygame.display.flip()' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '    # BUG: commented out display.flip()', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # pygame.display.flip()', indent: '' });
+  E({ type: 'SPEAK', text: "I commented out display dot flip. The game will still run, the loop still spins, drawing still happens to the buffer — but nothing shows up. No crash, no error. Just a window that never updates." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# pygame.display.flip()', label: 'no flip = nothing visible!', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(no error — but the window shows a blank/frozen screen, never updates)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#000000', label:'BUG: blank window (no flip)', score:0, player:null, enemies:[], coins:[] } });
+  E({ type: 'SPEAK', text: "See? No traceback. The terminal shows nothing wrong. But the window is black and frozen — the classic silent Pygame failure. Beginners stare at it for hours. The fix: uncomment display dot flip. Every frame must end with a flip." });
+  E({ type: 'FIX_TOKEN', from: '# pygame.display.flip()', to: 'pygame.display.flip()', highlightMs: 1800 });
+  E({ type: 'SPEAK', text: "Now the buffer gets copied to the screen each frame and the game is visible again. Double buffering is a performance technique — you draw the whole frame off-screen, then swap it in atomically to avoid tearing. But you have to trigger the swap with flip." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game renders normally — player, coins, score all visible)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Fixed: display.flip() restored', score:20, player:{x:160,y:170,w:30,h:30,color:'#21A179'}, enemies:[], coins:[{x:380,y:90,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "Game visible again. Rule two: always flip at the end of every frame. No flip, no visible frame." });
+
+  // ===== BUG #3: Missing clock.tick (CPU burn) =====
+  E({ type: 'SPEAK', text: "Bug number three. Forgetting clock dot tick. Without it, the game loop runs as fast as your CPU can spin — thousands of frames per second. The game becomes unplayable because movement is tied to frame count, and your CPU hits one hundred percent. No error, just a broken, CPU-melting game." });
+  E({ type: 'GOTO_LINE_CONTAINING', substring: 'clock.tick(FPS)' });
+  E({ type: 'EDITOR_CURSOR', line: 0, col: 0 });
+  E({ type: 'TYPE_LINE', text: '    # BUG: commented out clock.tick(FPS)', indent: '' });
+  E({ type: 'TYPE_LINE', text: '    # clock.tick(FPS)', indent: '' });
+  E({ type: 'SPEAK', text: "I commented out clock dot tick. Now the loop has no throttle. On my machine this runs at maybe three thousand frames per second. The player would move at five pixels times three thousand — fifteen thousand pixels per second. Way too fast to control. And one CPU core is pinned at a hundred percent." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '# clock.tick(FPS)', label: 'no throttle = CPU burn + super-fast game', duration: 2200 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(no error — but the game runs ~3000 FPS, player is uncontrollably fast, CPU at 100%)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'BUG: no clock.tick — game too fast, CPU 100%', score:0, player:{x:400,y:20,w:30,h:30,color:'#21A179'}, enemies:[], coins:[] } });
+  E({ type: 'SPEAK', text: "The game technically runs — no crash — but it's unplayable. The player blinks across the screen instantly because five pixels times three thousand frames per second is insane. And your laptop fan is screaming. The fix: uncomment clock dot tick." });
+  E({ type: 'FIX_TOKEN', from: '# clock.tick(FPS)', to: 'clock.tick(FPS)', highlightMs: 1800 });
+  E({ type: 'SPEAK', text: "Clock dot tick sixty caps the loop at sixty frames per second. The method sleeps just long enough to maintain that rate. Now movement is smooth — five pixels times sixty is three hundred pixels per second, perfectly controllable. And CPU usage drops to a few percent." });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: '(game runs at smooth 60 FPS, CPU at ~3%, player controllable)' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Fixed: clock.tick(FPS) restored — smooth 60 FPS', score:40, player:{x:200,y:160,w:30,h:30,color:'#21A179'}, enemies:[], coins:[{x:120,y:90,r:12,color:'#FFD43B'},{x:380,y:230,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "Smooth, controllable, low CPU. Rule three: always cap your frame rate with clock dot tick. A game without it is broken on every machine differently — fast on a gaming rig, slow on an old laptop. With tick, it runs the same everywhere." });
+  E({ type: 'SPEAK', text: "Three bugs, three fixes. Missing init crashes immediately. Missing flip gives a silent blank window. Missing tick gives a silent broken game. The pattern: Pygame's failures are often silent. When something looks wrong and there's no error, check init, flip, and tick first." });
+
+  /* ======================================================================
+     CHAPTER 6 — FINAL GAME & WALKTHROUGH  (7:30–10:00)
+     ====================================================================== */
+  chapterStart(6, 'Final Game & Walkthrough', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together into a complete game — Coin Collector with enemies. You move the green player with arrow keys, grab yellow coins for points, and dodge red enemies that bounce around. One clean file, all the concepts: window, loop, events, drawing, movement, collision, and a win condition." });
+  E({ type: 'TYPE_FINAL_PROJECT' });
+  E({ type: 'SPEAK', text: "Let me walk you through this. We import pygame and random, init, create a six-forty-by-four-eighty window, a clock, and a font. Game state: player position, coin position, a list of three enemies with random directions, score, and a running flag. The loop polls events for quit and escape. Then get_pressed reads the arrow keys for movement — five pixels per frame, clamped to the window." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.init()', label: 'initialize', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'while running:', label: 'game loop', duration: 1800 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.key.get_pressed()', label: 'read arrow keys', duration: 2000 });
+  E({ type: 'SPEAK', text: "Each enemy moves by its velocity, bouncing off the walls. Collision: the player rect versus the coin rect collects coins and respawns them randomly. The player rect versus any enemy rect ends the game. Then we draw — fill, enemies, coin, player, score text — and flip. Clock dot tick sixty caps the frame rate. Clean, complete, playable." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.colliderect(', label: 'collision detection', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'pygame.display.flip()', label: 'show the frame', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+
+  // ===== LIKE & SUBSCRIBE CTA =====
+  E({ type: 'SPEAK', text: "Quick break! If Pygame is clicking for you, smash that like button and subscribe. It genuinely helps the channel reach more people learning game dev. Back to the game." });
+  E({ type: 'SHOW_SUBSCRIBE' });
+
+  E({ type: 'SPEAK', text: "Let's play it." });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_CLEAR' });
+  E({ type: 'TERM_TYPE', cmd: 'python main.py' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Pygame 2.5.0 (SDL 2.28.5)\nGame started — collect coins, avoid red enemies!\nYou collected a coin! Score: 10\nYou collected a coin! Score: 20\nYou collected a coin! Score: 30\nGame Over! Final score: 30' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_GAME', scene: { width:480, height:320, bg:'#1e1e32', label:'Coin Collector — Final Game', score:30, player:{x:220,y:150,w:30,h:30,color:'#21A179'}, enemies:[{x:120,y:60,w:30,h:30,color:'#ff5252',dx:3,dy:2},{x:400,y:240,w:30,h:30,color:'#ff5252',dx:-2,dy:3}], coins:[{x:330,y:100,r:12,color:'#FFD43B'},{x:90,y:250,r:12,color:'#FFD43B'}] } });
+  E({ type: 'SPEAK', text: "There it is — our final game running. The green player, three yellow coins to collect, two red enemies bouncing around the screen. Score climbed to thirty before an enemy caught me. Game Over. A real, playable arcade game in about fifty lines of Python." });
+
+  // Final walkthrough
+  E({ type: 'SPEAK', text: "Let's recap the whole journey. We started by installing Pygame and writing the skeleton — init, set_mode, the while-running loop, event polling for QUIT, fill, flip, and quit. We added a Clock for frame rate and handled both discrete events with KEYDOWN and continuous input with get_pressed." });
+  E({ type: 'MOVE_CURSOR', target: '.preview-area' });
+  E({ type: 'SLEEP', ms: 1500 });
+  E({ type: 'SPEAK', text: "Then drawing — rect for the player, circle for coins, font dot render and blit for text. We made the player move with arrow keys, clamped it to the window, and added collision with Rect dot colliderect to collect coins and respawn them. We hit three bugs: missing init, missing flip, and missing clock tick. The first crashed, the other two silently broke the game." });
+  E({ type: 'SPEAK', text: "The mindset with Pygame: it's a thin layer over SDL, and that means you're in charge of the whole pipeline every frame. Initialize once, loop forever, handle events, update state, draw, flip, and throttle with tick. Get that rhythm right and you can build anything — platformers, shooters, puzzles, RPGs. The same skeleton scales from a toy to a shipped game." });
+  E({ type: 'SPEAK', text: "That's it for today. If you followed along, you now know enough Pygame to build your own games. Start simple — a single moving square — then add features one at a time. Collision, then scoring, then enemies, then levels. Ship something small and iterate. That's how every game developer starts. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'FINISH' });
+
+  return { events, chapterBoundaries, snapshots };
+}
+
+/* The final game code — typed out for the last chapter. */
+const FINAL_PROJECT_CODE = `# Coin Collector — a complete Pygame mini-game
+import pygame
+import random
+
+pygame.init()
+
+# Window
+WIDTH, HEIGHT = 640, 480
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Coin Collector")
+clock = pygame.time.Clock()
+FPS = 60
+font = pygame.font.SysFont("Arial", 24)
+
+# Game state
+player_x, player_y = WIDTH // 2, HEIGHT // 2
+player_size = 30
+speed = 5
+
+coin_x = random.randint(20, WIDTH - 20)
+coin_y = random.randint(20, HEIGHT - 20)
+coin_radius = 12
+
+enemies = []
+for _ in range(3):
+    enemies.append({
+        "x": random.randint(0, WIDTH - 30),
+        "y": random.randint(0, HEIGHT - 30),
+        "w": 30, "h": 30,
+        "dx": random.choice([-3, -2, 2, 3]),
+        "dy": random.choice([-3, -2, 2, 3]),
+    })
+
+score = 0
+running = True
+
+while running:
+    # 1. Process events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
+    # 2. Update — read keys, move player
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:  player_x -= speed
+    if keys[pygame.K_RIGHT]: player_x += speed
+    if keys[pygame.K_UP]:    player_y -= speed
+    if keys[pygame.K_DOWN]:  player_y += speed
+    player_x = max(0, min(player_x, WIDTH - player_size))
+    player_y = max(0, min(player_y, HEIGHT - player_size))
+
+    # Move enemies, bounce off walls
+    for e in enemies:
+        e["x"] += e["dx"]
+        e["y"] += e["dy"]
+        if e["x"] < 0 or e["x"] + e["w"] > WIDTH:  e["dx"] *= -1
+        if e["y"] < 0 or e["y"] + e["h"] > HEIGHT: e["dy"] *= -1
+
+    # Collision: player vs coin (collect)
+    player_rect = pygame.Rect(player_x, player_y, player_size, player_size)
+    coin_rect = pygame.Rect(coin_x - coin_radius, coin_y - coin_radius,
+                            coin_radius * 2, coin_radius * 2)
+    if player_rect.colliderect(coin_rect):
+        score += 10
+        coin_x = random.randint(20, WIDTH - 20)
+        coin_y = random.randint(20, HEIGHT - 20)
+
+    # Collision: player vs enemy (game over)
+    for e in enemies:
+        e_rect = pygame.Rect(e["x"], e["y"], e["w"], e["h"])
+        if player_rect.colliderect(e_rect):
+            print(f"Game Over! Final score: {score}")
+            running = False
+
+    # 3. Draw
+    screen.fill((30, 30, 50))
+    pygame.draw.circle(screen, (255, 212, 59), (coin_x, coin_y), coin_radius)
+    for e in enemies:
+        pygame.draw.rect(screen, (255, 82, 82),
+                         (e["x"], e["y"], e["w"], e["h"]))
+    pygame.draw.rect(screen, (33, 161, 121),
+                     (player_x, player_y, player_size, player_size))
+    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+    screen.blit(score_text, (10, 10))
+
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
+`;
+
+/* Custom event TYPE_FINAL_PROJECT: replace editor content with the final program. */
+const _origExecutePy = TimelineEngine.prototype._executeEvent;
+TimelineEngine.prototype._executeEvent = async function(ev) {
+  if (ev.type === 'TYPE_FINAL_PROJECT') {
+    this.editor.setContent(FINAL_PROJECT_CODE);
+    const lines = FINAL_PROJECT_CODE.split('\n');
+    this.editor.setCursor(lines.length - 2, lines[lines.length - 2].length);
+    this.editor.setModified(true);
+    this.editor.render();
+    await sleep(800);
+    return;
+  }
+  return _origExecutePy.call(this, ev);
+};
+
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+(function init() {
+  const editor = new EditorSimulator();
+  const typing = new TypingEngine(editor);
+  const autocomplete = new AutoCompleteEngine(editor);
+  const speech = new SpeechController();
+  const audio = new AudioController();
+  const terminal = new TerminalController();
+  const preview = new PreviewController(editor, terminal);
+  const fx = new VisualEffectsController(editor);
+  const timeline = new TimelineEngine(editor, typing, autocomplete, speech, audio, preview, terminal, fx);
+  const controls = new RecordingControls(timeline, speech, audio);
+
+  const tut = buildTutorial();
+  timeline.setEvents(tut.events, tut.chapterBoundaries, tut.snapshots);
+
+  window.__sim = { editor, typing, autocomplete, speech, audio, terminal, preview, fx, timeline, controls };
+})();
+
+</script>
+</body>
+</html>
