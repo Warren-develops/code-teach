@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VS Code Live-Coding Tutorial Simulator — JavaScript</title>
+<title>JavaScript Basics Simulator — variables, console, if/else, objects</title>
 <!-- Prism.js for syntax highlighting (loaded from CDN) -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -691,7 +691,7 @@ input, select { font-family: inherit; }
       <span style="font-size:11px; color:#858585;" id="cp-state-label">Not started</span>
     </div>
     <div class="cp-progress-bar"><div class="cp-progress-fill" id="cp-progress-fill"></div></div>
-    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~10:00</span></div>
+    <div class="cp-time-display"><span id="cp-current-time">0:00</span><span id="cp-total-time">~11:30</span></div>
     <div class="cp-chapter-display" id="cp-chapter-display">Chapter — Idle</div>
   </div>
   <div class="cp-section">
@@ -739,12 +739,12 @@ input, select { font-family: inherit; }
     <div class="cp-section-title">Navigation</div>
     <div class="cp-row"><label>Jump to chapter</label></div>
     <div class="cp-row"><select id="cp-jump" style="flex:1;">
-      <option value="0">Ch 1 — Intro &amp; JS Basics</option>
-      <option value="1">Ch 2 — Variables &amp; Functions</option>
-      <option value="2">Ch 3 — Arrays &amp; Objects</option>
-      <option value="3">Ch 4 — DOM &amp; Async (Promises)</option>
-      <option value="4">Ch 5 — Debugging (3 Mistakes)</option>
-      <option value="5">Ch 6 — Final Project &amp; Walkthrough</option>
+      <option value="0">Ch 1 — Intro &amp; Running JavaScript</option>
+      <option value="1">Ch 2 — Variables (const &amp; let)</option>
+      <option value="2">Ch 3 — console.log / warn / error</option>
+      <option value="3">Ch 4 — if / else / else if</option>
+      <option value="4">Ch 5 — Objects</option>
+      <option value="5">Ch 6 — Mini Project &amp; Recap</option>
     </select></div>
     <div class="cp-row"><button class="cp-btn" id="btn-jump" style="flex:1;">Jump to Chapter</button></div>
   </div>
@@ -757,11 +757,11 @@ input, select { font-family: inherit; }
   <div class="finish-card">
     <div class="check-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg></div>
     <h2>Tutorial Complete!</h2>
-    <p>Your JavaScript program is written, debugged, and running. You learned variables, functions, arrays, objects, DOM manipulation, async/await, and fixed three real JS errors.</p>
+    <p>Your JavaScript program is written and running. You learned variables (const and let), the console family (log, warn, error), if/else/else-if conditionals, and objects.</p>
     <div class="stats">
       <div class="stat"><div class="stat-val" id="fs-time">10:00</div><div class="stat-lbl">Duration</div></div>
       <div class="stat"><div class="stat-val" id="fs-chapters">6</div><div class="stat-lbl">Chapters</div></div>
-      <div class="stat"><div class="stat-val" id="fs-bugs">3</div><div class="stat-lbl">Bugs Fixed</div></div>
+      <div class="stat"><div class="stat-val" id="fs-bugs">4</div><div class="stat-lbl">Topics</div></div>
     </div>
     <button class="cp-btn" id="btn-finish-close" style="width:100%;">Close</button>
   </div>
@@ -772,10 +772,10 @@ input, select { font-family: inherit; }
   <div class="start-card">
     <h1>
       <svg viewBox="0 0 24 24" width="32" height="32"><rect x="2" y="2" width="20" height="20" rx="3" fill="#f7df1e"/><path d="M9 17l-2-2 2-2M15 13l2 2-2 2" stroke="#1e1e1e" stroke-width="1.5" fill="none"/></svg>
-      VS Code JavaScript Simulator
+      VS Code JavaScript Basics Simulator
       <span class="sql-badge">Node.js</span>
     </h1>
-    <p class="subtitle">An automated ~10-minute tutorial that looks and sounds like a real developer recording a live JavaScript coding session. Covers variables, functions, arrays, objects, DOM, async/await, and three debugging demos.</p>
+    <p class="subtitle">An automated ~11-minute tutorial that looks and sounds like a real developer recording a live JavaScript coding session. Covers the basics only: variables, console.log/warn/error, if/else/else-if, and objects. No async, no fetch — just the fundamentals.</p>
     <div class="config-grid">
       <div class="config-field"><label>Narration voice</label><select id="ss-voice"></select></div>
       <div class="config-field"><label>Speech speed</label><select id="ss-rate"><option value="0.9">Slow (0.9x)</option><option value="1.0" selected>Normal (1.0x)</option><option value="1.1">Fast (1.1x)</option><option value="1.25">Faster (1.25x)</option></select></div>
@@ -1987,7 +1987,7 @@ class RecordingControls {
       $('#cp-current-time').textContent = `${m}:${String(s).padStart(2,'0')}`;
     };
     this.timeline.onChapterChange = ch => {
-      const names = ['Intro & JS Basics','Variables & Functions','Arrays & Objects','DOM & Async (Promises)','Debugging (3 Mistakes)','Final Project & Walkthrough'];
+      const names = ['Intro & Running JavaScript','Variables — const & let','console.log / warn / error','if / else / else if','Objects','Mini Project & Recap'];
       $('#cp-chapter-display').textContent = `Chapter ${ch+1} — ${names[ch] || ''}`;
       STATE.currentChapter = ch;
     };
@@ -2071,27 +2071,27 @@ function buildTutorial() {
   };
 
   /* ======================================================================
-     CHAPTER 1 — INTRODUCTION & JS BASICS  (0:00–1:30)
+     CHAPTER 1 — INTRODUCTION & RUNNING JS  (0:00–1:40)
      ====================================================================== */
-  chapterStart(1, 'Introduction & JS Basics', '');
-  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we're going to learn JavaScript — the language of the web. JavaScript runs in every browser on Earth and, thanks to Node.js, on servers too. It's the most widely-used programming language in the world, and once you know it, you can build anything from a button that changes color to a full web app." });
-  E({ type: 'SHOW_CARD', title: 'What is JavaScript?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="16" width="224" height="224" rx="32" fill="#f7df1e"/><path d="M88 195v-78c0-6 2-11 7-14 5-3 11-5 19-5 6 0 11 1 15 3 4 2 6 5 6 9 0 2-1 4-2 6-1 2-3 3-5 3-2 0-5-1-8-2-3-1-6-2-9-2-4 0-7 1-9 3-2 2-3 5-3 9v68c0 3-1 6-3 7-2 1-5 2-9 2-4 0-7-1-9-2-2-1-3-4-3-7z" fill="#1e1e1e"/><path d="M145 188c-2-1-3-3-3-6 0-2 1-4 2-6 1-2 3-3 6-3 1 0 3 0 5 1 2 1 5 2 8 3 3 1 7 2 11 2 6 0 10-1 13-3 3-2 5-5 5-9 0-3-1-5-3-7-2-2-5-3-9-5-4-1-8-3-12-4-4-1-8-3-12-5-4-2-7-5-9-9-2-4-3-9-3-15 0-9 3-16 9-21 6-5 14-7 24-7 4 0 8 0 12 1 4 1 7 2 10 3 2 1 4 2 5 4 1 2 2 4 2 6 0 2-1 4-2 6-1 2-3 3-5 3-1 0-3-1-6-2-3-1-6-2-9-3-3-1-7-1-10-1-5 0-9 1-12 3-3 2-4 5-4 9 0 3 1 5 3 7 2 2 5 4 9 5 4 1 8 3 12 4 4 1 8 3 12 5 4 2 7 5 9 9 2 4 3 9 3 15 0 9-3 16-9 21-6 5-15 7-25 7-5 0-10-1-14-2-4-1-8-2-10-3z" fill="#1e1e1e"/></svg>`, text: 'JavaScript was created by Brendan Eich in 1995 in just 10 days. Originally called LiveScript, it was renamed to JavaScript as a marketing move to ride the popularity of Java — but the two languages are completely unrelated. Today it powers frontends, backends, mobile apps, and even desktop apps.', duration: 2600 });
-  E({ type: 'SPEAK', text: "So this is VS Code with Node.js set up. On the left is the file explorer, the middle is our editor where we write JavaScript, the bottom is the terminal where we run our code with Node, and on the right is the console output preview." });
+  chapterStart(1, 'Intro & Running JavaScript', '');
+  E({ type: 'SPEAK', text: "Hey everyone, welcome back! Today we are going to learn the absolute basics of JavaScript. No frameworks, no async, no fancy stuff — just the building blocks every JavaScript programmer needs on day one. By the end of this short video you will know variables, the console, conditional logic, and objects. That is honestly enough to start writing real programs." });
+  E({ type: 'SHOW_CARD', title: 'What is JavaScript?', svg: `<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="16" width="224" height="224" rx="32" fill="#f7df1e"/><path d="M88 195v-78c0-6 2-11 7-14 5-3 11-5 19-5 6 0 11 1 15 3 4 2 6 5 6 9 0 2-1 4-2 6-1 2-3 3-5 3-2 0-5-1-8-2-3-1-6-2-9-2-4 0-7 1-9 3-2 2-3 5-3 9v68c0 3-1 6-3 7-2 1-5 2-9 2-4 0-7-1-9-2-2-1-3-4-3-7z" fill="#1e1e1e"/><path d="M145 188c-2-1-3-3-3-6 0-2 1-4 2-6 1-2 3-3 6-3 1 0 3 0 5 1 2 1 5 2 8 3 3 1 7 2 11 2 6 0 10-1 13-3 3-2 5-5 5-9 0-3-1-5-3-7-2-2-5-3-9-5-4-1-8-3-12-4-4-1-8-3-12-5-4-2-7-5-9-9-2-4-3-9-3-15 0-9 3-16 9-21 6-5 14-7 24-7 4 0 8 0 12 1 4 1 7 2 10 3 2 1 4 2 5 4 1 2 2 4 2 6 0 2-1 4-2 6-1 2-3 3-5 3-1 0-3-1-6-2-3-1-6-2-9-3-3-1-7-1-10-1-5 0-9 1-12 3-3 2-4 5-4 9 0 3 1 5 3 7 2 2 5 4 9 5 4 1 8 3 12 4 4 1 8 3 12 5 4 2 7 5 9 9 2 4 3 9 3 15 0 9-3 16-9 21-6 5-15 7-25 7-5 0-10-1-14-2-4-1-8-2-10-3z" fill="#1e1e1e"/></svg>`, text: 'JavaScript runs in every browser and on servers thanks to Node.js. Today we keep it simple: variables, console output, if/else, and objects. That is the foundation everything else is built on.', duration: 2600 });
+  E({ type: 'SPEAK', text: "Here is VS Code with Node.js set up. On the left is the file explorer, the middle is the editor where we type JavaScript, the bottom is the terminal where we run our file with Node, and on the right is the console output preview." });
   E({ type: 'MOVE_CURSOR', target: '.sidebar' });
   E({ type: 'CLICK' });
-  E({ type: 'SPEAK', text: "Let me collapse the sidebar to give us more room." });
+  E({ type: 'SPEAK', text: "Let me collapse the sidebar so we have more room." });
   E({ type: 'COLLAPSE_SIDEBAR' });
   E({ type: 'MOVE_CURSOR', target: '.editor-area' });
-  E({ type: 'SPEAK', text: "Let's write our very first line of JavaScript. The classic — console.log, which prints to the console." });
+  E({ type: 'SPEAK', text: "Our very first line of JavaScript. The classic — console.log, which prints text to the console." });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'CLICK' });
   E({ type: 'TYPE', text: '// My first JavaScript program' });
   E({ type: 'TYPE_LINE', text: 'console.log("Hello, JavaScript!");', indent: '' });
-  E({ type: 'SPEAK', text: "So the double slash starts a comment — JavaScript ignores it. Then console.log is a function that prints text to the console. Console is a built-in object, log is a method on it. Strings use double or single quotes — your choice. And every statement ends with a semicolon, though JavaScript is forgiving and will often insert one for you." });
+  E({ type: 'SPEAK', text: "Double slash starts a comment — JavaScript ignores it. Then console.log is a function that prints text. Console is a built-in object, log is a method on it. Strings use double or single quotes — your choice. And every statement ends with a semicolon, although JavaScript is forgiving and will often insert one for you." });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'console.log', label: 'print to the console', duration: 1800 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE' });
-  E({ type: 'SPEAK', text: "Let me run it. I'll use Node in the terminal." });
+  E({ type: 'SPEAK', text: "Let me run it with Node in the terminal." });
   E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
   E({ type: 'CLICK' });
   E({ type: 'TERM_TYPE', cmd: 'node index.js' });
@@ -2099,377 +2099,266 @@ function buildTutorial() {
   E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!' });
   E({ type: 'TERM_NEW_PROMPT' });
   E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, JavaScript!', type: 'log' }] }, title: 'node index.js' });
-  E({ type: 'SPEAK', text: "And there it is. Hello, JavaScript! printed to both the terminal and the output preview. You're officially writing JavaScript now. Welcome to the club." });
+  E({ type: 'SPEAK', text: "And there it is — Hello, JavaScript printed in both the terminal and the output preview. You are officially writing JavaScript now." });
 
   /* ======================================================================
-     CHAPTER 2 — VARIABLES & FUNCTIONS  (1:30–3:30)
+     CHAPTER 2 — VARIABLES (const / let)  (1:40–3:40)
      ====================================================================== */
   const snapshot2 = '// My first JavaScript program\nconsole.log("Hello, JavaScript!");\n';
-  chapterStart(2, 'Variables & Functions', snapshot2);
-  E({ type: 'SPEAK', text: "Chapter two. Variables and functions. A variable is a named container for a value. JavaScript has three ways to declare one — var, let, and const. In modern code you almost always use const for things that don't change and let for things that do. Avoid var entirely." });
+  chapterStart(2, 'Variables — const & let', snapshot2);
+  E({ type: 'SPEAK', text: "Chapter two — variables. A variable is a named container for a value. JavaScript has three ways to declare one: var, let, and const. In modern code you almost always use const for things that do not change and let for things that do. Avoid var entirely — it has confusing scoping rules left over from the 90s." });
   E({ type: 'SHOW_CODE_CARD', title: 'let vs const vs var', code: [
     { caption: 'const — cannot be reassigned', code: 'const PI = 3.14159;' },
     { caption: 'let — can be reassigned', code: 'let count = 0;\ncount = 1;' },
     { caption: 'var — old, avoid (function-scoped)', code: 'var x = 5;' },
-  ], text: 'Use const by default. Switch to let only when you need to reassign. var is legacy and has confusing scoping rules — skip it.', duration: 2800 });
-  E({ type: 'SPEAK', text: "Let me show you. I'll declare a few variables with const and let." });
+  ], text: 'Use const by default. Switch to let only when you need to reassign. Skip var.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Let me show you. I will declare a few variables with const and let right after our first line." });
   E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log("Hello, JavaScript!");' });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
   E({ type: 'TYPE_LINE', text: '// Variables: const and let', indent: '' });
   E({ type: 'TYPE_LINE', text: "const name = 'Maya';", indent: '' });
   E({ type: 'TYPE_LINE', text: 'let age = 28;', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'let skills = ["HTML", "CSS", "JS"];', indent: '' });
-  E({ type: 'SPEAK', text: "So const name equals Maya — that won't change. Let age equals 28 — that can change later. Let skills is an array, wrapped in square brackets. Notice I used single quotes this time. JavaScript accepts both, just be consistent within a file." });
+  E({ type: 'TYPE_LINE', text: 'let isLoggedIn = true;', indent: '' });
+  E({ type: 'SPEAK', text: "Const name equals Maya — that will not change. Let age equals 28 — that can change later. Let isLoggedIn is a boolean, true or false. Notice I used single quotes this time. JavaScript accepts both, just be consistent within a file." });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'const', label: 'cannot be reassigned', duration: 1800 });
   E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'let ', label: 'can be reassigned', duration: 1500 });
-  E({ type: 'SPEAK', text: "Now functions. A function is a reusable block of code. You declare it with the function keyword, give it a name, and can pass in parameters. Let me write a greet function." });
+  E({ type: 'SPEAK', text: "Now let me reassign the age variable to prove let lets us change it. Const would throw an error if we tried." });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// A function declaration', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'function greet(name) {', indent: '' });
-  E({ type: 'TYPE_LINE', text: "  return `Hello, ${name}!`;", indent: '' });
-  E({ type: 'TYPE_LINE', text: '}', indent: '' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(greet("Leo"));', indent: '' });
-  E({ type: 'SPEAK', text: "Function greet takes one parameter, name. Inside, we use a template literal — that's the backticks. The dollar sign curly braces drops the variable into the string. It's JavaScript's version of f-strings or string interpolation. Then we return the result and log it." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '`${name}`', label: 'template literal — drop in variables', duration: 2000 });
+  E({ type: 'TYPE_LINE', text: '// reassigning a let variable', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'age = 29;', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'console.log(name, age, isLoggedIn);', indent: '' });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'age = 29', label: 'reassigning a let works', duration: 1800 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE' });
   E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
   E({ type: 'CLICK' });
   E({ type: 'TERM_TYPE', cmd: 'node index.js' });
   E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!\nHello, Leo!' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!\nMaya 29 true' });
   E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, JavaScript!', type: 'log' }, { text: 'Hello, Leo!', type: 'log' }] }, title: 'node index.js' });
-  E({ type: 'SPEAK', text: "Both lines print. The greet function took Leo, dropped it into the template literal, and returned Hello, Leo. Functions are the workhorses of JavaScript — you'll write thousands of them." });
-  E({ type: 'SPEAK', text: "There's also a shorter syntax called arrow functions. They're cleaner for simple functions. Same greet as an arrow function looks like this." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log(greet("Leo"));' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// Arrow function — shorter syntax', indent: '' });
-  E({ type: 'TYPE_LINE', text: "const greetArrow = (name) => `Hello, ${name}!`;", indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(greetArrow("Ana"));', indent: '' });
-  E({ type: 'SPEAK', text: "Const greetArrow equals name arrow backticks. No function keyword, no curly braces, no return — for a one-liner, the result is returned automatically. Arrow functions are especially common in modern JavaScript, especially for callbacks." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '=> ', label: 'arrow function — implicit return', duration: 2000 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!\nHello, Leo!\nHello, Ana!' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, JavaScript!', type: 'log' }, { text: 'Hello, Leo!', type: 'log' }, { text: 'Hello, Ana!', type: 'log' }] }, title: 'node index.js' });
-  E({ type: 'SPEAK', text: "Three greetings, two function syntaxes, same result. Use function declarations for top-level functions and arrow functions for short callbacks. Both are valid — pick based on readability." });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Hello, JavaScript!', type: 'log' }, { text: 'Maya 29 true', type: 'log' }] }, title: 'node index.js' });
+  E({ type: 'SPEAK', text: "Two lines of output. Hello JavaScript from before, then Maya, 29, and true. The age updated from 28 to 29 because we used let. If we had declared age with const, that reassignment would have crashed with a TypeError. That is the whole point of const — it protects you from accidental changes." });
 
   /* ======================================================================
-     CHAPTER 3 — ARRAYS & OBJECTS  (3:30–5:00)
+     CHAPTER 3 — console.log / warn / error  (3:40–5:40)
      ====================================================================== */
-  const snapshot3 = snapshot2 + '\n// Variables: const and let\nconst name = \'Maya\';\nlet age = 28;\nlet skills = ["HTML", "CSS", "JS"];\n\n// A function declaration\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}\n\nconsole.log(greet("Leo"));\n\n// Arrow function — shorter syntax\nconst greetArrow = (name) => `Hello, ${name}!`;\nconsole.log(greetArrow("Ana"));\n';
-  chapterStart(3, 'Arrays & Objects', snapshot3);
-  E({ type: 'SPEAK', text: "Chapter three. Arrays and objects. These are the two main ways to hold collections of data in JavaScript. Arrays hold ordered lists. Objects hold key-value pairs. Master these two and you can model almost anything." });
-  E({ type: 'SHOW_CODE_CARD', title: 'Arrays vs Objects', code: [
-    { caption: 'Array — ordered list, accessed by index', code: 'const colors = ["red", "blue"];\ncolors[0]  // "red"' },
-    { caption: 'Object — key-value pairs, accessed by key', code: 'const person = {name: "Maya", age: 28};\nperson.name  // "Maya"' },
-  ], text: 'Use arrays when order matters and items are the same kind. Use objects when each item has named properties.', duration: 2800 });
-  E({ type: 'SPEAK', text: "Let me show you arrays first. Arrays have built-in methods that make working with lists incredibly easy — push, map, filter, reduce. These are the heart of modern JavaScript." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log(greetArrow("Ana"));' });
+  const snapshot3 = snapshot2 + '\n// Variables: const and let\nconst name = \'Maya\';\nlet age = 28;\nlet isLoggedIn = true;\n\n// reassigning a let variable\nage = 29;\nconsole.log(name, age, isLoggedIn);\n';
+  chapterStart(3, 'console.log / warn / error', snapshot3);
+  E({ type: 'SPEAK', text: "Chapter three — the console object. You have already seen console.log, the workhorse. But the console has more methods, and the two you will use all the time are console.warn and console.error. They print to the same console, but with different severity levels — and in a real browser they show up in different colors with different icons." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Three console methods', code: [
+    { caption: 'log — general information', code: 'console.log("just info");' },
+    { caption: 'warn — something is off, but not fatal', code: 'console.warn("low disk space");' },
+    { caption: 'error — something went wrong', code: 'console.error("could not save file");' },
+  ], text: 'log for normal output. warn for non-fatal problems. error for things that broke. Tools filter on these levels.', duration: 2800 });
+  E({ type: 'SPEAK', text: "Let me write a small example using all three. I will simulate checking a user account and reporting different conditions." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log(name, age, isLoggedIn);' });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// Arrays and their methods', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const numbers = [1, 2, 3, 4, 5];', indent: '' });
+  E({ type: 'TYPE_LINE', text: '// The console object: log, warn, error', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const username = "admin";', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const loginAttempts = 3;', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const maxAttempts = 5;', indent: '' });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// map: transform each element', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const doubled = numbers.map(n => n * 2);', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(doubled);', indent: '' });
-  E({ type: 'SPEAK', text: "Map is the superstar. It takes a function and applies it to every element, returning a new array. Here, n arrow n times 2 doubles each number. The original array is untouched — map returns a fresh one. This is called immutability and it's a big deal in modern JS." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.map(', label: 'transform each element → new array', duration: 2000 });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// filter: keep only matching elements', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const evens = numbers.filter(n => n % 2 === 0);', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(evens);', indent: '' });
-  E({ type: 'SPEAK', text: "Filter keeps only the elements where the function returns true. Here, n percent 2 equals 0 is true for even numbers, so we get 2 and 4. Same pattern — pass a function, get a new array." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.filter(', label: 'keep elements where function returns true', duration: 2000 });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// reduce: combine all elements into one', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const sum = numbers.reduce((total, n) => total + n, 0);', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(sum);', indent: '' });
-  E({ type: 'SPEAK', text: "Reduce is the powerful one. It combines all elements into a single value. Here we sum them — total starts at 0, and each step adds n. Reduce can do anything map and filter do, plus more, but it's a bit harder to read. Use it when you genuinely need to collapse an array to one value." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.reduce(', label: 'combine all elements into one value', duration: 2000 });
+  E({ type: 'TYPE_LINE', text: 'console.log("User:", username);', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'console.warn("Login attempts:", loginAttempts, "of", maxAttempts);', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'console.error("Too many failed attempts — account locked");', indent: '' });
+  E({ type: 'SPEAK', text: "Three lines, three console methods. Log prints plain info — the username. Warn flags something suspicious — the login attempt count getting close to the limit. Error reports a real problem — the account getting locked. The arguments are separated by commas and console joins them with spaces." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'console.log', label: 'plain information', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'console.warn', label: 'non-fatal warning', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'console.error', label: 'error report', duration: 1800 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE' });
   E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
   E({ type: 'CLICK' });
   E({ type: 'TERM_TYPE', cmd: 'node index.js' });
   E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: '[ 2, 4, 6, 8, 10 ]\n[ 2, 4 ]\n15' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!\nMaya 29 true\nUser: admin\nLogin attempts: 3 of 5\nToo many failed attempts — account locked' });
   E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: '[ 2, 4, 6, 8, 10 ]', type: 'log' }, { text: '[ 2, 4 ]', type: 'log' }, { text: '15', type: 'result' }] }, title: 'Array methods output' });
-  E({ type: 'SPEAK', text: "Map gave us the doubled array, filter gave us the evens, reduce gave us the sum of 15. Three methods, three new arrays or values, zero for loops. This is the functional style that dominates modern JavaScript." });
-  E({ type: 'SPEAK', text: "Now objects. An object holds key-value pairs in curly braces. You access values with dot notation or square brackets. Let me build a person object." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log(sum);' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [
+    { text: 'Hello, JavaScript!', type: 'log' },
+    { text: 'Maya 29 true', type: 'log' },
+    { text: 'User: admin', type: 'log' },
+    { text: 'Login attempts: 3 of 5', type: 'warn' },
+    { text: 'Too many failed attempts — account locked', type: 'error' },
+  ] }, title: 'console.log / warn / error' });
+  E({ type: 'SPEAK', text: "On the right you can see each line is color-coded by its severity. Log is gray, warn is yellow, error is red. In a browser dev-tools console those same colors and icons appear, which makes it instantly obvious which messages are real problems. Get in the habit of using the right level — flooding your console with errors for non-errors makes real problems invisible." });
+
+  /* ======================================================================
+     CHAPTER 4 — if / else / else if  (5:40–8:00)
+     ====================================================================== */
+  const snapshot4 = snapshot3 + '\n// The console object: log, warn, error\nconst username = "admin";\nconst loginAttempts = 3;\nconst maxAttempts = 5;\n\nconsole.log("User:", username);\nconsole.warn("Login attempts:", loginAttempts, "of", maxAttempts);\nconsole.error("Too many failed attempts — account locked");\n';
+  chapterStart(4, 'if / else / else if', snapshot4);
+  E({ type: 'SPEAK', text: "Chapter four — conditionals. The if statement is how a program makes a decision. You give it a condition in parentheses; if that condition is true, the block runs. If it is false, the block is skipped. Pair it with else for the fallback, and else if to test more conditions in between." });
+  E({ type: 'SHOW_CODE_CARD', title: 'if / else if / else', code: [
+    { caption: 'basic if', code: 'if (score > 90) {\n  console.log("A");\n}' },
+    { caption: 'add else if for more cases', code: 'if (score > 90) {\n  console.log("A");\n} else if (score > 80) {\n  console.log("B");\n} else {\n  console.log("C");\n}' },
+  ], text: 'Conditions are checked top to bottom. The first one that is true runs its block and the rest are skipped. The final else catches everything else.', duration: 3000 });
+  E({ type: 'SPEAK', text: "Let me build a grade calculator. I will declare a score and use if, else if, and else to print the letter grade." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.error("Too many failed attempts — account locked");' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '// if / else if / else — grade calculator', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const score = 85;', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'let grade;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'if (score >= 90) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  grade = "A";', indent: '' });
+  E({ type: 'TYPE_LINE', text: '} else if (score >= 80) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  grade = "B";', indent: '' });
+  E({ type: 'TYPE_LINE', text: '} else if (score >= 70) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  grade = "C";', indent: '' });
+  E({ type: 'TYPE_LINE', text: '} else {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  grade = "F";', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'console.log("Score:", score, "Grade:", grade);', indent: '' });
+  E({ type: 'SPEAK', text: "Score is 85. The first if checks 85 greater than or equal to 90 — false, skip. The first else if checks greater than or equal to 80 — true, so grade becomes B and the rest is skipped. The else if chain stops at the first match. The final else only runs if every condition above was false." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'else if', label: 'test another condition', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'else {', label: 'fallback when nothing matched', duration: 1800 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Hello, JavaScript!\nMaya 29 true\nUser: admin\nLogin attempts: 3 of 5\nToo many failed attempts — account locked\nScore: 85 Grade: B' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [
+    { text: 'Hello, JavaScript!', type: 'log' },
+    { text: 'Maya 29 true', type: 'log' },
+    { text: 'User: admin', type: 'log' },
+    { text: 'Login attempts: 3 of 5', type: 'warn' },
+    { text: 'Too many failed attempts — account locked', type: 'error' },
+    { text: 'Score: 85 Grade: B', type: 'result' },
+  ] }, title: 'if / else if / else output' });
+  E({ type: 'SPEAK', text: "Score 85, grade B — exactly right. Now let me show you combining conditions. Real programs check several things at once. You use double ampersand for and, double pipe for or, and exclamation for not." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'console.log("Score:", score, "Grade:", grade);' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: '// Combining conditions: && (and), || (or), ! (not)', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const hour = 14;', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'const isWeekday = true;', indent: '' });
+  E({ type: 'TYPE_LINE', text: '', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'if (hour >= 9 && hour < 17 && isWeekday) {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  console.log("Office is open");', indent: '' });
+  E({ type: 'TYPE_LINE', text: '} else {', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  console.log("Office is closed");', indent: '' });
+  E({ type: 'TYPE_LINE', text: '}', indent: '' });
+  E({ type: 'SPEAK', text: "Hour is 14, weekday is true. All three conditions must be true for the and chain: 14 greater than or equal to 9 — true, 14 less than 17 — true, isWeekday — true. So the office is open. Change any one of those and the else branch runs instead." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '&&', label: 'and — all must be true', duration: 2000 });
+  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
+  E({ type: 'SAVE' });
+  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
+  E({ type: 'CLICK' });
+  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
+  E({ type: 'TERM_RUN_INDICATOR' });
+  E({ type: 'TERM_OUTPUT', text: 'Office is open' });
+  E({ type: 'TERM_NEW_PROMPT' });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Office is open', type: 'success' }] }, title: 'combined conditions' });
+  E({ type: 'SPEAK', text: "Office is open. If/else if/else plus the three logical operators — and, or, not — cover almost every decision a program needs to make. Nest them too deeply and the code gets hard to read; keep them shallow and they are a joy." });
+
+  /* ======================================================================
+     CHAPTER 5 — OBJECTS  (8:00–10:20)
+     ====================================================================== */
+  const snapshot5 = snapshot4 + '\n// if / else if / else — grade calculator\nconst score = 85;\nlet grade;\n\nif (score >= 90) {\n  grade = "A";\n} else if (score >= 80) {\n  grade = "B";\n} else if (score >= 70) {\n  grade = "C";\n} else {\n  grade = "F";\n}\n\nconsole.log("Score:", score, "Grade:", grade);\n\n// Combining conditions: && (and), || (or), ! (not)\nconst hour = 14;\nconst isWeekday = true;\n\nif (hour >= 9 && hour < 17 && isWeekday) {\n  console.log("Office is open");\n} else {\n  console.log("Office is closed");\n}\n';
+  chapterStart(5, 'Objects', snapshot5);
+  E({ type: 'SPEAK', text: "Chapter five — objects. An object is how you group related values together under one name. It is a collection of key-value pairs wrapped in curly braces. Keys are strings, values can be anything — strings, numbers, booleans, even other objects or functions. Objects are the second most important data structure in JavaScript after arrays." });
+  E({ type: 'SHOW_CODE_CARD', title: 'Object basics', code: [
+    { caption: 'create an object literal', code: 'const person = {\n  name: "Maya",\n  age: 28\n};' },
+    { caption: 'read a value with dot notation', code: 'person.name   // "Maya"' },
+    { caption: 'change a value', code: 'person.age = 29;' },
+  ], text: 'Keys on the left, values on the right, colon between, commas separating pairs. Read and update values with dot notation.', duration: 3000 });
+  E({ type: 'SPEAK', text: "Let me build a person object with a few properties — name, age, a boolean, and even a method — a function that lives inside the object." });
+  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '  console.log("Office is closed");' });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
   E({ type: 'TYPE_LINE', text: '// Objects: key-value pairs', indent: '' });
   E({ type: 'TYPE_LINE', text: 'const person = {', indent: '' });
   E({ type: 'TYPE_LINE', text: '  name: "Maya",', indent: '' });
   E({ type: 'TYPE_LINE', text: '  age: 28,', indent: '' });
   E({ type: 'TYPE_LINE', text: '  city: "Oakland",', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  skills: ["Python", "JS"],', indent: '' });
+  E({ type: 'TYPE_LINE', text: '  isAdmin: false,', indent: '' });
   E({ type: 'TYPE_LINE', text: '  greet() {', indent: '' });
   E({ type: 'TYPE_LINE', text: "    return `Hi, I'm ${this.name}`;", indent: '    ' });
   E({ type: 'TYPE_LINE', text: '  }', indent: '' });
   E({ type: 'TYPE_LINE', text: '};', indent: '' });
+  E({ type: 'SPEAK', text: "Person has name, age, city, and isAdmin as plain values, plus a method called greet. Inside a method, the keyword this refers to the object itself, so this.name is Maya. Objects can hold any combination of data and behavior — that is the foundation of object-oriented JavaScript." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'name:', label: 'a key', duration: 1500 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'this.name', label: '"this" = the object itself', duration: 2000 });
+  E({ type: 'SPEAK', text: "Now let me read values, update one, and call the method." });
   E({ type: 'TYPE_LINE', text: '', indent: '' });
   E({ type: 'TYPE_LINE', text: 'console.log(person.name);', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'console.log(person.age);', indent: '' });
+  E({ type: 'TYPE_LINE', text: 'person.age = 29;', indent: '' });
   E({ type: 'TYPE_LINE', text: 'console.log(person.greet());', indent: '' });
-  E({ type: 'SPEAK', text: "So person is an object with name, age, city, skills — which is itself an array — and a method called greet. Inside a method, this refers to the object itself, so this.name is Maya. Objects can hold any combination of data and behavior. This is the foundation of object-oriented JavaScript." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'this.name', label: '"this" = the object itself', duration: 2000 });
+  E({ type: 'SPEAK', text: "Dot notation reads a value — person.name, person.age. It also writes one — person.age equals 29 updates the age in place. And person.greet with parentheses calls the method. The parentheses are what makes it a call instead of just reading the function itself." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'person.age = 29', label: 'update a value with dot notation', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'person.greet()', label: 'call the method', duration: 1800 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE' });
   E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
   E({ type: 'CLICK' });
   E({ type: 'TERM_TYPE', cmd: 'node index.js' });
   E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Maya\nHi, I\'m Maya' });
+  E({ type: 'TERM_OUTPUT', text: 'Maya\n28\nHi, I\'m Maya' });
   E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Maya', type: 'log' }, { text: "Hi, I'm Maya", type: 'log' }] }, title: 'Object output' });
-  E({ type: 'SPEAK', text: "Dot notation grabbed the name, and the greet method used this to build the greeting. Arrays and objects — together they model almost any real-world data. Most JavaScript programs are just shuffling data between the two." });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Maya', type: 'log' }, { text: '28', type: 'log' }, { text: "Hi, I'm Maya", type: 'result' }] }, title: 'object output' });
+  E({ type: 'SPEAK', text: "Maya, then 28 — the original age, before we updated it — then the greeting Hi, I'm Maya. Notice the order matters: console.log runs top to bottom, so the age printed as 28 because the update happened on the next line. Objects plus variables plus if/else plus console — that is genuinely enough to write small useful programs." });
 
   /* ======================================================================
-     CHAPTER 4 — DOM & ASYNC (PROMISES)  (5:00–7:00)
+     CHAPTER 6 — MINI PROJECT & RECAP  (10:20–11:40)
      ====================================================================== */
-  chapterStart(4, 'DOM & Async (Promises)', '');
-  E({ type: 'SPEAK', text: "Chapter four. Two big topics — the DOM and async. The DOM is how JavaScript talks to a web page. Async is how JavaScript handles operations that take time, like fetching data from a server. Both are essential for real web development." });
-  E({ type: 'SHOW_CARD', title: 'The DOM — Document Object Model', text: 'The DOM is a tree-like representation of an HTML page. JavaScript can find elements, change their text, add or remove them, and respond to clicks and keypresses. Every interactive website uses the DOM.', duration: 2400 });
-  E({ type: 'SPEAK', text: "Let me show you DOM manipulation. I'll write code that finds an element and changes it. This would run in a browser, so I'll show the HTML it would affect on the right." });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// DOM manipulation (runs in the browser)', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const button = document.querySelector("#myButton");', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const counter = document.querySelector("#counter");', indent: '' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'let count = 0;', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'button.addEventListener("click", () => {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  count++;', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  counter.textContent = count;', indent: '' });
-  E({ type: 'TYPE_LINE', text: '});', indent: '' });
-  E({ type: 'SPEAK', text: "So document.querySelector finds an element by its CSS selector — here, the element with id myButton. Then addEventListener attaches a function that runs when the button is clicked. Each click increments count and updates the counter's text. This is the pattern behind every interactive button on the web." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'querySelector', label: 'find an element by CSS selector', duration: 2000 });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'addEventListener', label: 'run a function on an event', duration: 2000 });
-  E({ type: 'RENDER_HTML', html: '<div style="text-align:center;"><div id="counter">0</div><button>Click me!</button><p style="color:#888;font-size:12px;margin-top:12px;">(Simulated — the button updates the counter above)</p></div>', title: 'DOM demo: counter app' });
-  E({ type: 'SPEAK', text: "On the right is what that code produces — a button and a counter. Click the button and the number goes up. That's the DOM in action: JavaScript found the elements, listened for a click, and changed the text. Every React, Vue, and vanilla JS app does this under the hood." });
-  E({ type: 'SPEAK', text: "Now async. JavaScript is single-threaded — it does one thing at a time. But fetching data from a server takes time, and we don't want to freeze the page while we wait. That's where Promises and async-await come in." });
-  E({ type: 'SHOW_CODE_CARD', title: 'Promises & async/await', code: [
-    { caption: 'A Promise represents a future value', code: 'fetch("/api/users")\n  .then(res => res.json())\n  .then(data => console.log(data))' },
-    { caption: 'async/await — cleaner syntax for the same thing', code: 'async function getUsers() {\n  const res = await fetch("/api/users");\n  const data = await res.json();\n  console.log(data);\n}' },
-  ], text: 'async/await is syntactic sugar over Promises. It makes async code read like synchronous code. The await keyword pauses the function until the Promise resolves.', duration: 3000 });
-  E({ type: 'SPEAK', text: "Let me write an async function that simulates fetching user data. I'll use setTimeout to fake a network delay so you can see how await works." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '});' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: '// Async/await with a simulated network request', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'function fakeFetch() {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  return new Promise((resolve) => {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '    setTimeout(() => {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '      resolve({ name: "Maya", role: "Admin" });', indent: '' });
-  E({ type: 'TYPE_LINE', text: '    }, 1000);', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  });', indent: '' });
-  E({ type: 'TYPE_LINE', text: '}', indent: '' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'async function getUser() {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  console.log("Fetching...");', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  const user = await fakeFetch();', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  console.log("Got user:", user);', indent: '' });
-  E({ type: 'TYPE_LINE', text: '}', indent: '' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'getUser();', indent: '' });
-  E({ type: 'SPEAK', text: "FakeFetch returns a Promise that resolves after one second with a user object. The async function getUser uses await to pause until that Promise resolves. The key insight: console.log Fetching runs immediately, but console.log Got user waits a full second. Await freezes the function, not the whole program." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'async function', label: 'marks a function as async', duration: 1800 });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'await ', label: 'pause until the Promise resolves', duration: 2000 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR', ms: 1500 });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...' });
-  E({ type: 'SLEEP', ms: 1200 });
-  E({ type: 'TERM_OUTPUT', text: 'Got user: { name: \'Maya\', role: \'Admin\' }' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Fetching...', type: 'info' }, { text: '(1 second pause — simulating network delay)', type: 'system' }, { text: "Got user: { name: 'Maya', role: 'Admin' }", type: 'result' }] }, title: 'async/await output' });
-  E({ type: 'SPEAK', text: "See that? Fetching printed immediately. Then a one-second pause — that's the await, the function is frozen. Then Got user printed with the resolved data. The rest of the program kept running during that pause. That's the magic of async — your code waits without blocking." });
-
-  /* ======================================================================
-     CHAPTER 5 — DEBUGGING: 3 DELIBERATE MISTAKES  (7:00–8:30)
-     ====================================================================== */
-  chapterStart(5, 'Debugging — 3 Mistakes', '');
-  E({ type: 'SPEAK', text: "Chapter five. Three JavaScript mistakes that trip up every beginner. I'll make each one on purpose so you recognize the error and know the fix." });
-  // ===== BUG #1: Using == instead of === (loose vs strict equality) =====
-  E({ type: 'SPEAK', text: "Bug number one. The double equals versus triple equals. Double equals does loose comparison with type coercion — it converts types before comparing, which leads to surprising results. Triple equals does strict comparison — no conversion, different types are never equal. Let me show you the trap." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: 'getUser();' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  // DELIBERATE BUG #1 — using == to compare string and number
-  E({ type: 'TYPE_LINE', text: '// BUG: loose equality (==) with type coercion', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const userInput = "5";', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'if (userInput == 5) {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  console.log("Match found!");', indent: '' });
-  E({ type: 'TYPE_LINE', text: '}', indent: '' });
-  E({ type: 'SPEAK', text: "User input is the string 5. We compare it with the number 5 using double equals. Intuitively, a string and a number aren't equal. But watch." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '== 5', label: 'loose equality — coerces types!', duration: 2000 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }\nMatch found!' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'SPEAK', text: "Match found! The string 5 and the number 5 were treated as equal because double equals coerced the string to a number before comparing. This is almost never what you want — it causes subtle, hard-to-find bugs. The fix: always use triple equals." });
-  E({ type: 'FIX_TOKEN', from: '== 5', to: '=== 5', highlightMs: 1500 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Fetching...', type: 'info' }, { text: "Got user: { name: 'Maya', role: 'Admin' }", type: 'result' }, { text: '(no "Match found" — string "5" !== number 5)', type: 'system' }] }, title: 'Fixed: strict equality (===)' });
-  E({ type: 'SPEAK', text: "Now it doesn't match, correctly. String 5 is not strictly equal to number 5. Rule: always use triple equals. Double equals is a footgun left over from the 90s." });
-
-  // ===== BUG #2: Accessing a property on undefined (TypeError) =====
-  E({ type: 'SPEAK', text: "Bug number two. Accessing a property on undefined. This is the most common crash in JavaScript apps. You expect an object, but you get undefined, and then you try to read a property off it. Boom — TypeError." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '}' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  // DELIBERATE BUG #2 — accessing .name on undefined
-  E({ type: 'TYPE_LINE', text: '// BUG: accessing a property on undefined', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const users = [{ name: "Maya" }, null, { name: "Leo" }];', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'users.forEach(u => {', indent: '' });
-  E({ type: 'TYPE_LINE', text: '  console.log(u.name);', indent: '' });
-  E({ type: 'TYPE_LINE', text: '});', indent: '' });
-  E({ type: 'SPEAK', text: "We have an array with two user objects and a null in the middle. We loop through and print each user's name. But null doesn't have a name property — null and undefined have no properties at all." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'u.name', label: 'crashes if u is null/undefined', duration: 2000 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }\nMaya' });
-  E({ type: 'TERM_ERROR', text: "/home/z/js-tutorial/index.js:42\n  console.log(u.name);\n                  ^\nTypeError: Cannot read properties of null (reading 'name')" });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'SPEAK', text: "TypeError: Cannot read properties of null, reading name. It printed Maya fine, then hit the null and exploded. This error is so common it has its own name — the undefined is not an object error. The fix: optional chaining. The question mark dot operator." });
-  E({ type: 'FIX_TOKEN', from: 'u.name', to: 'u?.name', highlightMs: 1800 });
-  E({ type: 'SPEAK', text: "Optional chaining — u question mark dot name. If u is null or undefined, the whole expression short-circuits to undefined instead of crashing. It's the safest way to access nested properties." });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }\nMaya\nundefined\nLeo' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Fetching...', type: 'info' }, { text: "Got user: { name: 'Maya', role: 'Admin' }", type: 'result' }, { text: 'Maya', type: 'log' }, { text: 'undefined', type: 'warn' }, { text: 'Leo', type: 'log' }] }, title: 'Fixed: optional chaining (?.)' });
-  E({ type: 'SPEAK', text: "Now it prints Maya, undefined for the null, and Leo. No crash. Optional chaining is one of the best additions to modern JavaScript — use it whenever you're not 100% sure a value exists." });
-
-  // ===== BUG #3: Off-by-one with array index / undefined element =====
-  E({ type: 'SPEAK', text: "Bug number three. The off-by-one error with array indexing. JavaScript arrays are zero-indexed — the first element is at index 0, the last is at length minus 1. Forget that and you get undefined, or worse, you silently create a hole in your array." });
-  E({ type: 'GOTO_END_OF_LINE_CONTAINING', substring: '});' });
-  E({ type: 'TYPE_LINE', text: '', indent: '' });
-  // DELIBERATE BUG #3 — accessing index 3 on a 3-element array
-  E({ type: 'TYPE_LINE', text: '// BUG: off-by-one array access', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'const fruits = ["apple", "banana", "cherry"];', indent: '' });
-  E({ type: 'TYPE_LINE', text: 'console.log(fruits[3]);', indent: '' });
-  E({ type: 'SPEAK', text: "Three fruits — apple, banana, cherry. Indices 0, 1, and 2. But I'm asking for index 3, which doesn't exist. In many languages this crashes. In JavaScript, it silently returns undefined. That's arguably worse — the bug hides." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'fruits[3]', label: 'index 3 doesnt exist (only 0,1,2)', duration: 2000 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }\nMaya\nundefined\nLeo\nundefined' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'SPEAK', text: "Two undefineds — one from our optional chaining fix, one from fruits bracket 3. No error, just undefined. JavaScript didn't complain at all. The fix: use the correct index, which is length minus 1 for the last element, or better, use the at method which supports negative indices." });
-  E({ type: 'FIX_TOKEN', from: 'fruits[3]', to: 'fruits[fruits.length - 1]', highlightMs: 1800 });
-  E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
-  E({ type: 'SAVE' });
-  E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
-  E({ type: 'CLICK' });
-  E({ type: 'TERM_TYPE', cmd: 'node index.js' });
-  E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Fetching...\nGot user: { name: \'Maya\', role: \'Admin\' }\nMaya\nundefined\nLeo\ncherry' });
-  E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Fetching...', type: 'info' }, { text: "Got user: { name: 'Maya', role: 'Admin' }", type: 'result' }, { text: 'Maya', type: 'log' }, { text: 'undefined', type: 'warn' }, { text: 'Leo', type: 'log' }, { text: 'cherry', type: 'result' }] }, title: 'Fixed: correct last index' });
-  E({ type: 'SPEAK', text: "Now we get cherry — the last element. fruits.length is 3, minus 1 is index 2, which is cherry. The lesson: always remember arrays start at 0, and the last valid index is length minus 1. JavaScript won't warn you when you go out of bounds." });
-  E({ type: 'SPEAK', text: "Three bugs, three fixes. Loose equals versus strict equals, accessing properties on undefined, and off-by-one array indexing. Get those three straight and you'll avoid the majority of JavaScript runtime errors." });
-
-  /* ======================================================================
-     CHAPTER 6 — FINAL PROJECT & WALKTHROUGH  (8:30–10:00)
-     ====================================================================== */
-  chapterStart(6, 'Final Project & Walkthrough', '');
-  E({ type: 'SPEAK', text: "Final chapter. Let's put it all together. We'll build a small task manager — a program that creates tasks, filters the incomplete ones, and prints a summary. It uses everything: variables, arrow functions, arrays with map and filter, objects, and template literals." });
+  chapterStart(6, 'Mini Project & Recap', '');
+  E({ type: 'SPEAK', text: "Final chapter. Let me put it all together with a tiny project — a program that checks whether a person is allowed to drive. It uses variables, console methods, if/else, and an object. Everything from today, in one short file." });
   E({ type: 'TYPE_FINAL_PROJECT' });
-  E({ type: 'SPEAK', text: "Let me walk you through this. At the top we have a tasks array of objects — each task has an id, title, done flag, and priority. Then addTask is an arrow function that creates a new task object and pushes it onto the array. getPending uses filter to return only tasks where done is false. And printSummary uses forEach to print each pending task with its index and priority, plus a total count." });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.filter(', label: 'keep only incomplete tasks', duration: 2000 });
-  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: '.forEach(', label: 'loop and print each', duration: 2000 });
+  E({ type: 'SPEAK', text: "Walkthrough. At the top we make a person object with name and age. Then we read person.age into a variable. The if/else checks age greater than or equal to 16 — if true we console.log that they can drive, otherwise we console.warn that they are too young. Same building blocks, just combined into something with real meaning." });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'person.age', label: 'read a value from the object', duration: 2000 });
+  E({ type: 'CIRCLE_TOKEN_CONTAINING', token: 'if (', label: 'make a decision', duration: 1800 });
   E({ type: 'MOVE_CURSOR', target: '.editor-scroll' });
   E({ type: 'SAVE' });
 
-  // ===== LIKE & SUBSCRIBE CTA =====
-  E({ type: 'SPEAK', text: "Quick break! If JavaScript is clicking for you, hit that like button and subscribe. It really does help the channel reach more people learning to code. Back to the project in a second." });
+  E({ type: 'SPEAK', text: "Quick break — if this is clicking for you, hit that like button and subscribe. It really does help the channel reach more people learning to code. Back to the demo in a second." });
   E({ type: 'SHOW_SUBSCRIBE' });
 
-  E({ type: 'SPEAK', text: "Let's run our task manager and see the output." });
+  E({ type: 'SPEAK', text: "Let me run it and see the output." });
   E({ type: 'MOVE_CURSOR', target: '.terminal-panel' });
   E({ type: 'CLICK' });
   E({ type: 'TERM_CLEAR' });
   E({ type: 'TERM_TYPE', cmd: 'node index.js' });
   E({ type: 'TERM_RUN_INDICATOR' });
-  E({ type: 'TERM_OUTPUT', text: 'Pending tasks (3 of 4):\n1. [HIGH] Write the README\n2. [LOW] Refactor the parser\n3. [MED] Fix the login bug' });
+  E({ type: 'TERM_OUTPUT', text: 'Maya is 22 years old.\nMaya can drive!' });
   E({ type: 'TERM_NEW_PROMPT' });
-  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Pending tasks (3 of 4):', type: 'info' }, { text: '1. [HIGH] Write the README', type: 'log' }, { text: '2. [LOW] Refactor the parser', type: 'log' }, { text: '3. [MED] Fix the login bug', type: 'log' }] }, title: 'Task Manager output' });
-  E({ type: 'SPEAK', text: "There it is. Three pending tasks out of four, each with its priority, neatly numbered. The completed task — deploy to production — is filtered out automatically by the filter method. That's a real, useful JavaScript program in about thirty lines." });
+  E({ type: 'RENDER_OUTPUT', result: { lines: [{ text: 'Maya is 22 years old.', type: 'log' }, { text: 'Maya can drive!', type: 'success' }] }, title: 'driver check output' });
+  E({ type: 'SPEAK', text: "Maya is 22, so the if branch runs and we log that she can drive. If I changed the age to 12 in the object, the else branch would run and console.warn would fire instead. Same code, different behavior based on the data — that is the whole power of conditionals." });
 
-  // Final walkthrough
-  E({ type: 'SPEAK', text: "Let's recap the whole journey. We started with console.log. We learned variables — const and let — and functions, both regular and arrow. We covered arrays and their three power methods — map, filter, reduce — and objects with their key-value pairs and methods." });
+  E({ type: 'SPEAK', text: "Quick recap. We started with console.log, the way to print output. We learned variables — const for things that do not change, let for things that do. We met the rest of the console family — warn and error — and saw how severity levels help you read your output. We added decisions with if, else if, and else, plus the and, or, and not operators for combining conditions. And we grouped related data into objects with key-value pairs and methods." });
   E({ type: 'MOVE_CURSOR', target: '.preview-area' });
   E({ type: 'SLEEP', ms: 1500 });
-  E({ type: 'SPEAK', text: "Then the DOM — finding elements, responding to clicks, updating text. And async — Promises and async-await for handling operations that take time. We hit three bugs: loose versus strict equality, accessing properties on undefined, and off-by-one array indexing. We fixed all three with triple equals, optional chaining, and correct indexing." });
-  E({ type: 'SPEAK', text: "The mindset with JavaScript: it's flexible, sometimes too flexible. That flexibility is powerful once you understand it, but it lets bugs hide. Use strict equality, use optional chaining, and always check your array bounds. Do those three things and you'll write robust JavaScript." });
-  E({ type: 'SPEAK', text: "That's it for today. If you followed along, you now know enough JavaScript to build real things — interactive pages, simple servers, whatever you dream up. Go build something, break it, fix it. That's how you learn. Thanks for watching, and I'll see you in the next one." });
+  E({ type: 'SPEAK', text: "That is honestly most of everyday JavaScript. Once these basics are second nature, everything else you learn later — functions, arrays, the DOM — builds right on top of them. So play with the code, change the values, break it, fix it. That is how it sticks." });
+  E({ type: 'SPEAK', text: "That is it for today. Thanks for watching, and I will see you in the next one." });
   E({ type: 'FINISH' });
 
   return { events, chapterBoundaries, snapshots };
 }
 
+
 /* The final project code — typed out for the last chapter. */
-const FINAL_PROJECT_CODE = `// Task Manager — a tiny JavaScript project
-// Demonstrates: variables, arrow functions, arrays (filter/forEach), objects, template literals
+/* The final project code — typed out for the last chapter. */
+const FINAL_PROJECT_CODE = `// Can this person drive? — a tiny project
+// Uses: variables, console.log/warn, if/else, an object
 
-const tasks = [
-  { id: 1, title: "Write the README", done: false, priority: "HIGH" },
-  { id: 2, title: "Deploy to production", done: true, priority: "MED" },
-  { id: 3, title: "Refactor the parser", done: false, priority: "LOW" },
-  { id: 4, title: "Fix the login bug", done: false, priority: "MED" },
-];
-
-// Add a new task
-const addTask = (title, priority) => {
-  const id = tasks.length + 1;
-  tasks.push({ id, title, done: false, priority });
+const person = {
+  name: "Maya",
+  age: 22
 };
 
-// Get only the incomplete tasks
-const getPending = () => tasks.filter(t => !t.done);
+const age = person.age;
 
-// Print a summary
-const printSummary = () => {
-  const pending = getPending();
-  console.log(\`Pending tasks (\${pending.length} of \${tasks.length}):\`);
-  pending.forEach((task, i) => {
-    console.log(\`\${i + 1}. [\${task.priority}] \${task.title}\`);
-  });
-};
+console.log(person.name + " is " + age + " years old.");
 
-printSummary();
+if (age >= 16) {
+  console.log(person.name + " can drive!");
+} else {
+  console.warn(person.name + " is too young to drive.");
+}
 `;
+
 
 /* Custom event TYPE_FINAL_PROJECT: replace editor content with the final program. */
 const _origExecuteJs = TimelineEngine.prototype._executeEvent;
